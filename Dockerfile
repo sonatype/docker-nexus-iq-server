@@ -1,4 +1,4 @@
-# Copyright (c) 2016-present Sonatype, Inc.
+# Copyright (c) 2017-present Sonatype, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ MAINTAINER Sonatype <cloud-ops@sonatype.com>
 
 LABEL vendor=Sonatype \
   com.sonatype.license="Apache License, Version 2.0" \
-  com.sonatype.name="Nexus IQ base image"
+  com.sonatype.name="Nexus IQ Server image"
 
 # Optional parameters. Uncomment to override default:
 # ENV iqVersion=""
