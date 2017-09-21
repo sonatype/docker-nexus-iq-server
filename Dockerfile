@@ -20,29 +20,21 @@ LABEL vendor=Sonatype \
   com.sonatype.license="Apache License, Version 2.0" \
   com.sonatype.name="Nexus IQ base image"
 
-# Optional parameters. Assign empty string to use default.
-ENV iqVersion=""
-ENV iqSha256=""
-ENV javaUrl=""
-ENV javaSha256=""
+# Optional parameters. Uncomment to override default:
+# ENV iqVersion=""
+# ENV iqSha256=""
+# ENV javaUrl=""
+# ENV javaSha256=""
 
-# Mandatory paramters. Docker needs to know volume mountpoint and location of startup script.
+# Mandatory parameters. Docker needs to know volume mount point and location of startup script.
 ENV sonatypeWork="/sonatype-work"
 ENV installDir="/opt/sonatype/nexus-iq-server/"
 
-# Create chef configuration file solo.json
-RUN mkdir -p /var/chef/ && \
-    echo "{ \"run_list\": [\"recipe[nexus-iq-server::docker]\"], " > /var/chef/solo.json && \
-    echo "\"java\": { \"jdk_version\": 8, \"install_flavor\": \"oracle\", \"oracle\": { \"accept_oracle_download_terms\": true }" >> /var/chef/solo.json && \
-    if [ "x${javaUrl}" != "x" ] ; then echo ", \"jdk\": { \"8\": { \"x86_64\": { \"url\": \"${javaUrl}\", \"checksum\": \"${javaSha256}\" } } }" >> /var/chef/solo.json ; fi && \
-    echo "}" >>/var/chef/solo.json && \
-    echo ",\"nexus-iq-server\": {" >> /var/chef/solo.json && \
-    if [ "x${iqVersion}" != "x" ] ; then echo "\"version\": \"${iqVersion}\", \"checksum\": \"${iqSha256}\"," >> /var/chef/solo.json ; fi && \
-    if [ "x${installDir}" != "x" ] ; then echo "\"install_dir\": \"${installDir}\"," >> /var/chef/solo.json ; fi && \
-    echo "\"config\": { \"sonatypeWork\": \"${sonatypeWork}\" } } }" >> /var/chef/solo.json && \
+ADD solo.json.erb /var/chef/solo.json.erb
 
 # Install using chef-solo
-    curl -L https://www.getchef.com/chef/install.sh | bash && \
+RUN curl -L https://www.getchef.com/chef/install.sh | bash && \
+    /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json && \
     chef-solo --recipe-url https://s3.amazonaws.com/int-public/nexus-iq-server-cookbook.tar.gz --json-attributes /var/chef/solo.json
 
 VOLUME ${sonatypeWork}

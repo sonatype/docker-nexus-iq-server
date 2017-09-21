@@ -1,0 +1,33 @@
+<%=
+require 'json'
+
+raise RuntimeError, 'environment variable sonatypeWork is required' if ENV['sonatypeWork'].nil? || ENV['sonatypeWork'].empty?
+raise RuntimeError, 'environment variable installDir is required' if ENV['installDir'].nil? || ENV['installDir'].empty?
+
+{
+  :run_list => [ 'recipe[nexus-iq-server::docker]' ],
+  :java => {
+    :jdk_version => 8,
+    :install_flavor => 'oracle',
+    :oracle => {
+      :accept_oracle_download_terms => true
+    },
+    :jdk => {
+      '8' => {
+        :x86_64 => {
+          :url => ENV['javaUrl'],
+          :checksum => ENV['javaSha256']
+        }.compact
+      }
+    }
+  },
+  'nexus-iq-server' => {
+    :version => ENV['iqVersion'],
+    :checksun => ENV['iqSha256'],
+    :install_dir => ENV['installDir'],
+    :config => {
+      :sonatypeWork => ENV['sonatypeWork'],
+    }
+  }.compact
+}.to_json
+%>
