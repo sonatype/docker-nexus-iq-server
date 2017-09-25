@@ -23,6 +23,14 @@ To get the assigned port or check if the server is running use:
 
     docker build --build-arg IQ_SERVER_VERSION=1.36.0-01 .
 
+##### Testing the Dockerfile
+
+We are using `rspec` as test framework. `serverspec` provides a docker backend (see the method `set` in the test code)
+ to run the tests inside the docker container, and abstracts away the difference between distributions in the tests
+ (e.g. yum, apt,...).
+
+
+    rspec [--backtrace] spec/Dockerfile_spec.rb
 
 #### License
 
