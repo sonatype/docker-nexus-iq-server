@@ -14,14 +14,14 @@ To get the assigned port or check if the server is running use:
 
 ##### To build the Nexus IQ Server the following optional variables can be used:
 
-- iqVersion: Version of Nexus IQ Server
-- iqSha256: Check hash matches the downloaded IQ Server archive or else fail build. Required if iqVersion is provided.
-- javaUrl: Download URL for Oracle JDK
-- javaSha256: Check hash matches the downloaded JDK or else fail build. Required if javaUrl is provided.
-- sonatypeWork: Path to Nexus IQ Server working directory where variable data is stored
+- IQ_SERVER_VERSION: Version of Nexus IQ Server
+- IQ_SERVER_SHA256: Check hash matches the downloaded IQ Server archive or else fail build. Required if `IQ_SERVER_VERSION` is provided.
+- JAVA_URL: Download URL for Oracle JDK
+- JAVA_SHA256: Check hash matches the downloaded JDK or else fail build. Required if `JAVA_URL` is provided.
+- SONATYPE_WORK: Path to Nexus IQ Server working directory where variable data is stored
 
 
-    docker build --build-arg iqVersion=1.36.0-01 .
+    docker build --build-arg IQ_SERVER_VERSION=1.36.0-01 .
 
 
 #### License
