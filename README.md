@@ -23,3 +23,7 @@ To get the assigned port or check if the server is running use:
 
     docker build --build-arg iqVersion=1.36.0-01 .
 
+
+#### License
+
+The cookbooks are licensed under the [Apache v2 license](LICENSE)
