@@ -25,13 +25,12 @@ describe 'Dockerfile' do
     set :docker_image, @image.id
   end
 
-  it 'should generate a valid solo.json file' do
-    solo = JSON.parse(File.read('/var/chef/solo.json'))
-    expect(solo['run_list']).to eq([ 'recipe[nexus-iq-server::docker]' ])
+  it 'should remove solo.json during cleanup' do
+    expect(File).not_to exist('/var/chef/solo.json')
   end
 
   it 'should not have a chef package installed' do
-    expect(package("chef")).not_to be_installed
+    expect(package('chef')).not_to be_installed
   end
 
   it 'should have a user named nexus' do
