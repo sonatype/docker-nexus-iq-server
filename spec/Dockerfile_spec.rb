@@ -26,7 +26,7 @@ describe 'Dockerfile' do
   end
 
   it 'should remove solo.json during cleanup' do
-    expect(File).not_to exist('/var/chef/solo.json')
+    expect(file('/var/chef/solo.json')).not_to exist
   end
 
   it 'should not have a chef package installed' do

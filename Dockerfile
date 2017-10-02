@@ -34,15 +34,17 @@ ENV IQ_SERVER_COOKBOOK_VERSION="release-0.2.0-01"
 ADD solo.json.erb /var/chef/solo.json.erb
 
 # Install using chef-solo
-RUN curl -L https://www.getchef.com/chef/install.sh | bash && \
-    /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json && \
-    chef-solo --recipe-url https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz --json-attributes /var/chef/solo.json && \
-    rpm -qa *chef* | xargs rpm -e && \
-    rpm --rebuilddb && \
-    rm -rf /etc/chef && \
-    rm -rf /opt/chefdk && \
-    rm -rf /var/cache/yum && \
-    rm -rf /var/chef
+RUN curl -L https://www.getchef.com/chef/install.sh | bash \
+    && /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json \
+    && chef-solo \
+       --recipe-url https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz \
+       --json-attributes /var/chef/solo.json \
+    && rpm -qa *chef* | xargs rpm -e \
+    && rpm --rebuilddb \
+    && rm -rf /etc/chef \
+    && rm -rf /opt/chefdk \
+    && rm -rf /var/cache/yum \
+    && rm -rf /var/chef
 
 VOLUME ${SONATYPE_WORK}
 
