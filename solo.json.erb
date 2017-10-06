@@ -20,7 +20,7 @@ raise RuntimeError, 'environment variable SONATYPE_WORK is required' if ENV['SON
 raise RuntimeError, 'environment variable IQ_HOME is required' if ENV['IQ_HOME'].nil? || ENV['IQ_HOME'].empty?
 
 {
-  :run_list => [ 'recipe[nexus-iq-server::docker]' ],
+  :run_list => [ 'recipe[nexus_iq_server::docker]' ],
   :java => {
     :jdk_version => 8,
     :install_flavor => 'oracle',
@@ -36,7 +36,7 @@ raise RuntimeError, 'environment variable IQ_HOME is required' if ENV['IQ_HOME']
       }
     }
   },
-  'nexus-iq-server' => {
+  'nexus_iq_server' => {
     :version => ENV['IQ_SERVER_VERSION'],
     :checksum => ENV['IQ_SERVER_SHA256'],
     :install_dir => ENV['IQ_HOME'],

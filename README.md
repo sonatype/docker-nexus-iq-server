@@ -10,7 +10,7 @@ or to let docker assign available ports use:
 
 To get the assigned port or check if the server is running use:
 
-    docker ps nexus-iq-server
+    docker ps --filter "name=nexus-iq-server"
 
 ##### To build the Nexus IQ Server the following optional variables can be used:
 
