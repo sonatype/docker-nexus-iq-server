@@ -29,6 +29,7 @@ node('ubuntu-zion') {
       buildType = scm.branches[0].name != '*/master' ? 'snapshot' : 'release'
 
       version = readVersion()
+      echo "Building version: ${version}"
 
       def apiToken
       withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
