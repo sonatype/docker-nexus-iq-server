@@ -85,7 +85,7 @@ node('ubuntu-zion') {
 def readVersion() {
   def content = readFile 'Dockerfile'
   for (line in content.split('\n')) {
-    if (line.startsWith('ARG NEXUS_VERSION=')) {
+    if (line.startsWith('ENV IQ_SERVER_COOKBOOK_VERSION="release-')) {
       return line.substring(18).split('-')[0]
     }
   }
