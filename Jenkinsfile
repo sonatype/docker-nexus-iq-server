@@ -85,8 +85,9 @@ node('ubuntu-zion') {
 def readVersion() {
   def content = readFile 'Dockerfile'
   for (line in content.split('\n')) {
-    if (line.startsWith('ENV IQ_SERVER_COOKBOOK_VERSION="release-')) {
-      return line.substring(18).split('-')[0]
+    if (line.startsWith('# ENV IQ_SERVER_VERSION=')) {
+      //return line.substring(18).split('-')[0]
+      return '1.36.0-01'
     }
   }
   error 'Could not determine version.'
