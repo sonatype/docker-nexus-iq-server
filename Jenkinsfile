@@ -19,6 +19,7 @@ node('ubuntu-zion') {
   try {
     stage('Preparation') {
       deleteDir()
+      OsTools.runSafe(this, "docker system prune -a -f")
 
       checkout scm
 
@@ -26,7 +27,6 @@ node('ubuntu-zion') {
       commitDate = OsTools.runSafe(this, "git show -s --format=%cd --date=format:%Y%m%d-%H%M%S ${commitId}")
 
       version = readVersion()
-      echo "Building version: ${version}"
 
       def apiToken
       withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
@@ -38,9 +38,20 @@ node('ubuntu-zion') {
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
 
+      docker.build(imageName)
+
+      if (currentBuild.result == 'FAILURE') {
+        gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
+        return
+      } else {
+        gitHub.statusUpdate commitId, 'success', 'build', 'Build succeeded'
+      }
+    }
+    stage('Test') {
+      gitHub.statusUpdate commitId, 'pending', 'test', 'Tests are running'
+
       def gemInstallDirectory = getGemInstallDirectory()
       withEnv(["PATH+GEMS=${gemInstallDirectory}/bin"]) {
-        OsTools.runSafe(this, "docker system prune -a -f")
         OsTools.runSafe(this, "gem install --user-install rspec")
         OsTools.runSafe(this, "gem install --user-install serverspec")
         OsTools.runSafe(this, "gem install --user-install docker-api")
@@ -48,10 +59,10 @@ node('ubuntu-zion') {
       }
 
       if (currentBuild.result == 'FAILURE') {
-        gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
+        gitHub.statusUpdate commitId, 'failure', 'test', 'Tests failed'
         return
       } else {
-        gitHub.statusUpdate commitId, 'success', 'build', 'Build succeeded'
+        gitHub.statusUpdate commitId, 'success', 'test', 'Tests succeeded'
       }
     }
     if (currentBuild.result == 'FAILURE') {
