@@ -18,7 +18,8 @@ require 'docker'
 describe 'Dockerfile' do
   before(:all) do
     Docker.options[:read_timeout] = 900
-    @image = Docker::Image.get(ENV['IMAGE_ID'])
+    @image = Docker::Image.build_from_dir('.')
+    @image.tag('repo' => 'sonatype/nexus-iq-server', 'force' => true)
 
     set :os, family: :redhat
     set :backend, :docker
