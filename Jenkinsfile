@@ -47,24 +47,6 @@ node('ubuntu-zion') {
         gitHub.statusUpdate commitId, 'success', 'build', 'Build succeeded'
       }
     }
-    stage('Test') {
-      gitHub.statusUpdate commitId, 'pending', 'test', 'Tests are running'
-
-      def gemInstallDirectory = getGemInstallDirectory()
-      withEnv(["PATH+GEMS=${gemInstallDirectory}/bin"]) {
-        OsTools.runSafe(this, "gem install --user-install rspec")
-        OsTools.runSafe(this, "gem install --user-install serverspec")
-        OsTools.runSafe(this, "gem install --user-install docker-api")
-        OsTools.runSafe(this, "IMAGE_ID=${image.id} rspec --backtrace spec/Dockerfile_spec.rb")
-      }
-
-      if (currentBuild.result == 'FAILURE') {
-        gitHub.statusUpdate commitId, 'failure', 'test', 'Tests failed'
-        return
-      } else {
-        gitHub.statusUpdate commitId, 'success', 'test', 'Tests succeeded'
-      }
-    }
     if (currentBuild.result == 'FAILURE') {
       return
     }
