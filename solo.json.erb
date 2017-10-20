@@ -36,7 +36,7 @@ raise RuntimeError, 'environment variable IQ_HOME is required' if ENV['IQ_HOME']
       }
     }
   },
-  'nexus_iq_server' => {
+  :nexus_iq_server => {
     :version => ENV['IQ_SERVER_VERSION'],
     :checksum => ENV['IQ_SERVER_SHA256'],
     :install_dir => ENV['IQ_HOME'],
