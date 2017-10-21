@@ -55,7 +55,7 @@ for additional information.
   to be assigned to certain specific underlying storage.  
 
   ```
-  $ mkdir /some/dir/nexus-data && chown -R 200 /some/dir/nexus-data
+  $ mkdir /some/dir/sonatype-work && chown -R 200 /some/dir/sonatype-work
   $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus -v /some/dir/sonatype-work:/sonatype-work sonatype/nexus-iq-server
   ```
 
