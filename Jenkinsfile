@@ -76,6 +76,9 @@ node('ubuntu-zion') {
         archiveArtifacts artifacts: "${archiveName}.tar.gz", onlyIfSuccessful: true
       }
     }
+    if (scm.branches[0].name != '*/master') {
+      return
+    }
     input 'Push image and tags?'
     stage('Push image') {
       def dockerHubApiToken
