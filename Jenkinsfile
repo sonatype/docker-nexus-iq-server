@@ -78,7 +78,7 @@ node('ubuntu-zion') {
     }
     input 'Push image and tags?'
     stage('Push image') {
-      def dockerhubApiToken
+      def dockerHubApiToken
       withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
           usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
         OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
@@ -94,13 +94,13 @@ node('ubuntu-zion') {
             -d '{ "username": "${env.DOCKERHUB_API_USERNAME}", "password": "${env.DOCKERHUB_API_PASSWORD}" }'
         """)
         token = readJSON text: response
-        dockerhubApiToken = token.token
+        dockerHubApiToken = token.token
 
         def readme = readFile file: 'README.md', encoding: 'UTF-8'
         readme = readme.replaceAll("(?s)<!--.*?-->", "")
         readme = readme.replace("\"", "\\\"")
         readme = readme.replace("\n", "\\n")
-        response = httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerhubApiToken}"]],
+        response = httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerHubApiToken}"]],
             acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH',
             requestBody: "{ \"full_description\": \"${readme}\" }",
             url: "https://hub.docker.com/v2/repositories/${organization}/${dockerHubRepository}/"
