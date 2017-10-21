@@ -10,10 +10,11 @@ import com.sonatype.jenkins.pipeline.OsTools
 node('ubuntu-zion') {
   def commitId, commitDate, version, imageId
   def organization = 'sonatype',
-      repository = 'docker-nexus-iq-server',
+      gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'integrations-github-api',
       imageName = 'sonatype/nexus-iq-server',
-      archiveName = 'sonatype-nexus-iq-server'
+      archiveName = 'docker-nexus-iq-server',
+      dockerHubRepository = 'nexus-iq-server'
   GitHub gitHub
 
   try {
@@ -33,7 +34,7 @@ node('ubuntu-zion') {
                         usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
         apiToken = env.GITHUB_API_PASSWORD
       }
-      gitHub = new GitHub(this, "${organization}/${repository}", apiToken)
+      gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
     }
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
@@ -83,12 +84,12 @@ node('ubuntu-zion') {
       def dockerhubApiToken
       withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
           usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
-        OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${repository}:${version}")
-        OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${repository}:latest")
+        OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
+        OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
         OsTools.runSafe(this, """
           docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
         """)
-        OsTools.runSafe(this, "docker push ${organization}/${repository}")
+        OsTools.runSafe(this, "docker push ${organization}/${dockerHubRepository}")
 
         response = OsTools.runSafe(this, """
           curl -X POST https://hub.docker.com/v2/users/login/ \
@@ -105,7 +106,7 @@ node('ubuntu-zion') {
         response = httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerhubApiToken}"]],
             acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH',
             requestBody: "{ \"full_description\": \"${readme}\" }",
-            url: "https://hub.docker.com/v2/repositories/${organization}/${repository}/"
+            url: "https://hub.docker.com/v2/repositories/${organization}/${dockerHubRepository}/"
       }
     }
     stage('Push tags') {
@@ -114,7 +115,7 @@ node('ubuntu-zion') {
         OsTools.runSafe(this, "git tag ${version}")
         OsTools.runSafe(this, """
           git push \
-          https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${repository}.git \
+          https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git \
             ${version}
         """)
       }
