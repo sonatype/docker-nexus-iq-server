@@ -21,15 +21,17 @@ LABEL vendor=Sonatype \
   com.sonatype.name="Nexus IQ Server image"
 
 # Optional parameters. Uncomment to override default:
-# ENV IQ_SERVER_VERSION=""
-# ENV IQ_SERVER_SHA256=""
+ENV IQ_SERVER_VERSION=1.36.0-01
+ENV IQ_SERVER_SHA256=a1a5d127e2deaf2b26ed4e605802986b99ea317c8a821059c918783517728d6c
 # ENV JAVA_URL=""
 # ENV JAVA_SHA256=""
 
 # Mandatory parameters. Docker needs to know volume mount point and location of startup script.
-ENV SONATYPE_WORK="/sonatype-work"
-ENV IQ_HOME="/opt/sonatype/nexus-iq-server/"
-ENV IQ_SERVER_COOKBOOK_VERSION="release-0.2.0-01"
+ENV SONATYPE_WORK="/sonatype-work" \
+    IQ_HOME="/opt/sonatype/nexus-iq-server/"
+
+ARG IQ_SERVER_COOKBOOK_VERSION="release-0.2.0-01"
+ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
 
 ADD solo.json.erb /var/chef/solo.json.erb
 
@@ -37,7 +39,7 @@ ADD solo.json.erb /var/chef/solo.json.erb
 RUN curl -L https://www.getchef.com/chef/install.sh | bash \
     && /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json \
     && chef-solo \
-       --recipe-url https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz \
+       --recipe-url ${IQ_SERVER_COOKBOOK_URL} \
        --json-attributes /var/chef/solo.json \
     && rpm -qa *chef* | xargs rpm -e \
     && rpm --rebuilddb \

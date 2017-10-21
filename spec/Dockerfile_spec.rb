@@ -18,7 +18,7 @@ require 'docker'
 describe 'Dockerfile' do
   before(:all) do
     Docker.options[:read_timeout] = 900
-    @image = Docker::Image.build_from_dir('.')
+    @image = Docker::Image.get(ENV['IMAGE_ID'])
 
     set :os, family: :redhat
     set :backend, :docker

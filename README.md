@@ -33,7 +33,7 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
  (e.g. yum, apt,...).
 
     rspec [--backtrace] spec/Dockerfile_spec.rb
-    
+
 ##### Persistent Data
 
 There are two general approaches to handling persistent storage requirements
