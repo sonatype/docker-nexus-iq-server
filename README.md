@@ -45,8 +45,8 @@ for additional information.
   this purpose.  This is the recommended approach.  
 
   ```
-  $ docker volume create --name nexus-data
-  $ docker run -d -p 8081:8081 --name nexus -v nexus-data:/nexus-data sonatype/nexus3
+  $ docker volume create --name sonatype-work
+  $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus -v sonatype-work:/sonatype-work sonatype/nexus-iq-server
   ```
 
   2. *Mount a host directory as the volume*.  This is not portable, as it
@@ -55,8 +55,8 @@ for additional information.
   to be assigned to certain specific underlying storage.  
 
   ```
-  $ mkdir /some/dir/nexus-data && chown -R 200 /some/dir/nexus-data
-  $ docker run -d -p 8081:8081 --name nexus -v /some/dir/nexus-data:/nexus-data sonatype/nexus3
+  $ mkdir /some/dir/sonatype-work && chown -R 200 /some/dir/sonatype-work
+  $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus -v /some/dir/sonatype-work:/sonatype-work sonatype/nexus-iq-server
   ```
 
 #### License
