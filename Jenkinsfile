@@ -130,7 +130,7 @@ node('ubuntu-zion') {
 def readVersion() {
   def content = readFile 'Dockerfile'
   for (line in content.split('\n')) {
-    if (line.startsWith('ENV IQ_SERVER_VERSION=')) {
+    if (line.startsWith('ARG IQ_SERVER_VERSION=')) {
       return line.substring(22).split('-')[0]
     }
   }
