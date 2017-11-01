@@ -54,6 +54,11 @@ The following optional variables can be used when building the image:
 - JAVA_SHA256: Check hash matches the downloaded JDK or else fail build. Required if `JAVA_URL` is provided.
 - SONATYPE_WORK: Path to Nexus IQ Server working directory where variable data is stored
 
+## Chef Solo for Runtime and Application
+
+Chef Solo is used to build out the runtime and application layers of the Docker image. The Chef cookbook being used is available
+on GitHub at [sonatype/chef-nexus-iq-server](https://github.com/sonatype/chef-nexus-iq-server).
+
 ## Testing the Dockerfile
 
 We are using `rspec` as test framework. `serverspec` provides a docker backend (see the method `set` in the test code)
