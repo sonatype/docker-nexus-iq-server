@@ -1,4 +1,32 @@
-#### Nexus IQ Server
+<!--
+
+  Copyright (c) 2017-present Sonatype, Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+-->
+
+# Sonatype Nexus IQ Server Docker: sonatype/nexus-iq-server
+
+A Dockerfile for Sonatype Nexus IQ Server, base on CentOS.
+
+* [Running](#running)
+* [Building the Nexus IQ Server image](#building-the-nexus-iq-server-image)
+* [Testing the Dockerfile](#testing-the-dockerfile)
+* [Persistent Data](#persistent-data)
+* [License](#license)
+
+## Running
 
 To run with ports 8070 (web UI) and 8071 (admin port) use:
 
@@ -12,7 +40,7 @@ To get the assigned port or check if the server is running use:
 
     docker ps --filter "name=nexus-iq-server"
 
-##### Build the Nexus IQ Server image
+## Building the Nexus IQ Server image
 
 To build a docker image from the Dockerfile you can use this command:
 
@@ -26,7 +54,7 @@ The following optional variables can be used when building the image:
 - JAVA_SHA256: Check hash matches the downloaded JDK or else fail build. Required if `JAVA_URL` is provided.
 - SONATYPE_WORK: Path to Nexus IQ Server working directory where variable data is stored
 
-##### Testing the Dockerfile
+## Testing the Dockerfile
 
 We are using `rspec` as test framework. `serverspec` provides a docker backend (see the method `set` in the test code)
  to run the tests inside the docker container, and abstracts away the difference between distributions in the tests
@@ -34,7 +62,7 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
 
     rspec [--backtrace] spec/Dockerfile_spec.rb
 
-##### Persistent Data
+## Persistent Data
 
 There are two general approaches to handling persistent storage requirements
 with Docker. See [Managing Data in Containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
@@ -59,6 +87,6 @@ for additional information.
   $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus -v /some/dir/sonatype-work:/sonatype-work sonatype/nexus-iq-server
   ```
 
-#### License
+## License
 
-The cookbooks are licensed under the [Apache v2 license](LICENSE)
+Unless noted in their header, files in this GitHub repository are licensed under the [Apache v2 license](LICENSE)
