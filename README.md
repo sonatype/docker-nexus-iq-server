@@ -44,7 +44,7 @@ To get the assigned port or check if the server is running use:
 
 To build a docker image from the Dockerfile you can use this command:
 
-    docker build --build-arg IQ_SERVER_VERSION=1.36.0-01 .
+    docker build --rm=true --tag=sonatype/nexus-iq-server .
 
 The following optional variables can be used when building the image:
 
