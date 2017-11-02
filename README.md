@@ -79,7 +79,7 @@ for additional information.
 
   ```
   $ docker volume create --name sonatype-work
-  $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus -v sonatype-work:/sonatype-work sonatype/nexus-iq-server
+  $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -v sonatype-work:/sonatype-work sonatype/nexus-iq-server
   ```
 
   2. *Mount a host directory as the volume*.  This is not portable, as it
@@ -88,8 +88,8 @@ for additional information.
   to be assigned to certain specific underlying storage.  
 
   ```
-  $ mkdir /some/dir/sonatype-work && chown -R 200 /some/dir/sonatype-work
-  $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus -v /some/dir/sonatype-work:/sonatype-work sonatype/nexus-iq-server
+  $ mkdir /some/dir/sonatype-work
+  $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -v /some/dir/sonatype-work:/sonatype-work sonatype/nexus-iq-server
   ```
 
 ## License
