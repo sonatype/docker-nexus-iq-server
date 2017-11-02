@@ -116,33 +116,33 @@ example of the nexus_iq_server configuration section of the template with defaul
           :file => {
             :currentLogFilename => '/var/log/nexus-iq-server/request.log',
             :archivedLogFilenamePattern => '/var/log/nexus-iq-server/request-\%d.log.gz',
-            :archivedFileCount => 50,
+            :archivedFileCount => 50
           }
+        }
+      },
+      :logging => {
+        :level => 'DEBUG',
+        :loggers => {
+          :'com.sonatype.insight.scan' => 'INFO',
+          :'eu.medsea.mimeutil.MimeUtil2' => 'INFO',
+          :'org.apache.http' => 'INFO',
+          :'org.apache.http.wire' => 'ERROR',
+          :'org.eclipse.birt.report.engine.layout.pdf.font.FontConfigReader' => 'WARN',
+          :'org.eclipse.jetty' => 'INFO',
+          :'org.apache.shiro.web.filter.authc.BasicHttpAuthenticationFilter' => 'INFO'
         },
-        :logging => {
-          :level => 'DEBUG',
-          :loggers => {
-            :'com.sonatype.insight.scan' => 'INFO',
-            :'eu.medsea.mimeutil.MimeUtil2' => 'INFO',
-            :'org.apache.http' => 'INFO',
-            :'org.apache.http.wire' => 'ERROR',
-            :'org.eclipse.birt.report.engine.layout.pdf.font.FontConfigReader' => 'WARN',
-            :'org.eclipse.jetty' => 'INFO',
-            :'org.apache.shiro.web.filter.authc.BasicHttpAuthenticationFilter' => 'INFO'
-          },
-          :console => {
-            :enabled => true,
-            :threshold => 'INFO',
-            :logFormat => "\%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} \%level [\%thread] \%X{username} \%logger \%msg\%n"
-          },
-          :file => {
-            :enabled => true,
-            :threshold => 'INFO',
-            :currentLogFilename => '/var/log/nexus-iq-server/clm-server.log',
-            :archivedLogFilenamePattern => '/var/log/nexus-iq-server/clm-server-\%d.log.gz',
-            :archivedFileCount => 50,
-            :logFormat => "\%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} \%level [\%thread] \%X{username} \%logger \%msg\%n"
-          }
+        :console => {
+          :enabled => true,
+          :threshold => 'INFO',
+          :logFormat => "\%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} \%level [\%thread] \%X{username} \%logger \%msg\%n"
+        },
+        :file => {
+          :enabled => true,
+          :threshold => 'INFO',
+          :currentLogFilename => '/var/log/nexus-iq-server/clm-server.log',
+          :archivedLogFilenamePattern => '/var/log/nexus-iq-server/clm-server-\%d.log.gz',
+          :archivedFileCount => 50,
+          :logFormat => "\%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} \%level [\%thread] \%X{username} \%logger \%msg\%n"
         }
       }
     }
