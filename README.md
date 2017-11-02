@@ -95,7 +95,7 @@ for additional information.
 ## Configuration
 
 The solo.json.erb template file can be used to customize the Nexus IQ Server configuration. Here is a fully expanded
-example of the nexus_iq_server configuration with default values:
+example of the nexus_iq_server configuration section of the template with default values:
 
 ```
   :nexus_iq_server => {
