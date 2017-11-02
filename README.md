@@ -115,7 +115,7 @@ example of the nexus_iq_server configuration section of the template with defaul
           },
           :file => {
             :currentLogFilename => '/var/log/nexus-iq-server/request.log',
-            :archivedLogFilenamePattern => '/var/log/nexus-iq-server/request-\%d.log.gz',
+            :archivedLogFilenamePattern => "/var/log/nexus-iq-server/request-\%d.log.gz",
             :archivedFileCount => 50
           }
         }
@@ -140,7 +140,7 @@ example of the nexus_iq_server configuration section of the template with defaul
           :enabled => true,
           :threshold => 'INFO',
           :currentLogFilename => '/var/log/nexus-iq-server/clm-server.log',
-          :archivedLogFilenamePattern => '/var/log/nexus-iq-server/clm-server-\%d.log.gz',
+          :archivedLogFilenamePattern => "/var/log/nexus-iq-server/clm-server-\%d.log.gz",
           :archivedFileCount => 50,
           :logFormat => "\%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} \%level [\%thread] \%X{username} \%logger \%msg\%n"
         }
