@@ -94,8 +94,12 @@ for additional information.
 
 ## Configuration
 
-The `solo.json.erb` template file can be used to customize the Nexus IQ Server configuration. Here is a fully expanded
-example of the nexus_iq_server configuration section of the template with default values:
+The `solo.json.erb` template file can be used to customize the Nexus IQ Server configuration. Any attribute values added
+under `nexus_iq_server:config` will become config.yml and it supports everything that the Nexus IQ Server supports. See
+[IQ Server Configuration](https://help.sonatype.com/display/NXIQ/IQ+Server+Configuration) for more details.
+
+Here is an example of the nexus_iq_server configuration section of the `solo.json.erb` template with default values from
+the [sonatype/chef-nexus-iq-server](https://github.com/sonatype/chef-nexus-iq-server) cookbook:
 
 ```
   :nexus_iq_server => {
