@@ -103,7 +103,7 @@ example of the nexus_iq_server configuration section of the template with defaul
     :checksum => '596767950fdb8b7cfa1c690dba3ce8734a728e3baf27036172cc54d8a87b5d61',
     :install_dir => '/opt/sonatype/nexus-iq-server/',
     :logs_dir => '/var/log/nexus-iq-server',
-    :conf_dir => '/etc/nexus-iq-server'
+    :conf_dir => '/etc/nexus-iq-server',
     :config => {
       :sonatypeWork => '/sonatype-work',
       :http => {
@@ -121,7 +121,7 @@ example of the nexus_iq_server configuration section of the template with defaul
         },
         :logging => {
           :level => 'DEBUG',
-          :loggers {
+          :loggers => {
             :'com.sonatype.insight.scan' => 'INFO',
             :'eu.medsea.mimeutil.MimeUtil2' => 'INFO',
             :'org.apache.http' => 'INFO',
@@ -146,6 +146,7 @@ example of the nexus_iq_server configuration section of the template with defaul
         }
       }
     }
+  }
 ```
 
 ## License
