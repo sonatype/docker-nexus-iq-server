@@ -94,60 +94,25 @@ for additional information.
 
 ## Configuration
 
-The `solo.json.erb` template file can be used to customize the Nexus IQ Server configuration. Any attribute values added
-under `nexus_iq_server:config` will become config.yml and it supports everything that the Nexus IQ Server supports. See
-[IQ Server Configuration](https://help.sonatype.com/display/NXIQ/IQ+Server+Configuration) for more details.
+The `solo.json.erb` template file can be used to customize the Nexus IQ Server configuration. The
+`nexus_iq_server.config` property of this Embedded Ruby template will be rendered and then saved as the Nexus IQ
+Server's config.yml. See [IQ Server Configuration](https://help.sonatype.com/display/NXIQ/IQ+Server+Configuration) for
+more details as to what values are supported.
 
-Here is an example of the nexus_iq_server configuration section of the `solo.json.erb` template with default values from
-the [sonatype/chef-nexus-iq-server](https://github.com/sonatype/chef-nexus-iq-server) cookbook:
+Here is an example of how to set the proxy section of config.yml:
 
 ```
   :nexus_iq_server => {
-    :version => '1.39.0-04',
-    :checksum => '596767950fdb8b7cfa1c690dba3ce8734a728e3baf27036172cc54d8a87b5d61',
-    :install_dir => '/opt/sonatype/nexus-iq-server/',
-    :logs_dir => '/var/log/nexus-iq-server',
-    :conf_dir => '/etc/nexus-iq-server',
+    :version => ENV['IQ_SERVER_VERSION'],
+    :checksum => ENV['IQ_SERVER_SHA256'],
+    :install_dir => ENV['IQ_HOME'],
     :config => {
-      :sonatypeWork => '/sonatype-work',
-      :http => {
-        :port => 8070,
-        :adminPort => 8071,
-        :requestLog => {
-          :console => {
-            :enabled => true
-          },
-          :file => {
-            :currentLogFilename => '/var/log/nexus-iq-server/request.log',
-            :archivedLogFilenamePattern => "/var/log/nexus-iq-server/request-\%d.log.gz",
-            :archivedFileCount => 50
-          }
-        }
-      },
-      :logging => {
-        :level => 'DEBUG',
-        :loggers => {
-          :'com.sonatype.insight.scan' => 'INFO',
-          :'eu.medsea.mimeutil.MimeUtil2' => 'INFO',
-          :'org.apache.http' => 'INFO',
-          :'org.apache.http.wire' => 'ERROR',
-          :'org.eclipse.birt.report.engine.layout.pdf.font.FontConfigReader' => 'WARN',
-          :'org.eclipse.jetty' => 'INFO',
-          :'org.apache.shiro.web.filter.authc.BasicHttpAuthenticationFilter' => 'INFO'
-        },
-        :console => {
-          :enabled => true,
-          :threshold => 'INFO',
-          :logFormat => "\%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} \%level [\%thread] \%X{username} \%logger \%msg\%n"
-        },
-        :file => {
-          :enabled => true,
-          :threshold => 'INFO',
-          :currentLogFilename => '/var/log/nexus-iq-server/clm-server.log',
-          :archivedLogFilenamePattern => "/var/log/nexus-iq-server/clm-server-\%d.log.gz",
-          :archivedFileCount => 50,
-          :logFormat => "\%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} \%level [\%thread] \%X{username} \%logger \%msg\%n"
-        }
+      :sonatypeWork => ENV['SONATYPE_WORK'],
+      :proxy => {
+        :hostname => '127.0.0.1',
+        :port => 80,
+        :username => 'anonymous',
+        :password => 'guest'
       }
     }
   }
