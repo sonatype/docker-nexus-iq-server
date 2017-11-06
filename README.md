@@ -92,6 +92,32 @@ for additional information.
   $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -v /some/dir/sonatype-work:/sonatype-work sonatype/nexus-iq-server
   ```
 
+## Configuration
+
+The `solo.json.erb` template file can be used to customize the Nexus IQ Server configuration. The
+`nexus_iq_server.config` property of this Embedded Ruby template will be rendered and then saved as the Nexus IQ
+Server's config.yml. See [IQ Server Configuration](https://help.sonatype.com/display/NXIQ/IQ+Server+Configuration) for
+more details as to what values are supported.
+
+Here is an example of how to set the proxy section of config.yml:
+
+```
+  :nexus_iq_server => {
+    :version => ENV['IQ_SERVER_VERSION'],
+    :checksum => ENV['IQ_SERVER_SHA256'],
+    :install_dir => ENV['IQ_HOME'],
+    :config => {
+      :sonatypeWork => ENV['SONATYPE_WORK'],
+      :proxy => {
+        :hostname => '127.0.0.1',
+        :port => 80,
+        :username => 'anonymous',
+        :password => 'guest'
+      }
+    }
+  }
+```
+
 ## License
 
 Unless noted in their header, files in this GitHub repository are licensed under the [Apache v2 license](LICENSE)
