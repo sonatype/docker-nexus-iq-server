@@ -23,7 +23,8 @@ A Dockerfile for Sonatype Nexus IQ Server, base on CentOS.
 * [Running](#running)
 * [Building the Nexus IQ Server image](#building-the-nexus-iq-server-image)
 * [Testing the Dockerfile](#testing-the-dockerfile)
-* [Persistent Data](#persistent-data)
+* [Notes](#notes)
+  * [Persistent Data](#persistent-data)
 * [License](#license)
 
 ## Running
@@ -67,7 +68,26 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
 
     rspec [--backtrace] spec/Dockerfile_spec.rb
 
-## Persistent Data
+## Notes
+
+* Default credentials are: `admin` / `admin123`
+
+* Installation of Nexus IQ Server is to `/opt/sonatype/nexus-iq-server`.
+
+* There is an environment variable that is being used to pass JVM arguments to the startup script
+
+  * `JAVA_OPTS`, passed to the startup script. Defaults to `-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs`.
+
+  This can be adjusted at runtime:
+
+  ```
+  $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Djava.util.prefs.userRoot=/some-other-dir" sonatype/nexus-iq-server
+  ```
+
+  Of particular note, `-Djava.util.prefs.userRoot=/some-other-dir` can be set to a persistent path, which will maintain
+  the installed Nexus IQ Server License if the container is restarted.
+
+### Persistent Data
 
 There are two general approaches to handling persistent storage requirements
 with Docker. See [Managing Data in Containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
