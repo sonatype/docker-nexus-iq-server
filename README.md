@@ -76,7 +76,7 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
 
 * There is an environment variable that is being used to pass JVM arguments to the startup script
 
-  * `JAVA_OPTS`, passed to the startup script. Defaults to `-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs`.
+  `JAVA_OPTS`, passed to the startup script. Defaults to `-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs`.
 
   This can be adjusted at runtime:
 
