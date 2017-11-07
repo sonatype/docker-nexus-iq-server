@@ -40,6 +40,7 @@ raise RuntimeError, 'environment variable IQ_HOME is required' if ENV['IQ_HOME']
     :version => ENV['IQ_SERVER_VERSION'],
     :checksum => ENV['IQ_SERVER_SHA256'],
     :install_dir => ENV['IQ_HOME'],
+    :java_opts => '${JAVA_OPTS}',
     :config => {
       :sonatypeWork => ENV['SONATYPE_WORK'],
     }
