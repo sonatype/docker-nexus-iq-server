@@ -30,7 +30,7 @@ ARG IQ_SERVER_SHA256=e071bcd7d4d0d3435f3b18f6d9cbef4ecd18d0ab37e1e2ff9480fc41cf4
 ENV SONATYPE_WORK="/sonatype-work" \
     IQ_HOME="/opt/sonatype/nexus-iq-server/"
 
-ARG IQ_SERVER_COOKBOOK_VERSION="release-0.2.0-01"
+ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20171107-105438.4c06a2e"
 ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
 
 ADD solo.json.erb /var/chef/solo.json.erb
@@ -54,5 +54,7 @@ EXPOSE 8070
 EXPOSE 8071
 
 USER nexus
+
+ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs"
 
 CMD ["sh", "-c", "${IQ_HOME}/start-nexus-iq-server.sh"]
