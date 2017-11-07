@@ -55,4 +55,6 @@ EXPOSE 8071
 
 USER nexus
 
+ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs"
+
 CMD ["sh", "-c", "${IQ_HOME}/start-nexus-iq-server.sh"]
