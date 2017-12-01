@@ -10,7 +10,7 @@ import com.sonatype.jenkins.pipeline.OsTools
 properties([
   parameters([
     string(defaultValue: '', description: 'New Nexus IQ Version', name: 'nexus_iq_version'),
-    string(defaultValue: '', description: 'New Nexus IQ Version Sha256', name: 'nexus_iq_version_sha')
+    string(defaultValue: '', description: 'New Nexus IQ Version Sha256', name: 'nexus_iq_version_sha'),
 
     string(defaultValue: '', description: 'New Nexus IQ Cookbook Version', name: 'nexus_iq_cookbook_version')
   ])
