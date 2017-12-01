@@ -7,8 +7,17 @@
 import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
+properties([
+  parameters([
+    string(defaultValue: '', description: 'New Nexus IQ Version', name: 'nexus_iq_version'),
+    string(defaultValue: '', description: 'New Nexus IQ Version Sha256', name: 'nexus_iq_version_sha')
+
+    string(defaultValue: '', description: 'New Nexus IQ Cookbook Version', name: 'nexus_iq_cookbook_version')
+  ])
+])
+
 node('ubuntu-zion') {
-  def commitId, commitDate, version, imageId
+  def commitId, commitDate, version, imageId, branch, dockerFileLocation
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'integrations-github-api',
@@ -23,6 +32,9 @@ node('ubuntu-zion') {
       OsTools.runSafe(this, "docker system prune -a -f")
 
       checkout scm
+      branch = scm.branches[0].name
+
+      dockerFileLocation = "${pwd()}/Dockerfile"
 
       commitId = OsTools.runSafe(this, 'git rev-parse HEAD')
       commitDate = OsTools.runSafe(this, "git show -s --format=%cd --date=format:%Y%m%d-%H%M%S ${commitId}")
@@ -35,6 +47,32 @@ node('ubuntu-zion') {
         apiToken = env.GITHUB_API_PASSWORD
       }
       gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
+    }
+    if (params.nexus_iq_version && params.nexus_iq_version_sha) {
+      stage('Update IQ Version') {
+        OsTools.runSafe(this, "git checkout ${branch}")
+        def dockerFile = readFile(file: dockerFileLocation)
+
+        def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
+        def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
+
+        dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
+        dockerFile = dockerFile.replaceAll(shaRegex, "\$1${params.nexus_iq_version_sha}")
+
+        writeFile(file: dockerFileLocation, text: dockerFile)
+      }
+    }
+    if (params.nexus_iq_cookbook_version) {
+      stage('Update IQ Cookbook Version') {
+        OsTools.runSafe(this, "git checkout ${branch}")
+        def dockerFile = readFile(file: dockerFileLocation)
+
+        def cookbookVersionRegex = /(ARG IQ_SERVER_COOKBOOK_VERSION=")(release-\d\.\d\.\d{8}\-\d{6}\.[a-z0-9]{7})(")/
+
+        dockerFile = dockerFile.replaceAll(cookbookVersionRegex, "\$1${params.nexus_iq_cookbook_version}\$3")
+
+        writeFile(file: dockerFileLocation, text: dockerFile)
+      }
     }
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
@@ -70,13 +108,29 @@ node('ubuntu-zion') {
     if (currentBuild.result == 'FAILURE') {
       return
     }
+    if (params.nexus_iq_version && params.nexus_iq_version_sha || params.nexus_iq_cookbook_version) {
+      stage('Commit IQ Version Update') {
+        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'integrations-github-api',
+                        usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
+          def commitMessage = [
+            params.nexus_iq_version && params.nexus_iq_version_sha ? "Update IQ Server to ${params.nexus_iq_version}" : "",
+            params.nexus_iq_cookbook_version ? "Update IQ Cookbook to ${params.nexus_iq_cookbook_version}" : "",
+          ].where(it).join(' ')
+          OsTools.runSafe(this, """
+            git add .
+            git commit -m '${commitMessage}'
+            git push https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git ${branch}
+          """)
+        }
+      }
+    }
     stage('Archive') {
       dir('build/target') {
         OsTools.runSafe(this, "docker save ${imageName} | gzip > ${archiveName}.tar.gz")
         archiveArtifacts artifacts: "${archiveName}.tar.gz", onlyIfSuccessful: true
       }
     }
-    if (scm.branches[0].name != '*/master') {
+    if (branch != '*/master') {
       return
     }
     input 'Push image and tags?'
