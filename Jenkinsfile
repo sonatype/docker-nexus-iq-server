@@ -115,7 +115,7 @@ node('ubuntu-zion') {
           def commitMessage = [
             params.nexus_iq_version && params.nexus_iq_version_sha ? "Update IQ Server to ${params.nexus_iq_version}" : "",
             params.nexus_iq_cookbook_version ? "Update IQ Cookbook to ${params.nexus_iq_cookbook_version}" : "",
-          ].where(it).join(' ')
+          ].find({ it }).join(' ')
           OsTools.runSafe(this, """
             git add .
             git commit -m '${commitMessage}'
