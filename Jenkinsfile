@@ -39,6 +39,9 @@ node('ubuntu-zion') {
       commitId = OsTools.runSafe(this, 'git rev-parse HEAD')
       commitDate = OsTools.runSafe(this, "git show -s --format=%cd --date=format:%Y%m%d-%H%M%S ${commitId}")
 
+      OsTools.runSafe(this, 'git config --global user.email sonatype-ci@sonatype.com')
+      OsTools.runSafe(this, 'git config --global user.name Sonatype CI')
+
       version = readVersion()
 
       def apiToken
@@ -113,9 +116,9 @@ node('ubuntu-zion') {
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'integrations-github-api',
                         usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
           def commitMessage = [
-            params.nexus_iq_version && params.nexus_iq_version_sha ? "Update IQ Server to ${params.nexus_iq_version}" : "",
-            params.nexus_iq_cookbook_version ? "Update IQ Cookbook to ${params.nexus_iq_cookbook_version}" : "",
-          ].find({ it }).join(' ')
+            params.nexus_iq_version && params.nexus_iq_version_sha ? "Update IQ Server to ${params.nexus_iq_version}." : "",
+            params.nexus_iq_cookbook_version ? "Update IQ Cookbook to ${params.nexus_iq_cookbook_version}." : "",
+          ].findAll({ it }).join(' ')
           OsTools.runSafe(this, """
             git add .
             git commit -m '${commitMessage}'
