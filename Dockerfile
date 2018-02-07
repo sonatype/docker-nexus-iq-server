@@ -30,7 +30,7 @@ ARG IQ_SERVER_SHA256=91f0ad04ca0b3d99bc4384da11147abac75c6c0a9fa1201c2c44dd09731
 ENV SONATYPE_WORK="/sonatype-work" \
     IQ_HOME="/opt/sonatype/nexus-iq-server/"
 
-ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20180206-162636.2d28826"
+ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20180206-181343.7879e79"
 ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
 
 ADD solo.json.erb /var/chef/solo.json.erb
