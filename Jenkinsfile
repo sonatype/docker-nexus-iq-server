@@ -62,6 +62,8 @@ node('ubuntu-zion') {
         dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
         dockerFile = dockerFile.replaceAll(shaRegex, "\$1${params.nexus_iq_version_sha}")
 
+        version = getShortVersion(params.nexus_iq_version)
+
         writeFile(file: dockerFileLocation, text: dockerFile)
       }
     }
@@ -184,15 +186,21 @@ node('ubuntu-zion') {
     OsTools.runSafe(this, 'git clean -f && git reset --hard origin/master')
   }
 }
+
 def readVersion() {
   def content = readFile 'Dockerfile'
   for (line in content.split('\n')) {
     if (line.startsWith('ARG IQ_SERVER_VERSION=')) {
-      return line.substring(22).split('-')[0]
+      return getShortVersion(line.substring(22))
     }
   }
   error 'Could not determine version.'
 }
+
+def getShortVersion(version) {
+  return version.split('-')[0]
+}
+
 def getGemInstallDirectory() {
   def content = OsTools.runSafe(this, "gem env")
   for (line in content.split('\n')) {
