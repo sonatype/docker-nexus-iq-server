@@ -21,8 +21,8 @@ LABEL vendor=Sonatype \
   com.sonatype.name="Nexus IQ Server image"
 
 # Optional parameters. Uncomment to override default:
-ARG IQ_SERVER_VERSION=1.46.0-02
-ARG IQ_SERVER_SHA256=66f817001295888088aeccb1052c207deaa4bc171789ad4b1221a8b4f644dd46
+ARG IQ_SERVER_VERSION=1.47.0-01
+ARG IQ_SERVER_SHA256=eb0710e3509279df157a41dec4460efd3b148c2482733cfea556938ad87cae47
 # ENV JAVA_URL=""
 # ENV JAVA_SHA256=""
 
@@ -30,7 +30,7 @@ ARG IQ_SERVER_SHA256=66f817001295888088aeccb1052c207deaa4bc171789ad4b1221a8b4f64
 ENV SONATYPE_WORK="/sonatype-work" \
     IQ_HOME="/opt/sonatype/nexus-iq-server/"
 
-ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20180312-202854.b0fe55b"
+ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20180427-182307.041f84c"
 ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
 
 ADD solo.json.erb /var/chef/solo.json.erb
