@@ -21,8 +21,8 @@ LABEL vendor=Sonatype \
   com.sonatype.name="Nexus IQ Server image"
 
 # Optional parameters. Uncomment to override default:
-ARG IQ_SERVER_VERSION=1.48.0-03
-ARG IQ_SERVER_SHA256=25ca10fe10cf5ed68c863797bed2a107fbb95458842c7bbaa0f458c8fcbe6fa1
+ARG IQ_SERVER_VERSION=1.47.0-01
+ARG IQ_SERVER_SHA256=eb0710e3509279df157a41dec4460efd3b148c2482733cfea556938ad87cae47
 # ENV JAVA_URL=""
 # ENV JAVA_SHA256=""
 
