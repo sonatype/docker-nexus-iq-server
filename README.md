@@ -25,9 +25,10 @@ A Dockerfile for Sonatype Nexus IQ Server, based on CentOS.
 * [Running](#running)
 * [Product License Installation](#product-license-installation)
 * [Building the Nexus IQ Server image](#building-the-nexus-iq-server-image)
-  * [Customizing the Default config.yml](#customizing-the-default-config.yml)
+  * [Customizing the Default Built config.yml](#customizing-the-default-built-config.yml)
 * [Testing the Dockerfile](#testing-the-dockerfile)
-* [License](#license)
+* [Chef Solo for Runtime and Application](chef-solo-for-runtime-and-application)
+* [Project License](#project-license)
 
 ## Runtime Server Configuration
 
@@ -120,11 +121,11 @@ The following optional variables can be used when building the image:
 - JAVA_SHA256: Check hash matches the downloaded JDK or else fail build. Required if `JAVA_URL` is provided.
 - SONATYPE_WORK: Path to Nexus IQ Server working directory where variable data is stored
 
-### Customizing the Default config.yml
+### Customizing the Default Built config.yml
 
 The `solo.json.erb` template file can be used to customize the Nexus IQ Server configuration. The
 `nexus_iq_server.config` property of this Embedded Ruby template will be rendered and then saved as the Nexus IQ
-Server's config.yml. See [IQ Server Configuration](https://help.sonatype.com/display/NXIQ/IQ+Server+Configuration) for
+Server's config.yml. See [IQ Server Configuration](https://help.sonatype.com/iqserver/iq-server-configuration) for
 more details as to what values are supported.
 
 Here is an example of how to set the proxy section of config.yml:
@@ -154,12 +155,11 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
 
     rspec [--backtrace] spec/Dockerfile_spec.rb
 
-## License
-
-Unless noted in their header, files in this GitHub repository are licensed under the [Apache v2 license](LICENSE)
-
 ## Chef Solo for Runtime and Application
 
 Chef Solo is used to build out the runtime and application layers of the Docker image. The Chef cookbook being used is available
 on GitHub at [sonatype/chef-nexus-iq-server](https://github.com/sonatype/chef-nexus-iq-server).
 
+## Project License
+
+Unless noted in their header, files in this GitHub repository are licensed under the [Apache v2 license](LICENSE)
