@@ -135,7 +135,6 @@ Here is an example of how to set the proxy, server and baseUrl sections of the c
     :version => ENV['IQ_SERVER_VERSION'],
     :checksum => ENV['IQ_SERVER_SHA256'],
     :install_dir => ENV['IQ_HOME'],
-    :java_opts => '${JAVA_OPTS}',
     :config => {
       :sonatypeWork => ENV['SONATYPE_WORK'],
       :proxy => {
@@ -158,7 +157,7 @@ Here is an example of how to set the proxy, server and baseUrl sections of the c
           :keyStorePassword => 'yourpassword'
         ]
       },
-      :baseUrl => 'https://your-nexus-iq-server.com'
+      :baseUrl => 'https://nexus-iq-server.example.com/'
     }
   }
 ```
