@@ -131,7 +131,7 @@ more details as to what values are supported.
 Here is an example of how to set the proxy, server and baseUrl sections of the config.yml:
 
 ```
-  nexus_iq_server => {
+  :nexus_iq_server => {
     :version => ENV['IQ_SERVER_VERSION'],
     :checksum => ENV['IQ_SERVER_SHA256'],
     :install_dir => ENV['IQ_HOME'],
