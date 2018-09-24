@@ -128,7 +128,7 @@ The `solo.json.erb` template file can be used to customize the Nexus IQ Server c
 Server's config.yml. See [IQ Server Configuration](https://help.sonatype.com/iqserver/iq-server-configuration) for
 more details as to what values are supported.
 
-Here is an example of how to set the proxy section of config.yml:
+Here is an example of how to set the proxy, server and baseUrl sections of the config.yml:
 
 ```
   :nexus_iq_server => {
@@ -142,7 +142,22 @@ Here is an example of how to set the proxy section of config.yml:
         :port => 80,
         :username => 'anonymous',
         :password => 'guest'
-      }
+      },
+      :server => {
+        :applicationConnectors => [
+          :type => 'https',
+          :port => 8443,
+          :keyStorePath =>  '/path/to/your/keystore/file',
+          :keyStorePassword => 'yourpassword'
+        ],
+        :adminConnectors => [
+          :type => 'https',
+          :port => 8471,
+          :keyStorePath =>  '/path/to/your/keystore/file',
+          :keyStorePassword => 'yourpassword'
+        ]
+      },
+      :baseUrl => 'https://nexus-iq-server.example.com/'
     }
   }
 ```
