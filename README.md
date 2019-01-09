@@ -34,7 +34,7 @@ A Dockerfile for Sonatype Nexus IQ Server, based on CentOS.
 
 Installation of Nexus IQ Server application is to `/opt/sonatype/nexus-iq-server`.
 
-By default, the IQ Server reads its [main configuration file](https://help.sonatype.com/iqserver/iq-server-configuration) from within the image at `/etc/nexus-iq-server/config.yml`.
+By default, the IQ Server reads its [main configuration file](https://help.sonatype.com/iqserver/configuring/config.yml) from within the image at `/etc/nexus-iq-server/config.yml`.
 
 There is an environment variable `JAVA_OPTS` that is being used to pass JVM arguments to the java command that launches IQ server. The default value is `-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs`.
 
@@ -97,7 +97,7 @@ To get the assigned port or check if the server is running use:
     
 ## Product License Installation
 
-Once running, the IQ Server product license must be installed. This should be done [using the user interface](https://help.sonatype.com/iqserver/iq-server-installation#IQServerInstallation-InstalltheLicense). 
+Once running, the IQ Server product license must be installed. This should be done [using the user interface](https://help.sonatype.com/iqserver/installing/iq-server-installation#IQServerInstallation-InstalltheLicense). 
 
 Default admin credentials are: `admin` / `admin123`
 
@@ -125,7 +125,7 @@ The following optional variables can be used when building the image:
 
 The `solo.json.erb` template file can be used to customize the Nexus IQ Server configuration. The
 `nexus_iq_server.config` property of this Embedded Ruby template will be rendered and then saved as the Nexus IQ
-Server's config.yml. See [IQ Server Configuration](https://help.sonatype.com/iqserver/iq-server-configuration) for
+Server's config.yml. See [IQ Server Configuration](https://help.sonatype.com/iqserver/configuring) for
 more details as to what values are supported.
 
 Here is an example of how to set the proxy, server and baseUrl sections of the config.yml:
