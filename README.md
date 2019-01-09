@@ -47,7 +47,7 @@ $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-
 Of particular note, `-Djava.util.prefs.userRoot=/some-other-dir` can be set to a persistent path, which will maintain
 the installed Nexus IQ Server License if the container is restarted.
 
-Further, you can [customize parts of the default config.yml settings by using Java system properties](https://help.sonatype.com/iqserver/iq-server-configuration#IQServerConfiguration-AdvancedServerConfigurationUsingJavaSystemProperties) defined inside the environment variable.
+Further, you can [customize parts of the default config.yml settings by using Java system properties](https://help.sonatype.com/iqserver/configuring/advanced-server-configuration) defined inside the environment variable.
 
 Example: To customize the HTTP proxy server that IQ Server will use to make outbound requests:
 
