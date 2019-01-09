@@ -25,7 +25,7 @@ A Dockerfile for Sonatype Nexus IQ Server, based on CentOS.
 * [Running](#running)
 * [Product License Installation](#product-license-installation)
 * [Building the Nexus IQ Server image](#building-the-nexus-iq-server-image)
-  * [Customizing the Default Built config.yml](#customizing-the-default-built-config.yml)
+  * [Customizing the Default Built config.yml](#customizing-the-default-built-configyml)
 * [Testing the Dockerfile](#testing-the-dockerfile)
 * [Chef Solo for Runtime and Application](chef-solo-for-runtime-and-application)
 * [Project License](#project-license)
