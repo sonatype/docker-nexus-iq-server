@@ -22,19 +22,8 @@ raise RuntimeError, 'environment variable IQ_HOME is required' if ENV['IQ_HOME']
 {
   :run_list => [ 'recipe[nexus_iq_server::docker]' ],
   :java => {
-    :jdk_version => 8,
-    :install_flavor => 'oracle',
-    :oracle => {
-      :accept_oracle_download_terms => true
-    },
-    :jdk => {
-      :'8' => {
-        :x86_64 => {
-          :url => ENV['JAVA_URL'],
-          :checksum => ENV['JAVA_SHA256']
-        }.compact
-      }
-    }
+    :install_flavor => 'openjdk',
+    :accept_license_agreement => true
   },
   :nexus_iq_server => {
     :version => ENV['IQ_SERVER_VERSION'],

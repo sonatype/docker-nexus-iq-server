@@ -23,8 +23,6 @@ LABEL vendor=Sonatype \
 # Optional parameters. Uncomment to override default:
 ARG IQ_SERVER_VERSION=1.59.0-01
 ARG IQ_SERVER_SHA256=9794fff27d048b8dc287483cae691ab39050d60657bfac3c2582784dd94f2b38
-# ENV JAVA_URL=""
-# ENV JAVA_SHA256=""
 
 # Mandatory parameters. Docker needs to know volume mount point and location of startup script.
 ENV SONATYPE_WORK="/sonatype-work" \
