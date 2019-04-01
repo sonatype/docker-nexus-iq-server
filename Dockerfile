@@ -21,14 +21,14 @@ LABEL vendor=Sonatype \
   com.sonatype.name="Nexus IQ Server image"
 
 # Optional parameters. Uncomment to override default:
-ARG IQ_SERVER_VERSION=1.62.0-01
-ARG IQ_SERVER_SHA256=9d4913e5c2fbc5b3cf33bf4f8948c4d1ab4a82c585161c59d8c4c93529b45feb
+ARG IQ_SERVER_VERSION=1.63.0-01
+ARG IQ_SERVER_SHA256=33ad85ee0aa5bfafafb670228a1ba6f1e8791c2265e87b46c7203d2ae9d0e869
 
 # Mandatory parameters. Docker needs to know volume mount point and location of startup script.
 ENV SONATYPE_WORK="/sonatype-work" \
     IQ_HOME="/opt/sonatype/nexus-iq-server/"
 
-ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20190305-143832.1c8ff0a"
+ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20190401-144350.4e440aa"
 ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
 
 ADD solo.json.erb /var/chef/solo.json.erb
