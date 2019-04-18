@@ -1,0 +1,42 @@
+#
+# Copyright:: Copyright (c) 2017-present Sonatype, Inc. Apache License, Version 2.0.
+#
+
+---
+sonatypeWork: "/sonatype-work"
+server:
+  applicationConnectors:
+  - type: http
+    port: 8070
+  adminConnectors:
+  - type: http
+    port: 8071
+  requestLog:
+    appenders:
+    - type: file
+      currentLogFilename: "/var/log/nexus-iq-server/request.log"
+      archivedLogFilenamePattern: "/var/log/nexus-iq-server/request-%d.log.gz"
+      archivedFileCount: 5
+logging:
+  level: DEBUG
+  loggers:
+    com.sonatype.insight.scan: INFO
+    eu.medsea.mimeutil.MimeUtil2: INFO
+    org.apache.http: INFO
+    org.apache.http.wire: ERROR
+    org.eclipse.birt.report.engine.layout.pdf.font.FontConfigReader: WARN
+    org.eclipse.jetty: INFO
+    org.apache.shiro.web.filter.authc.BasicHttpAuthenticationFilter: INFO
+  appenders:
+  - type: console
+    threshold: INFO
+    logFormat: "%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} %level [%thread] %X{username} %logger
+      - %msg%n"
+  - type: file
+    threshold: ALL
+    currentLogFilename: "/var/log/nexus-iq-server/clm-server.log"
+    archivedLogFilenamePattern: "/var/log/nexus-iq-server/clm-server-%d.log.gz"
+    logFormat: "%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} %level [%thread] %X{username} %logger
+      - %msg%n"
+    archivedFileCount: 5
+createSampleData: true
