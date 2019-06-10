@@ -34,7 +34,7 @@ ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/rel
 ADD solo.json.erb /var/chef/solo.json.erb
 
 # Install using chef-solo
-RUN curl -L https://www.getchef.com/chef/install.sh | bash \
+RUN curl -L https://www.getchef.com/chef/install.sh | bash -s -- -v 14.12.9 \
     && /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json \
     && chef-solo \
        --recipe-url ${IQ_SERVER_COOKBOOK_URL} \
