@@ -14,9 +14,8 @@
 
 FROM centos:centos7
 
-MAINTAINER Sonatype <cloud-ops@sonatype.com>
-
 LABEL vendor=Sonatype \
+  maintainer="Sonatype <cloud-ops@sonatype.com>" \
   com.sonatype.license="Apache License, Version 2.0" \
   com.sonatype.name="Nexus IQ Server image"
 
