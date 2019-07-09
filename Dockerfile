@@ -44,7 +44,6 @@ RUN yum install -y --disableplugin=subscription-manager hostname \
     && rm -rf /opt/chefdk \
     && rm -rf /var/cache/yum \
     && rm -rf /var/chef \
-    && yum remove -y java-1.8.0-openjdk-devel windows homebrew \
     && yum clean all
 
 VOLUME ${SONATYPE_WORK}
