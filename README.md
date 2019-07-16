@@ -18,7 +18,7 @@
 
 # Sonatype Nexus IQ Server Docker: sonatype/nexus-iq-server
 
-A Dockerfile for Sonatype Nexus IQ Server, based on CentOS.
+A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Image](https://www.redhat.com/en/blog/introducing-red-hat-universal-base-image).
 
 * [Runtime Server Configuation](#runtime-server-configuration)
 * [Persistent Data](#persistent-data)
