@@ -20,6 +20,7 @@
 
 A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Image](https://www.redhat.com/en/blog/introducing-red-hat-universal-base-image).
 
+* [Migration](#migration)
 * [Runtime Server Configuation](#runtime-server-configuration)
 * [Persistent Data](#persistent-data)
 * [Running](#running)
@@ -29,6 +30,17 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 * [Testing the Dockerfile](#testing-the-dockerfile)
 * [Chef Solo for Runtime and Application](chef-solo-for-runtime-and-application)
 * [Project License](#project-license)
+
+## Migration
+### Upgrading from Version 68 or Earlier to Version 69 or Later
+Version 1.69.0 of the Docker image changed the base image from CentOS to Red Hat UBI (Universal Base Image). 
+As a result, the UID of the `nexus` user has changed. If you use this image with a persistent data volume you will need 
+to run the following for your server to start up successfully:
+```
+docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server:1.69.0 chown -R nexus:nexus /sonatype-work
+```
+This will start up a 1.69.0 IQ server container with root as the user, allowing it to chown the sonatype-work directory 
+and its files to the correct nexus user.
 
 ## Runtime Server Configuration
 
