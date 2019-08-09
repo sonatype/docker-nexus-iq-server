@@ -138,7 +138,6 @@ node('ubuntu-zion') {
     if (branch != 'master') {
       return
     }
-    input 'Push image and tags?'
     stage('Push image') {
       def dockerHubApiToken
       withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
