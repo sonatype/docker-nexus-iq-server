@@ -16,11 +16,12 @@ limitations under the License.
 <%=
 require 'json'
 
+raise RuntimeError, 'environment variable DOCKER_TYPE is required' if ENV['DOCKER_TYPE'].nil? || ENV['DOCKER_TYPE'].empty?
 raise RuntimeError, 'environment variable SONATYPE_WORK is required' if ENV['SONATYPE_WORK'].nil? || ENV['SONATYPE_WORK'].empty?
 raise RuntimeError, 'environment variable IQ_HOME is required' if ENV['IQ_HOME'].nil? || ENV['IQ_HOME'].empty?
 
 {
-  :run_list => [ 'recipe[nexus_iq_server::docker]' ],
+  :run_list => [ "recipe[nexus_iq_server::#{ENV['DOCKER_TYPE']}]" ],
   :java => {
     :install_flavor => 'openjdk',
     :accept_license_agreement => true
