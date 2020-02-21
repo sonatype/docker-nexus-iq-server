@@ -48,8 +48,7 @@ ENV SONATYPE_WORK="/sonatype-work" \
     DOCKER_TYPE="rh-docker"
 
 ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20200210-175005.e554f17"
-# ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
-ARG IQ_SERVER_COOKBOOK_URL="/home/ec2-user/chef-nexus-iq-server.tar.gz"
+ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
 
 ADD solo.json.erb /var/chef/solo.json.erb
 
