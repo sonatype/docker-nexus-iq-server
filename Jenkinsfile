@@ -17,7 +17,7 @@ properties([
 ])
 
 node('ubuntu-zion') {
-  def commitId, commitDate, version, imageId, branch, dockerFileLocation
+  def commitId, commitDate, version, imageId, branch, dockerFileLocations
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'integrations-github-api',
@@ -33,7 +33,10 @@ node('ubuntu-zion') {
 
       def checkoutDetails = checkout scm
 
-      dockerFileLocation = "${pwd()}/Dockerfile"
+      dockerFileLocations = [
+          "${pwd()}/Dockerfile",
+          "${pwd()}/Dockerfile.rhel"
+      ]
 
       branch = checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
       commitId = checkoutDetails.GIT_COMMIT
@@ -54,29 +57,15 @@ node('ubuntu-zion') {
     if (params.nexus_iq_version && params.nexus_iq_version_sha) {
       stage('Update IQ Version') {
         OsTools.runSafe(this, "git checkout ${branch}")
+
         def dockerFile = readFile(file: dockerFileLocation)
-
-        def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
-        def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
-
-        dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
-        dockerFile = dockerFile.replaceAll(shaRegex, "\$1${params.nexus_iq_version_sha}")
-
-        version = getShortVersion(params.nexus_iq_version)
-
-        writeFile(file: dockerFileLocation, text: dockerFile)
+        dockerFileLocations.each { updateServerVersion(it) }
       }
     }
     if (params.nexus_iq_cookbook_version) {
       stage('Update IQ Cookbook Version') {
         OsTools.runSafe(this, "git checkout ${branch}")
-        def dockerFile = readFile(file: dockerFileLocation)
-
-        def cookbookVersionRegex = /(ARG IQ_SERVER_COOKBOOK_VERSION=")(release-\d\.\d\.\d{8}\-\d{6}\.[a-z0-9]{7})(")/
-
-        dockerFile = dockerFile.replaceAll(cookbookVersionRegex, "\$1${params.nexus_iq_cookbook_version}\$3")
-
-        writeFile(file: dockerFileLocation, text: dockerFile)
+        dockerFileLocations.each { updateServerCookbookVersion(it) }
       }
     }
     stage('Build') {
@@ -208,4 +197,32 @@ def getGemInstallDirectory() {
     }
   }
   error 'Could not determine user gem install directory.'
+}
+
+def updateServerVersion(dockerFileLocation) {
+  def dockerFile = readFile(file: dockerFileLocation)
+
+  def metaVersionRegex = /(version=")(\d\.\d{1,3}\.\d\-\d{2})(" \\)/
+  def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
+
+  def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
+  def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
+
+  dockerFile = dockerFile.replaceAll(metaVersionRegex, "\$1${params.nexus_iq_version}\$3")
+  dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
+      "\$1${params.nexus_repository_manager_version.substring(0, params.nexus_iq_version.indexOf('-'))}\$3")
+  dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
+  dockerFile = dockerFile.replaceAll(shaRegex, "\$1${params.nexus_iq_version_sha}")
+
+  writeFile(file: dockerFileLocation, text: dockerFile)
+}
+
+def updateServerCookbookVersion(dockerFileLocation) {
+  def dockerFile = readFile(file: dockerFileLocation)
+
+  def cookbookVersionRegex = /(ARG IQ_SERVER_COOKBOOK_VERSION=")(release-\d\.\d\.\d{8}\-\d{6}\.[a-z0-9]{7})(")/
+
+  dockerFile = dockerFile.replaceAll(cookbookVersionRegex, "\$1${params.nexus_iq_cookbook_version}\$3")
+
+  writeFile(file: dockerFileLocation, text: dockerFile)
 }

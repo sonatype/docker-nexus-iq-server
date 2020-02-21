@@ -28,6 +28,7 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 * [Building the Nexus IQ Server image](#building-the-nexus-iq-server-image)
   * [Customizing the Default Built config.yml](#customizing-the-default-built-configyml)
 * [Testing the Dockerfile](#testing-the-dockerfile)
+* [Red Hat Certified Image](#red-hat-certified-image)
 * [Chef Solo for Runtime and Application](chef-solo-for-runtime-and-application)
 * [Project License](#project-license)
 
@@ -181,6 +182,13 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
  (e.g. yum, apt,...).
 
     rspec [--backtrace] spec/Dockerfile_spec.rb
+
+## Red Hat Certified Image
+
+A Red Hat certified container image can be created using Dockerfile.rhel which pulls from assets in the red-hat-assets
+folder. The image includes additional meta data to conform with Atomic and OpenShift standards, a directory with the
+licenses applicable to the software and a man file for help on how to use the software.  It also uses an ENTRYPOINT
+script the ensure the running user has access to the appropriate permissions for OpenShift 'restricted' SCC.
 
 ## Chef Solo for Runtime and Application
 
