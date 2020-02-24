@@ -18,8 +18,8 @@ MAINTAINER Sonatype <cloud-ops@sonatype.com>
 
 LABEL name="Nexus IQ Server image" \
   vendor=Sonatype \
-  version="1.84.0-01" \
-  release="1.84.0" \
+  version="1.85.0-01" \
+  release="1.85.0-01" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
@@ -38,7 +38,7 @@ LABEL name="Nexus IQ Server image" \
 
 # Optional parameters.
 ARG IQ_SERVER_VERSION=1.85.0-01
-ARG IQ_SERVER_SHA256=81e877f4e793e740cd0be38faaa35650448bfcb77aa30fd48d15babeb01a9a09
+ARG IQ_SERVER_SHA256=31da4b11cb810c8f4551bdd3ff782953bfa4949c
 
 # Mandatory parameters. Docker needs to know volume mount point and location of startup script.
 ENV SONATYPE_WORK="/sonatype-work" \
