@@ -22,11 +22,9 @@ LABEL name="Nexus IQ Server image" \
   release="1.84.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
-  description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
-    It provides a number of tools to improve component usage in your software supply chain, allowing you to \
-    automate your processes and achieve accelerated speed to delivery while also increasing product quality" \
-  com.sonatype.license="Apache License, Version 2.0" \
+  description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. It provides a number of tools to improve component usage in your software supply chain, allowing you to automate your processes and achieve accelerated speed to delivery while also increasing product quality" \
   com.sonatype.name="Nexus IQ Server image" \
+  com.sonatype.license="Apache License, Version 2.0" \
   run="docker run -d -p 8070:8070 -p 8071:8071 IMAGE" \
   com.sonatype.license="Apache License, Version 2.0" \
   com.sonatype.name="Nexus IQ Server base image" \
