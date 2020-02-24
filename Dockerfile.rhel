@@ -51,17 +51,17 @@ ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/rel
 ADD solo.json.erb /var/chef/solo.json.erb
 
 # Chef version locked to avoid needing to accept the EULA on behalf of whomever builds the image
-RUN curl -L https://www.getchef.com/chef/install.sh | bash -s -- -v 14.12.9 \
-    && /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json \
-    && chef-solo \
+RUN curl -L https://www.getchef.com/chef/install.sh | bash -s -- -v 14.12.9
+RUN /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json
+RUN chef-solo \
        --recipe-url ${IQ_SERVER_COOKBOOK_URL} \
-       --json-attributes /var/chef/solo.json \
-    && rpm -qa *chef* | xargs rpm -e \
-    && rm -rf /etc/chef \
-    && rm -rf /opt/chefdk \
-    && rm -rf /var/cache/yum \
-    && rm -rf /var/chef \
-    && yum clean all
+       --json-attributes /var/chef/solo.json
+RUN rpm -qa *chef* | xargs rpm -e
+RUN rm -rf /etc/chef
+RUN rm -rf /opt/chefdk
+RUN rm -rf /var/cache/yum
+RUN rm -rf /var/chef
+RUN yum clean all
 
 VOLUME ${SONATYPE_WORK}
 
