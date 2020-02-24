@@ -55,6 +55,7 @@ ADD solo.json.erb /var/chef/solo.json.erb
 RUN curl -L https://www.getchef.com/chef/install.sh | bash -s -- -v 14.12.9
 RUN /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json
 RUN chef-solo -l debug \
+       --node-name foobar \
        --recipe-url ${IQ_SERVER_COOKBOOK_URL} \
        --json-attributes /var/chef/solo.json
 RUN rpm -qa *chef* | xargs rpm -e
