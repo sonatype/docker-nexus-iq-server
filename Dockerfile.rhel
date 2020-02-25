@@ -43,7 +43,7 @@ ARG IQ_SERVER_SHA256=da8c232db606c4826d6de160eaa6ee137beaa48b54a98ad4034faa14d69
 # Mandatory parameters. Docker needs to know volume mount point and location of startup script.
 ENV SONATYPE_WORK="/sonatype-work" \
     IQ_HOME="/opt/sonatype/nexus-iq-server/" \
-    DOCKER_TYPE="docker"
+    DOCKER_TYPE="rh-docker"
 
 ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20200219-224442.056dc0d"
 ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
