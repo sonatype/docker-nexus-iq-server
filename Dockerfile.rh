@@ -12,47 +12,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/rhel7/rhel
+FROM registry.access.redhat.com/ubi8/ubi
 
 MAINTAINER Sonatype <cloud-ops@sonatype.com>
 
+# Optional parameters.
+ARG IQ_SERVER_RELEASE=1.85.0
+ARG IQ_SERVER_VERSION_TAG=01
+ARG IQ_SERVER_VERSION=${IQ_SERVER_RELEASE}-${IQ_SERVER_VERSION_TAG}
+ARG IQ_SERVER_SHA256=da8c232db606c4826d6de160eaa6ee137beaa48b54a98ad4034faa14d692060e
+
 LABEL name="Nexus IQ Server image" \
   vendor=Sonatype \
-  version="1.84.0-01" \
-  release="1.84.0" \
+  version="${IQ_SERVER_VERSION}" \
+  release="${IQ_SERVER_RELEASE}" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
     It provides a number of tools to improve component usage in your software supply chain, allowing you to \
-    automate your processes and achieve accelerated speed to delivery while also increasing product quality"
+    automate your processes and achieve accelerated speed to delivery while also increasing product quality" \
   com.sonatype.license="Apache License, Version 2.0" \
   com.sonatype.name="Nexus IQ Server image" \
   run="docker run -d -p 8070:8070 -p 8071:8071 IMAGE" \
-  com.sonatype.license="Apache License, Version 2.0" \
   com.sonatype.name="Nexus IQ Server base image" \
   io.k8s.description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
     It provides a number of tools to improve component usage in your software supply chain, allowing you to \
-    automate your processes and achieve accelerated speed to delivery while also increasing product quality"
-    com.sonatype.license="Apache License, Version 2.0" \
+    automate your processes and achieve accelerated speed to delivery while also increasing product quality" \
   io.k8s.display-name="Nexus IQ Server" \
   io.openshift.expose-services="8071:8071" \
   io.openshift.tags="Sonatype,Nexus,IQ Server"
-
-# Optional parameters.
-ARG IQ_SERVER_VERSION=1.84.0-01
-ARG IQ_SERVER_SHA256=81e877f4e793e740cd0be38faaa35650448bfcb77aa30fd48d15babeb01a9a09
 
 # Mandatory parameters. Docker needs to know volume mount point and location of startup script.
 ENV SONATYPE_WORK="/sonatype-work" \
     IQ_HOME="/opt/sonatype/nexus-iq-server/" \
     DOCKER_TYPE="rh-docker"
 
-ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20200210-175005.e554f17"
+ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20200219-224442.056dc0d"
 ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
 
 ADD solo.json.erb /var/chef/solo.json.erb
 
-# Install using chef-solo
+# Chef version locked to avoid needing to accept the EULA on behalf of whomever builds the image
 RUN yum install -y --disableplugin=subscription-manager hostname procps \
     && curl -L https://www.getchef.com/chef/install.sh | bash -s -- -v 14.12.9 \
     && /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json \
