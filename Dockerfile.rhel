@@ -16,10 +16,16 @@ FROM registry.access.redhat.com/ubi8/ubi
 
 MAINTAINER Sonatype <cloud-ops@sonatype.com>
 
+# Optional parameters.
+ARG IQ_SERVER_RELEASE=1.85.0
+ARG IQ_SERVER_VERSION_TAG=01
+ARG IQ_SERVER_VERSION=${IQ_SERVER_RELEASE}-${IQ_SERVER_VERSION_TAG}
+ARG IQ_SERVER_SHA256=da8c232db606c4826d6de160eaa6ee137beaa48b54a98ad4034faa14d692060e
+
 LABEL name="Nexus IQ Server image" \
   vendor=Sonatype \
-  version="1.85.0-01" \
-  release="1.85.0-01" \
+  version="${IQ_SERVER_VERSION}" \
+  release="${IQ_SERVER_RELEASE}" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
@@ -35,10 +41,6 @@ LABEL name="Nexus IQ Server image" \
   io.k8s.display-name="Nexus IQ Server" \
   io.openshift.expose-services="8071:8071" \
   io.openshift.tags="Sonatype,Nexus,IQ Server"
-
-# Optional parameters.
-ARG IQ_SERVER_VERSION=1.85.0-01
-ARG IQ_SERVER_SHA256=da8c232db606c4826d6de160eaa6ee137beaa48b54a98ad4034faa14d692060e
 
 # Mandatory parameters. Docker needs to know volume mount point and location of startup script.
 ENV SONATYPE_WORK="/sonatype-work" \
