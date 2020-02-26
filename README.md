@@ -185,7 +185,7 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
 
 ## Red Hat Certified Image
 
-A Red Hat certified container image can be created using Dockerfile.rhel which pulls from assets in the red-hat-assets
+A Red Hat certified container image can be created using Dockerfile.rh which pulls from assets in the red-hat-assets
 folder. The image includes additional meta data to conform with Atomic and OpenShift standards, a directory with the
 licenses applicable to the software and a man file for help on how to use the software.  It also uses an ENTRYPOINT
 script the ensure the running user has access to the appropriate permissions for OpenShift 'restricted' SCC.

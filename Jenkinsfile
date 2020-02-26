@@ -35,7 +35,7 @@ node('ubuntu-zion') {
 
       dockerFileLocations = [
           "${pwd()}/Dockerfile",
-          "${pwd()}/Dockerfile.rhel"
+          "${pwd()}/Dockerfile.rh"
       ]
 
       branch = checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
