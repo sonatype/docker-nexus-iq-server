@@ -57,8 +57,6 @@ node('ubuntu-zion') {
     if (params.nexus_iq_version && params.nexus_iq_version_sha) {
       stage('Update IQ Version') {
         OsTools.runSafe(this, "git checkout ${branch}")
-
-        def dockerFile = readFile(file: dockerFileLocation)
         dockerFileLocations.each { updateServerVersion(it) }
       }
     }
