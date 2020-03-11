@@ -155,6 +155,7 @@ node('ubuntu-zion') {
       }
     }
     stage('Push tags') {
+      print ("tagging with version ${version}")
       withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
                         usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
         OsTools.runSafe(this, "git tag ${version}")
@@ -177,6 +178,7 @@ def readVersion() {
   def content = readFile 'Dockerfile'
   for (line in content.split('\n')) {
     if (line.startsWith('ARG IQ_SERVER_VERSION=')) {
+      print("found version line ${line}")
       return getShortVersion(line.substring(22))
     }
   }
@@ -184,6 +186,7 @@ def readVersion() {
 }
 
 def getShortVersion(version) {
+  print ("getShortVersion for line: ${version}")
   return version.split('-')[0]
 }
 
