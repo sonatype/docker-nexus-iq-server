@@ -177,7 +177,6 @@ def readVersion() {
   def content = readFile 'Dockerfile'
   for (line in content.split('\n')) {
     if (line.startsWith('ARG IQ_SERVER_VERSION=')) {
-      print ("readVersion ${line}")
       return getShortVersion(line.substring(22))
     }
   }
@@ -192,7 +191,6 @@ def getGemInstallDirectory() {
   def content = OsTools.runSafe(this, "gem env")
   for (line in content.split('\n')) {
     if (line.startsWith('  - USER INSTALLATION DIRECTORY: ')) {
-      print ("getGemInstallDirectory ${line}")
       return line.substring(33)
     }
   }
@@ -209,7 +207,6 @@ def updateServerVersion(dockerFileLocation) {
   def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
 
   dockerFile = dockerFile.replaceAll(metaVersionRegex, "\$1${params.nexus_iq_version}\$3")
-  print ("updateServerVersion ${params.nexus_iq_version}")
   dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
       "\$1${params.nexus_iq_version.substring(0, params.nexus_iq_version.indexOf('-'))}\$3")
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
