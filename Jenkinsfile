@@ -209,9 +209,9 @@ def updateServerVersion(dockerFileLocation) {
   def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
 
   dockerFile = dockerFile.replaceAll(metaVersionRegex, "\$1${params.nexus_iq_version}\$3")
-  print ("updateServerVersion ${params.nexus_repository_manager_version}")
+  print ("updateServerVersion ${params.nexus_iq_version}")
   dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
-      "\$1${params.nexus_repository_manager_version.substring(0, params.nexus_iq_version.indexOf('-'))}\$3")
+      "\$1${params.nexus_iq_version.substring(0, params.nexus_iq_version.indexOf('-'))}\$3")
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
   dockerFile = dockerFile.replaceAll(shaRegex, "\$1${params.nexus_iq_version_sha}")
 
