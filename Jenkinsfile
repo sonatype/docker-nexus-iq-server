@@ -58,6 +58,7 @@ node('ubuntu-zion') {
       stage('Update IQ Version') {
         OsTools.runSafe(this, "git checkout ${branch}")
         dockerFileLocations.each { updateServerVersion(it) }
+        version = getShortVersion(params.nexus_iq_version)
       }
     }
     if (params.nexus_iq_cookbook_version) {

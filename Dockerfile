@@ -20,8 +20,8 @@ LABEL vendor=Sonatype \
   com.sonatype.name="Nexus IQ Server image"
 
 # Optional parameters.
-ARG IQ_SERVER_VERSION=1.86.0-02
-ARG IQ_SERVER_SHA256=cb3477920bb5f939d51040917d20d66c1c558def3cd77cce857bba9a70bab411
+ARG IQ_SERVER_VERSION=1.85.0-01
+ARG IQ_SERVER_SHA256=da8c232db606c4826d6de160eaa6ee137beaa48b54a98ad4034faa14d692060e
 
 # Mandatory parameters. Docker needs to know volume mount point and location of startup script.
 ENV SONATYPE_WORK="/sonatype-work" \
