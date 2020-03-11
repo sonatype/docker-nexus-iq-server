@@ -17,15 +17,13 @@ FROM registry.access.redhat.com/ubi8/ubi
 MAINTAINER Sonatype <cloud-ops@sonatype.com>
 
 # Optional parameters.
-ARG IQ_SERVER_RELEASE=1.85.0
-ARG IQ_SERVER_VERSION_TAG=01
-ARG IQ_SERVER_VERSION=${IQ_SERVER_RELEASE}-${IQ_SERVER_VERSION_TAG}
+ARG IQ_SERVER_VERSION=1.86.0-02
 ARG IQ_SERVER_SHA256=cb3477920bb5f939d51040917d20d66c1c558def3cd77cce857bba9a70bab411
 
 LABEL name="Nexus IQ Server image" \
   vendor=Sonatype \
-  version="${IQ_SERVER_VERSION}" \
-  release="${IQ_SERVER_RELEASE}" \
+  version="1.86.0-02" \
+  release="1.86.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
