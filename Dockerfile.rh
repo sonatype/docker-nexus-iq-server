@@ -14,7 +14,7 @@
 
 FROM registry.access.redhat.com/ubi8/ubi
 
-MAINTAINER Sonatype <cloud-ops@sonatype.com>
+MAINTAINER Sonatype <support@sonatype.com>
 
 # Optional parameters.
 ARG IQ_SERVER_VERSION=1.90.0-01

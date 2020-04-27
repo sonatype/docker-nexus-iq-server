@@ -15,7 +15,7 @@
 FROM registry.access.redhat.com/ubi8/ubi
 
 LABEL vendor=Sonatype \
-  maintainer="Sonatype <cloud-ops@sonatype.com>" \
+  maintainer="Sonatype <support@sonatype.com>" \
   com.sonatype.license="Apache License, Version 2.0" \
   com.sonatype.name="Nexus IQ Server image"
 
