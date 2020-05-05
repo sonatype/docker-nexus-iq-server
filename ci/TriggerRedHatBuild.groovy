@@ -22,6 +22,7 @@ new BuildClient(*args).run()
 
 class BuildClient {
   private static final Integer TIMEOUT_MINUTES = 20
+  private static final Integer POLLING_SECONDS = 60
 
   private final String version
   private final String projectId
@@ -143,8 +144,8 @@ class BuildClient {
     final endTime = calcCutoffTime(System.currentTimeMillis(), TIMEOUT_MINUTES)
 
     while (System.currentTimeMillis() < endTime) {
-      println 'Waiting for build to finish.'
-      sleep 60000
+      println "Waiting for build to finish. Checking again in ${POLLING_SECONDS} seconds."
+      sleep(POLLING_SECONDS * 1000)
 
       try {
         final completedBuild = getTags().find {
