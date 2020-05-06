@@ -12,7 +12,10 @@ properties([
     string(defaultValue: '', description: 'New Nexus IQ Version', name: 'nexus_iq_version'),
     string(defaultValue: '', description: 'New Nexus IQ Version Sha256', name: 'nexus_iq_version_sha'),
 
-    string(defaultValue: '', description: 'New Nexus IQ Cookbook Version', name: 'nexus_iq_cookbook_version')
+    string(defaultValue: '', description: 'New Nexus IQ Cookbook Version', name: 'nexus_iq_cookbook_version'),
+    booleanParam(defaultValue: false, description: 'Skip Pushing of Docker Image and Tags', name: 'skip_push'),
+    booleanParam(defaultValue: false, description: 'Force Red Hat Certified Build for a non-master branch', name: 'force_red_hat_build'),
+    booleanParam(defaultValue: false, description: 'Skip Red Hat Certified Build', name: 'skip_red_hat_build'),
   ])
 ])
 
@@ -123,49 +126,60 @@ node('ubuntu-zion') {
         archiveArtifacts artifacts: "${archiveName}.tar.gz", onlyIfSuccessful: true
       }
     }
-    if (branch != 'master') {
-      return
-    }
-    stage('Push image') {
-      def dockerHubApiToken
-      withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
-          usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
-        OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
-        OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
-        OsTools.runSafe(this, """
-          docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
-        """)
-        OsTools.runSafe(this, "docker push ${organization}/${dockerHubRepository}")
 
-        response = OsTools.runSafe(this, """
-          curl -X POST https://hub.docker.com/v2/users/login/ \
-            -H 'cache-control: no-cache' -H 'content-type: application/json' \
-            -d '{ "username": "${env.DOCKERHUB_API_USERNAME}", "password": "${env.DOCKERHUB_API_PASSWORD}" }'
-        """)
-        token = readJSON text: response
-        dockerHubApiToken = token.token
+    if (branch == 'master' && ! params.skip_push) {
+      stage('Push image') {
+        def dockerHubApiToken
+        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
+            usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
+          OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
+          OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
+          OsTools.runSafe(this, """
+            docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
+          """)
+          OsTools.runSafe(this, "docker push ${organization}/${dockerHubRepository}")
 
-        def readme = readFile file: 'README.md', encoding: 'UTF-8'
-        readme = readme.replaceAll("(?s)<!--.*?-->", "")
-        readme = readme.replace("\"", "\\\"")
-        readme = readme.replace("\n", "\\n")
-        response = httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerHubApiToken}"]],
-            acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH',
-            requestBody: "{ \"full_description\": \"${readme}\" }",
-            url: "https://hub.docker.com/v2/repositories/${organization}/${dockerHubRepository}/"
+          response = OsTools.runSafe(this, """
+            curl -X POST https://hub.docker.com/v2/users/login/ \
+              -H 'cache-control: no-cache' -H 'content-type: application/json' \
+              -d '{ "username": "${env.DOCKERHUB_API_USERNAME}", "password": "${env.DOCKERHUB_API_PASSWORD}" }'
+          """)
+          token = readJSON text: response
+          dockerHubApiToken = token.token
+
+          def readme = readFile file: 'README.md', encoding: 'UTF-8'
+          readme = readme.replaceAll("(?s)<!--.*?-->", "")
+          readme = readme.replace("\"", "\\\"")
+          readme = readme.replace("\n", "\\n")
+          response = httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerHubApiToken}"]],
+              acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH',
+              requestBody: "{ \"full_description\": \"${readme}\" }",
+              url: "https://hub.docker.com/v2/repositories/${organization}/${dockerHubRepository}/"
+        }
+      }
+      stage('Push tags') {
+        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
+                          usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
+          OsTools.runSafe(this, "git tag ${version}")
+          OsTools.runSafe(this, """
+            git push \
+            https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git \
+              ${version}
+          """)
+        }
+        OsTools.runSafe(this, "git tag -d ${version}")
       }
     }
-    stage('Push tags') {
-      withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
-                        usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
-        OsTools.runSafe(this, "git tag ${version}")
-        OsTools.runSafe(this, """
-          git push \
-          https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git \
-            ${version}
-        """)
+
+    if ((! params.skip_red_hat_build) && (branch == 'master' || params.force_red_hat_build)) {
+      stage('Trigger Red Hat Certified Image Build') {
+        withCredentials([
+            string(credentialsId: 'docker-nexus-iq-rh-build-project-id', variable: 'PROJECT_ID'),
+            string(credentialsId: 'rh-build-service-api-key', variable: 'API_KEY')]) {
+          final redHatVersion = "${version}-ubi"
+          runGroovy('ci/TriggerRedHatBuild.groovy', [redHatVersion, PROJECT_ID, API_KEY].join(' '))
+        }
       }
-      OsTools.runSafe(this, "git tag -d ${version}")
     }
   } finally {
     OsTools.runSafe(this, "docker logout")
