@@ -26,7 +26,8 @@ node('ubuntu-zion') {
       credentialsId = 'integrations-github-api',
       imageName = 'sonatype/nexus-iq-server',
       archiveName = 'docker-nexus-iq-server',
-      dockerHubRepository = 'nexus-iq-server'
+      dockerHubRepository = 'nexus-iq-server',
+      tarName = 'docker-nexus-iq-server.tar'
   GitHub gitHub
 
   try {
@@ -101,6 +102,16 @@ node('ubuntu-zion') {
         gitHub.statusUpdate commitId, 'success', 'test', 'Tests succeeded'
       }
     }
+    stage('Evaluate') {
+      OsTools.runSafe(this, "docker save ${imageName} -o ${env.WORKSPACE}/${tarName}")
+
+      nexusPolicyEvaluation
+        failBuildOnNextworkError: true,
+        iqApplication: 'docker-nexus-iq-server',
+        iqScanPatterns: [[scanPattern: '*.tar']],
+        iqStage: 'develop'
+    }
+
     if (currentBuild.result == 'FAILURE') {
       return
     }
