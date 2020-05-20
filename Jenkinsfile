@@ -26,6 +26,7 @@ node('ubuntu-zion') {
       credentialsId = 'integrations-github-api',
       imageName = 'sonatype/nexus-iq-server',
       archiveName = 'docker-nexus-iq-server',
+      iqApplicationId = 'docker-nexus-iq-server',
       dockerHubRepository = 'nexus-iq-server',
       tarName = 'docker-nexus-iq-server.tar'
   GitHub gitHub
@@ -108,13 +109,10 @@ node('ubuntu-zion') {
       OsTools.runSafe(this, "docker save ${imageName} -o ${env.WORKSPACE}/${tarName}")
       
       //decide which stage we are creating
-      def theStage = 'build'
-      if(branch == 'master') {
-        theStage = 'release'
-      }
+      def theStage = branch == 'master' ? 'release' : 'build'
 
       //run the evaluation
-      nexusPolicyEvaluation iqStage: "${theStage}", iqApplication: "${archiveName}",
+      nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
         iqScanPatterns: [[scanPattern: '*.tar']],
         failBuildOnNetworkError: true
     }
