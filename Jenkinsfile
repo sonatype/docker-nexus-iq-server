@@ -105,11 +105,9 @@ node('ubuntu-zion') {
     stage('Evaluate') {
       OsTools.runSafe(this, "docker save ${imageName} -o ${env.WORKSPACE}/${tarName}")
 
-      nexusPolicyEvaluation
-        failBuildOnNetworkError: true,
-        iqApplication: 'docker-nexus-iq-server',
+      nexusPolicyEvaluation iqStage: 'develop', iqApplication: "${archiveName}",
         iqScanPatterns: [[scanPattern: '*.tar']],
-        iqStage: 'develop'
+        failBuildOnNetworkError: true
     }
 
     if (currentBuild.result == 'FAILURE') {
