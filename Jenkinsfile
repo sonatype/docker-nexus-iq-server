@@ -109,7 +109,7 @@ node('ubuntu-zion') {
       OsTools.runSafe(this, "docker save ${imageName} -o ${env.WORKSPACE}/${tarName}")
       
       //decide which stage we are creating
-      def theStage = branch == 'master' ? (params.push_image ? 'release' : 'stage') : 'build'
+      def theStage = branch == 'master' ? (params.push_image ? 'release' : 'stage-release') : 'build'
 
       //run the evaluation
       nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
