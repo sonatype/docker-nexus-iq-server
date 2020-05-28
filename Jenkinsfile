@@ -106,15 +106,17 @@ node('ubuntu-zion') {
     stage('Evaluate') {
       
       //Create tar of our image
-      OsTools.runSafe(this, "docker save ${imageName} -o ${env.WORKSPACE}/${tarName}")
+      dir('build') {
+        OsTools.runSafe(this, "docker save ${imageName} -o ${tarName}")
       
-      //decide which stage we are creating
-      def theStage = branch == 'master' ? (params.push_image ? 'release' : 'stage-release') : 'build'
+        //decide which stage we are creating
+        def theStage = branch == 'master' ? (params.push_image ? 'release' : 'stage-release') : 'build'
 
-      //run the evaluation
-      nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
-        iqScanPatterns: [[scanPattern: '*.tar']],
-        failBuildOnNetworkError: true
+        //run the evaluation
+        nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
+          iqScanPatterns: [[scanPattern: 'build/*.tar']],
+          failBuildOnNetworkError: true
+      }
     }
 
     if (currentBuild.result == 'FAILURE') {
