@@ -114,7 +114,7 @@ node('ubuntu-zion') {
 
         //run the evaluation
         nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
-          iqScanPatterns: [[scanPattern: 'build/*.tar']],
+          iqScanPatterns: [[scanPattern: '*.tar']],
           failBuildOnNetworkError: true
       }
     }
