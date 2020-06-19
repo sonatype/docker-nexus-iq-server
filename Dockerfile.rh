@@ -17,13 +17,13 @@ FROM registry.access.redhat.com/ubi8/ubi
 MAINTAINER Sonatype <support@sonatype.com>
 
 # Optional parameters.
-ARG IQ_SERVER_VERSION=1.93.0-01
-ARG IQ_SERVER_SHA256=f021794e18c1fc23c3279fb7a40d714223e37daf6bcfef64d182155d4eec40ad
+ARG IQ_SERVER_VERSION=1.94.0-01
+ARG IQ_SERVER_SHA256=bf84e905a09d18456812c6c846d520a94bee2241164d2203cf372141e981c624
 
 LABEL name="Nexus IQ Server image" \
   vendor=Sonatype \
-  version="1.93.0-01" \
-  release="1.93.0" \
+  version="1.94.0-01" \
+  release="1.94.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
@@ -45,7 +45,7 @@ ENV SONATYPE_WORK="/sonatype-work" \
     IQ_HOME="/opt/sonatype/nexus-iq-server/" \
     DOCKER_TYPE="rh-docker"
 
-ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20200603-145730.d015f63"
+ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20200619-155323.d2dc2ab"
 ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
 
 ADD solo.json.erb /var/chef/solo.json.erb
