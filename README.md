@@ -63,7 +63,7 @@ Example: To customize the HTTP proxy server that IQ Server will use to make outb
 
 ```
 $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e \
-  JAVA_OPTS="-Ddw.proxy.hostname=proxy.example.com -Ddw.proxy.port=8888 sonatype/nexus-iq-server
+  JAVA_OPTS="-Ddw.proxy.hostname=proxy.example.com -Ddw.proxy.port=8888 sonatype/nexus-iq-server"
 ```
 
 ## Persistent Data
@@ -120,7 +120,7 @@ The IQ Server product license is stored using Java preferences API. By default, 
 customized by a Java system property to be under the sonatype-work directory i.e.
 `-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs` so as to survive image restarts.
 
-If customized using `JAVA_OPTS`, The absolute path to user prefs must point to an already created directory readable by the user account owning the process. 
+If customized using `JAVA_OPTS`, the absolute path to user prefs must point to an already created directory readable by the user account owning the process. 
 
 Under the preferences directory, IQ Server will store the installed license file at a path ./com/sonatype/clm/prefs.xml
 
