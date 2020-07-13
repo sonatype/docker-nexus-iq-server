@@ -63,7 +63,7 @@ Example: To customize the HTTP proxy server that IQ Server will use to make outb
 
 ```
 $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e \
-  JAVA_OPTS="-Ddw.proxy.hostname=proxy.example.com -Ddw.proxy.port=8888 sonatype/nexus-iq-server"
+  JAVA_OPTS="-Ddw.proxy.hostname=proxy.example.com -Ddw.proxy.port=8888" sonatype/nexus-iq-server
 ```
 
 ## Persistent Data
