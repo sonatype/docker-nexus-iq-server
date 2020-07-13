@@ -49,16 +49,13 @@ Installation of Nexus IQ Server application is to `/opt/sonatype/nexus-iq-server
 
 By default, the IQ Server reads its [main configuration file](https://help.sonatype.com/iqserver/configuring/config.yml) from within the image at `/etc/nexus-iq-server/config.yml`.
 
-There is an environment variable `JAVA_OPTS` that is being used to pass JVM arguments to the java command that launches IQ server. The default value is `-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs`.
+There is an environment variable `JAVA_OPTS` that passes JVM arguments to the java command that launches IQ server.
 
 This environment variable can be adjusted at runtime:
 
 ```
-$ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Djava.util.prefs.userRoot=/some-other-dir" sonatype/nexus-iq-server
+$ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Doption=value" sonatype/nexus-iq-server
 ```
-
-Of particular note, `-Djava.util.prefs.userRoot=/some-other-dir` can be set to a persistent path, which will maintain
-the installed Nexus IQ Server License if the container is restarted.
 
 Further, you can [customize parts of the default config.yml settings by using Java system properties](https://help.sonatype.com/iqserver/configuring/advanced-server-configuration) defined inside the environment variable.
 
@@ -66,7 +63,7 @@ Example: To customize the HTTP proxy server that IQ Server will use to make outb
 
 ```
 $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e \
-  JAVA_OPTS="-Ddw.proxy.hostname=proxy.example.com -Ddw.proxy.port=8888 -Djava.util.prefs.userRoot=/some-other-dir" sonatype/nexus-iq-server
+  JAVA_OPTS="-Ddw.proxy.hostname=proxy.example.com -Ddw.proxy.port=8888" sonatype/nexus-iq-server
 ```
 
 ## Persistent Data
@@ -114,9 +111,16 @@ Once running, the IQ Server product license must be installed. This should be do
 
 Default admin credentials are: `admin` / `admin123`
 
-The IQ Server product license is stored using Java preferences API. By default, the directory location is already customized by a Java system property to be under the sonatype-work directory so as to survive image restarts.
+### Version 96 or Later
+The IQ Server product license is stored in the database and so will survive image restarts as long as the database is
+persisted.
 
-If customized using `JAVA_OPTS`, The absolute path to user prefs must point to an already created directory readable by the user account owning the repository manager process. 
+### Version 95 or Earlier
+The IQ Server product license is stored using Java preferences API. By default, the directory location is already
+customized by a Java system property to be under the sonatype-work directory i.e.
+`-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs` so as to survive image restarts.
+
+If customized using `JAVA_OPTS`, the absolute path to user prefs must point to an already created directory readable by the user account owning the process. 
 
 Under the preferences directory, IQ Server will store the installed license file at a path ./com/sonatype/clm/prefs.xml
 
