@@ -59,11 +59,11 @@ $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-
 
 Further, you can [customize parts of the default config.yml settings by using Java system properties](https://help.sonatype.com/iqserver/configuring/advanced-server-configuration) defined inside the environment variable.
 
-Example: To customize the HTTP proxy server that IQ Server will use to make outbound requests:
+Example: To customize the logging level that IQ Server will use:
 
 ```
 $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e \
-  JAVA_OPTS="-Ddw.proxy.hostname=proxy.example.com -Ddw.proxy.port=8888" sonatype/nexus-iq-server
+  JAVA_OPTS="-Ddw.logging.level=TRACE" sonatype/nexus-iq-server
 ```
 
 ## Persistent Data
@@ -145,7 +145,7 @@ The `solo.json.erb` template file can be used to customize the Nexus IQ Server c
 Server's config.yml. See [IQ Server Configuration](https://help.sonatype.com/iqserver/configuring) for
 more details as to what values are supported.
 
-Here is an example of how to set the proxy, server and baseUrl sections of the config.yml:
+Here is an example of how to set the server and baseUrl sections of the config.yml:
 
 ```
   :nexus_iq_server => {
@@ -154,12 +154,6 @@ Here is an example of how to set the proxy, server and baseUrl sections of the c
     :install_dir => ENV['IQ_HOME'],
     :config => {
       :sonatypeWork => ENV['SONATYPE_WORK'],
-      :proxy => {
-        :hostname => '127.0.0.1',
-        :port => 80,
-        :username => 'anonymous',
-        :password => 'guest'
-      },
       :server => {
         :applicationConnectors => [
           :type => 'https',
