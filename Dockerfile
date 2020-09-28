@@ -14,11 +14,6 @@
 
 FROM registry.access.redhat.com/ubi8/openjdk-8
 
-LABEL vendor=Sonatype \
-  maintainer="Sonatype <support@sonatype.com>" \
-  com.sonatype.license="Apache License, Version 2.0" \
-  com.sonatype.name="Nexus IQ Server image"
-
 # Build parameters
 ARG IQ_SERVER_VERSION=1.99.0-01
 ARG IQ_SERVER_SHA256=b8e13545503bf4b8a93a7918fc6a56e330a620c1533f91cd9ffcb4bbaaee23c5
@@ -29,6 +24,11 @@ ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
 
 ENV DOCKER_TYPE="docker"
+
+LABEL vendor=Sonatype \
+  maintainer="Sonatype <support@sonatype.com>" \
+  com.sonatype.license="Apache License, Version 2.0" \
+  com.sonatype.name="Nexus IQ Server image"
 
 USER root
 
