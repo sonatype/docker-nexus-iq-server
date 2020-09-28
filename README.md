@@ -29,7 +29,6 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
   * [Customizing the Default Built config.yml](#customizing-the-default-built-configyml)
 * [Testing the Dockerfile](#testing-the-dockerfile)
 * [Red Hat Certified Image](#red-hat-certified-image)
-* [Chef Solo for Runtime and Application](chef-solo-for-runtime-and-application)
 * [Project License](#project-license)
 
 ## Migration
@@ -134,44 +133,13 @@ The following optional variables can be used when building the image:
 
 - IQ_SERVER_VERSION: Version of Nexus IQ Server
 - IQ_SERVER_SHA256: Check hash matches the downloaded IQ Server archive or else fail build. Required if `IQ_SERVER_VERSION` is provided.
-- JAVA_URL: Download URL for Oracle JDK
-- JAVA_SHA256: Check hash matches the downloaded JDK or else fail build. Required if `JAVA_URL` is provided.
 - SONATYPE_WORK: Path to Nexus IQ Server working directory where variable data is stored
 
-### Customizing the Default Built config.yml
+### Customizing the Default config.yml
 
-The `solo.json.erb` template file can be used to customize the Nexus IQ Server configuration. The
-`nexus_iq_server.config` property of this Embedded Ruby template will be rendered and then saved as the Nexus IQ
-Server's config.yml. See [IQ Server Configuration](https://help.sonatype.com/iqserver/configuring) for
-more details as to what values are supported.
-
-Here is an example of how to set the server and baseUrl sections of the config.yml:
-
-```
-  :nexus_iq_server => {
-    :version => ENV['IQ_SERVER_VERSION'],
-    :checksum => ENV['IQ_SERVER_SHA256'],
-    :install_dir => ENV['IQ_HOME'],
-    :config => {
-      :sonatypeWork => ENV['SONATYPE_WORK'],
-      :server => {
-        :applicationConnectors => [
-          :type => 'https',
-          :port => 8443,
-          :keyStorePath =>  '/path/to/your/keystore/file',
-          :keyStorePassword => 'yourpassword'
-        ],
-        :adminConnectors => [
-          :type => 'https',
-          :port => 8471,
-          :keyStorePath =>  '/path/to/your/keystore/file',
-          :keyStorePassword => 'yourpassword'
-        ]
-      },
-      :baseUrl => 'https://nexus-iq-server.example.com/'
-    }
-  }
-```
+The `config.yml` file can be used to customize the Nexus IQ Server configuration.
+See [IQ Server Configuration](https://help.sonatype.com/iqserver/configuring) for more details as to what values
+are supported.
 
 ## Testing the Dockerfile
 
@@ -186,12 +154,7 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
 A Red Hat certified container image can be created using Dockerfile.rh which pulls from assets in the red-hat-assets
 folder. The image includes additional meta data to conform with Atomic and OpenShift standards, a directory with the
 licenses applicable to the software and a man file for help on how to use the software.  It also uses an ENTRYPOINT
-script the ensure the running user has access to the appropriate permissions for OpenShift 'restricted' SCC.
-
-## Chef Solo for Runtime and Application
-
-Chef Solo is used to build out the runtime and application layers of the Docker image. The Chef cookbook being used is available
-on GitHub at [sonatype/chef-nexus-iq-server](https://github.com/sonatype/chef-nexus-iq-server).
+script to ensure the running user has access to the appropriate permissions for OpenShift 'restricted' SCC.
 
 ## Project License
 

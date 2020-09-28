@@ -25,14 +25,6 @@ describe 'Dockerfile' do
     set :docker_image, @image.id
   end
 
-  it 'should remove solo.json during cleanup' do
-    expect(file('/var/chef/solo.json')).not_to exist
-  end
-
-  it 'should not have a chef package installed' do
-    expect(package('chef')).not_to be_installed
-  end
-
   it 'should have a user named nexus' do
     expect(user('nexus')).to exist
   end

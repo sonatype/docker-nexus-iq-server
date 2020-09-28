@@ -12,7 +12,6 @@ properties([
     string(defaultValue: '', description: 'New Nexus IQ Version', name: 'nexus_iq_version'),
     string(defaultValue: '', description: 'New Nexus IQ Version Sha256', name: 'nexus_iq_version_sha'),
 
-    string(defaultValue: '', description: 'New Nexus IQ Cookbook Version', name: 'nexus_iq_cookbook_version'),
     booleanParam(defaultValue: false, description: 'Push Docker Image and Tags', name: 'push_image'),
     booleanParam(defaultValue: false, description: 'Force Red Hat Certified Build for a non-master branch', name: 'force_red_hat_build'),
     booleanParam(defaultValue: false, description: 'Skip Red Hat Certified Build', name: 'skip_red_hat_build'),
@@ -66,12 +65,6 @@ node('ubuntu-zion') {
         version = getShortVersion(params.nexus_iq_version)
       }
     }
-    if (params.nexus_iq_cookbook_version) {
-      stage('Update IQ Cookbook Version') {
-        OsTools.runSafe(this, "git checkout ${branch}")
-        dockerFileLocations.each { updateServerCookbookVersion(it) }
-      }
-    }
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
 
@@ -122,13 +115,12 @@ node('ubuntu-zion') {
     if (currentBuild.result == 'FAILURE') {
       return
     }
-    if (params.nexus_iq_version && params.nexus_iq_version_sha || params.nexus_iq_cookbook_version) {
+    if (params.nexus_iq_version && params.nexus_iq_version_sha) {
       stage('Commit IQ Version Update') {
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'integrations-github-api',
                         usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
           def commitMessage = [
             params.nexus_iq_version && params.nexus_iq_version_sha ? "Update IQ Server to ${params.nexus_iq_version}." : "",
-            params.nexus_iq_cookbook_version ? "Update IQ Cookbook to ${params.nexus_iq_cookbook_version}." : "",
           ].findAll({ it }).join(' ')
           OsTools.runSafe(this, """
             git add .
@@ -244,16 +236,6 @@ def updateServerVersion(dockerFileLocation) {
       "\$1${params.nexus_iq_version.substring(0, params.nexus_iq_version.indexOf('-'))}\$3")
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
   dockerFile = dockerFile.replaceAll(shaRegex, "\$1${params.nexus_iq_version_sha}")
-
-  writeFile(file: dockerFileLocation, text: dockerFile)
-}
-
-def updateServerCookbookVersion(dockerFileLocation) {
-  def dockerFile = readFile(file: dockerFileLocation)
-
-  def cookbookVersionRegex = /(ARG IQ_SERVER_COOKBOOK_VERSION=")(release-\d\.\d\.\d{8}\-\d{6}\.[a-z0-9]{7})(")/
-
-  dockerFile = dockerFile.replaceAll(cookbookVersionRegex, "\$1${params.nexus_iq_cookbook_version}\$3")
 
   writeFile(file: dockerFileLocation, text: dockerFile)
 }
