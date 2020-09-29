@@ -83,6 +83,16 @@ RUN cd ${TEMP} \
 RUN groupadd nexus \
 && adduser -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus
 
+# Red Hat Certified Container commands
+COPY rh-docker /
+RUN usermod -a -G root nexus \
+&& chmod -R 0755 /licenses \
+&& chmod 0755 /help.1 \
+&& chmod 0755 /uid_entrypoint.sh \
+&& chmod 0755 /uid_template.sh \
+&& bash /uid_template.sh \
+&& chmod 0664 /etc/passwd
+
 # Change owner to nexus user
 RUN chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
