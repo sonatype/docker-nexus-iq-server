@@ -32,6 +32,10 @@ LABEL vendor=Sonatype \
 
 USER root
 
+# For testing
+RUN microdnf update \
+&& microdnf install procps
+
 # Create folders
 RUN mkdir -p ${TEMP} \
 && mkdir -m 0755 -p ${IQ_HOME} \
