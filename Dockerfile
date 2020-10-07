@@ -32,6 +32,9 @@ LABEL vendor=Sonatype \
 
 USER root
 
+# Delete unneeded /usr/share/java to avoid violations
+RUN rm -rf /usr/share/java
+
 # For testing
 RUN microdnf update \
 && microdnf install procps

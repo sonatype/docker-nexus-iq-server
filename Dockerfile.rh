@@ -49,6 +49,9 @@ LABEL name="Nexus IQ Server image" \
 
 USER root
 
+# Delete unneeded /usr/share/java to avoid violations
+RUN rm -rf /usr/share/java
+
 # For testing
 RUN microdnf update \
 && microdnf install procps
@@ -70,14 +73,14 @@ RUN echo "/usr/bin/java ${JAVA_OPTS} -jar nexus-iq-server-${IQ_SERVER_VERSION}.j
 && chmod 0755 ${IQ_HOME}/start.sh
 
 # Download the server bundle, verify its checksum, and extract the server jar to the install directory
-RUN cd ${TEMP} \
-&& curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
-&& echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
-&& sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
-&& tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
-&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} \
-&& cd ${IQ_HOME} \
-&& rm -rf ${TEMP}
+#RUN cd ${TEMP} \
+#&& curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
+#&& echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
+#&& sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
+#&& tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
+#&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} \
+#&& cd ${IQ_HOME} \
+#&& rm -rf ${TEMP}
 
 # Add group and user
 RUN groupadd nexus \
