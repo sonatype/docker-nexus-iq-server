@@ -12,48 +12,78 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/ubi8/ubi
+FROM registry.access.redhat.com/ubi8/openjdk-8
+
+# Build parameters
+ARG IQ_SERVER_VERSION=1.100.0-01
+ARG IQ_SERVER_SHA256=0a26e4ad5c2f322622087de51caa6858e9fa3b908f69518cb82b43b142704c63
+ARG TEMP="/tmp/work"
+ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
+ARG SONATYPE_WORK="/sonatype-work"
+ARG CONFIG_HOME="/etc/nexus-iq-server"
+ARG LOGS_HOME="/var/log/nexus-iq-server"
+
+ENV DOCKER_TYPE="docker"
 
 LABEL vendor=Sonatype \
   maintainer="Sonatype <support@sonatype.com>" \
   com.sonatype.license="Apache License, Version 2.0" \
   com.sonatype.name="Nexus IQ Server image"
 
-# Optional parameters.
-ARG IQ_SERVER_VERSION=1.100.0-01
-ARG IQ_SERVER_SHA256=0a26e4ad5c2f322622087de51caa6858e9fa3b908f69518cb82b43b142704c63
+USER root
 
-# Mandatory parameters. Docker needs to know volume mount point and location of startup script.
-ENV SONATYPE_WORK="/sonatype-work" \
-    IQ_HOME="/opt/sonatype/nexus-iq-server/" \
-    DOCKER_TYPE="docker"
+# For testing
+RUN microdnf update \
+&& microdnf install procps
 
-ARG IQ_SERVER_COOKBOOK_VERSION="release-0.4.20201007-161001.a061af3"
-ARG IQ_SERVER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-iq-server/releases/download/${IQ_SERVER_COOKBOOK_VERSION}/chef-nexus-iq-server.tar.gz"
+# Create folders
+RUN mkdir -p ${TEMP} \
+&& mkdir -m 0755 -p ${IQ_HOME} \
+&& mkdir -m 0755 -p ${SONATYPE_WORK} \
+&& mkdir -m 0755 -p ${CONFIG_HOME} \
+&& mkdir -m 0755 -p ${LOGS_HOME}
 
-ADD solo.json.erb /var/chef/solo.json.erb
+# Copy config.yml and set sonatypeWork to the correct value
+COPY config.yml ${TEMP}
+RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${CONFIG_HOME}/config.yml \
+&& chmod 0644 ${CONFIG_HOME}/config.yml
 
-# Install using chef-solo
-RUN yum install -y --disableplugin=subscription-manager hostname procps \
-    && curl -L https://www.getchef.com/chef/install.sh | bash -s -- -v 14.12.9 \
-    && /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json \
-    && chef-solo \
-       --recipe-url ${IQ_SERVER_COOKBOOK_URL} \
-       --json-attributes /var/chef/solo.json \
-    && rpm -qa *chef* | xargs rpm -e \
-    && rm -rf /etc/chef \
-    && rm -rf /opt/chefdk \
-    && rm -rf /var/cache/yum \
-    && rm -rf /var/chef \
-    && yum clean all
+# Create start script
+RUN echo "/usr/bin/java ${JAVA_OPTS} -jar nexus-iq-server-${IQ_SERVER_VERSION}.jar server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log" > ${IQ_HOME}/start.sh \
+&& chmod 0755 ${IQ_HOME}/start.sh
 
+# Download the server bundle, verify its checksum, and extract the server jar to the install directory
+RUN cd ${TEMP} \
+&& curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
+&& echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
+&& sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
+&& tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
+&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} \
+&& cd ${IQ_HOME} \
+&& rm -rf ${TEMP}
+
+# Add group and user
+RUN groupadd nexus \
+&& adduser -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus
+
+# Change owner to nexus user
+RUN chown -R nexus:nexus ${IQ_HOME} \
+&& chown -R nexus:nexus ${SONATYPE_WORK} \
+&& chown -R nexus:nexus ${CONFIG_HOME} \
+&& chown -R nexus:nexus ${LOGS_HOME}
+
+# This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
 
+# Expose the ports
 EXPOSE 8070
 EXPOSE 8071
 
+# Change to nexus user
 USER nexus
 
 ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs"
 
-CMD ["sh", "-c", "${IQ_HOME}/start-nexus-iq-server.sh"]
+WORKDIR ${IQ_HOME}
+
+CMD [ "sh", "./start.sh" ]
