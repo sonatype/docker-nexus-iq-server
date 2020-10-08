@@ -225,13 +225,11 @@ def getGemInstallDirectory() {
 def updateServerVersion(dockerFileLocation) {
   def dockerFile = readFile(file: dockerFileLocation)
 
-  def metaVersionRegex = /(version=")(\d\.\d{1,3}\.\d\-\d{2})(" \\)/
   def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
 
   def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
   def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
 
-  dockerFile = dockerFile.replaceAll(metaVersionRegex, "\$1${params.nexus_iq_version}\$3")
   dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
       "\$1${params.nexus_iq_version.substring(0, params.nexus_iq_version.indexOf('-'))}\$3")
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
