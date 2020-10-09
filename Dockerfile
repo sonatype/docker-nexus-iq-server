@@ -74,6 +74,7 @@ RUN chown -R nexus:nexus ${IQ_HOME} \
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
+VOLUME ${LOGS_HOME}
 
 # Expose the ports
 EXPOSE 8070
