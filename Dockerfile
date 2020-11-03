@@ -33,8 +33,7 @@ LABEL vendor=Sonatype \
 USER root
 
 # For testing
-RUN microdnf update \
-&& microdnf install procps
+RUN microdnf install procps
 
 # Create folders
 RUN mkdir -p ${TEMP} \
