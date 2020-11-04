@@ -35,8 +35,13 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 
 ### Upgrading from Version 100 or Earlier to Version 101 or Later
 Version 1.101.0 of the Docker image changed the base image from Red Hat UBI (Universal Base Image) to a different Red
-Hat UBI that includes OpenJDK 1.8. As a result, the UID of the `nexus` user has changed. If you use this image with a
-persistent data volume you will need to run the following for your server to start up successfully:
+Hat UBI that includes OpenJDK 1.8. This was due to the effort to remove the dependency on Chef. As a result, the UID of
+the `nexus` user has changed. If you use this image with persistent data volumes, then for each volume you will need to
+run the following command:
+```
+docker run -it -u=0 -v [volume name]:[volume container path] sonatype/nexus-iq-server:1.101.0 chown -R nexus:nexus [volume container path]
+```
+e.g.
 ```
 docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server:1.101.0 chown -R nexus:nexus /sonatype-work
 ```
@@ -45,8 +50,12 @@ and its files to the correct `nexus` user.
 
 ### Upgrading from Version 68 or Earlier to Version 69 or Later
 Version 1.69.0 of the Docker image changed the base image from CentOS to Red Hat UBI (Universal Base Image). 
-As a result, the UID of the `nexus` user has changed. If you use this image with a persistent data volume you will need 
-to run the following for your server to start up successfully:
+As a result, the UID of the `nexus` user has changed. If you use this image with persistent data volumes, then for each
+volume you will need to run the following command:
+```
+docker run -it -u=0 -v [volume name]:[volume container path] sonatype/nexus-iq-server:1.101.0 chown -R nexus:nexus [volume container path]
+```
+e.g.
 ```
 docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server:1.69.0 chown -R nexus:nexus /sonatype-work
 ```
