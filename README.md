@@ -34,9 +34,9 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 ## Migration
 
 ### Upgrading from Version 100 or Earlier to Version 101 or Later
-Version 1.101.0 of the Docker image changed the base image from Red Hat UBI (Universal Base Image) to include
-OpenJDK 1.8. As a result, the UID of the `nexus` user has changed. If you use this image with a persistent data volume
-you will need to run the following for your server to start up successfully:
+Version 1.101.0 of the Docker image changed the base image from Red Hat UBI (Universal Base Image) to a different Red
+Hat UBI that includes OpenJDK 1.8. As a result, the UID of the `nexus` user has changed. If you use this image with a
+persistent data volume you will need to run the following for your server to start up successfully:
 ```
 docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server:1.101.0 chown -R nexus:nexus /sonatype-work
 ```
