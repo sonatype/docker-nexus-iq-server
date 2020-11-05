@@ -35,7 +35,7 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 
 ### Upgrading from Version 100 or Earlier to Version 101 or Later
 Version 1.101.0 of the Docker image changed the base image from [Red Hat UBI (Universal Base Image)](https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e) to a different [Red
-Hat UBI that includes OpenJDK 1.8](https://catalog.redhat.com/software/containers/ubi8/openjdk-8/5dd6a48dbed8bd164a09589a). This was due to the effort to remove the dependency on Chef. As a result, the UID of
+Hat UBI that includes OpenJDK 1.8](https://catalog.redhat.com/software/containers/ubi8/openjdk-8/5dd6a48dbed8bd164a09589a). This was due to an effort to remove the dependency on Chef. As a result, the UID of
 the `nexus` user has changed. If you use this image with persistent data volumes, then for each volume you will need to
 run the following command:
 ```
