@@ -62,8 +62,8 @@ RUN cd ${TEMP} \
 && rm -rf ${TEMP}
 
 # Add group and user
-RUN groupadd nexus \
-&& adduser -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus
+RUN groupadd -g 1000 nexus \
+&& adduser -u 997 -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus
 
 # Change owner to nexus user
 RUN chown -R nexus:nexus ${IQ_HOME} \
