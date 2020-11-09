@@ -53,7 +53,7 @@ Version 1.69.0 of the Docker image changed the base image from [CentOS](https://
 As a result, the UID of the `nexus` user has changed. If you use this image with persistent data volumes, then for each
 volume you will need to run the following command:
 ```
-docker run -it -u=0 -v [volume name]:[volume container path] sonatype/nexus-iq-server:1.101.0 chown -R nexus:nexus [volume container path]
+docker run -it -u=0 -v [volume name]:[volume container path] sonatype/nexus-iq-server:1.69.0 chown -R nexus:nexus [volume container path]
 ```
 e.g.
 ```
