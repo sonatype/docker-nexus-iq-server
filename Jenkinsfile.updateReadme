@@ -9,6 +9,7 @@ import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion') {
   def branch,
+      readme,
       organization = 'sonatype',
       dockerHubRepository = 'nexus-iq-server'
   try {
@@ -16,6 +17,10 @@ node('ubuntu-zion') {
       deleteDir()
       def checkoutDetails = checkout scm
       branch = checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
+      readme = readFile file: 'README.md', encoding: 'UTF-8'
+      readme = readme.replaceAll("(?s)<!--.*?-->", "")
+      readme = readme.replace("\"", "\\\"")
+      readme = readme.replace("\n", "\\n")
     }
     if (branch == 'master') {
       stage('Push README.md') {
@@ -29,10 +34,6 @@ node('ubuntu-zion') {
           token = readJSON text: response
           def dockerHubApiToken = token.token
 
-          def readme = readFile file: 'README.md', encoding: 'UTF-8'
-          readme = readme.replaceAll("(?s)<!--.*?-->", "")
-          readme = readme.replace("\"", "\\\"")
-          readme = readme.replace("\n", "\\n")
           response = httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerHubApiToken}"]],
               acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH',
               requestBody: "{ \"full_description\": \"${readme}\" }",
@@ -42,15 +43,10 @@ node('ubuntu-zion') {
     }
     else {
       stage('Check README.md') {
-        def readme = readFile file: 'README.md', encoding: 'UTF-8'
-            readme = readme.replaceAll("(?s)<!--.*?-->", "")
-            readme = readme.replace("\"", "\\\"")
-            readme = readme.replace("\n", "\\n")
-            echo readme
+        echo readme
       }
     }
   } finally {
     OsTools.runSafe(this, "docker logout")
-    OsTools.runSafe(this, 'git clean -f && git reset --hard origin/master')
   }
 }
