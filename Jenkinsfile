@@ -161,6 +161,7 @@ node('ubuntu-zion') {
           readme = readme.replaceAll("(?s)<!--.*?-->", "")
           readme = readme.replace("\"", "\\\"")
           readme = readme.replace("\n", "\\n")
+          readme = readme.replace("\$", "\\\$")
           response = httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerHubApiToken}"]],
               acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH',
               requestBody: "{ \"full_description\": \"${readme}\" }",

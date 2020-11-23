@@ -21,6 +21,7 @@ node('ubuntu-zion') {
       readme = readme.replaceAll("(?s)<!--.*?-->", "")
       readme = readme.replace("\"", "\\\"")
       readme = readme.replace("\n", "\\n")
+      readme = readme.replace("\$", "\\\$")
     }
     if (branch == 'master') {
       stage('Push README.md') {
