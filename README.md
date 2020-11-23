@@ -81,7 +81,7 @@ Further, you can [customize parts of the default config.yml settings by using Ja
 Example: To customize the logging level that IQ Server will use:
 
 ```
-$ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e \
+$ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e \\
   JAVA_OPTS="-Ddw.logging.level=TRACE" sonatype/nexus-iq-server
 ```
 
@@ -90,7 +90,7 @@ $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e \
 Note that for version 101 and 102 `${JAVA_OPTS}` is missing from the startup script `start.sh` and so,
 in addition to your command modifying the `JAVA_OPTS` environment variable (similar to the above), you must also run
 ```
-docker exec nexus-iq-server sed -i 's/java/java \${JAVA_OPTS}/g' /opt/sonatype/nexus-iq-server/start.sh
+docker exec nexus-iq-server sed -i 's/java/java \\${JAVA_OPTS}/g' /opt/sonatype/nexus-iq-server/start.sh
 docker restart nexus-iq-server
 ```
 
