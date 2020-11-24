@@ -73,7 +73,7 @@ There is an environment variable `JAVA_OPTS` that passes JVM arguments to the ja
 This environment variable can be adjusted at runtime:
 
 ```
-$ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Doption=value" sonatype/nexus-iq-server
+docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Doption=value" sonatype/nexus-iq-server
 ```
 
 Further, you can [customize parts of the default config.yml settings by using Java system properties](https://help.sonatype.com/iqserver/configuring/advanced-server-configuration) defined inside the environment variable.
@@ -81,7 +81,7 @@ Further, you can [customize parts of the default config.yml settings by using Ja
 Example: To customize the logging level that IQ Server will use:
 
 ```
-$ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Ddw.logging.level=TRACE" sonatype/nexus-iq-server
+docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Ddw.logging.level=TRACE" sonatype/nexus-iq-server
 ```
 
 ### Runtime Server Configuration for Versions 101 and 102
@@ -104,9 +104,9 @@ for additional information.
   this purpose.  This is the recommended approach.  
 
   ```
-  $ docker volume create --name sonatype-work
-  $ docker volume create --name sonatype-logs
-  $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -v sonatype-work:/sonatype-work -v sonatype-logs:/var/log/nexus-iq-server sonatype/nexus-iq-server
+  docker volume create --name sonatype-work
+  docker volume create --name sonatype-logs
+  docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -v sonatype-work:/sonatype-work -v sonatype-logs:/var/log/nexus-iq-server sonatype/nexus-iq-server
   ```
 
   2. *Mount a host directory as the volume*.  This is not portable, as it
@@ -115,9 +115,9 @@ for additional information.
   to be assigned to certain specific underlying storage.  
 
   ```
-  $ mkdir /some/dir/sonatype-work
-  $ mkdir /some/dir/sonatype-logs
-  $ docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -v /some/dir/sonatype-work:/sonatype-work -v /some/dir/sonatype-logs:/var/log/nexus-iq-server sonatype/nexus-iq-server
+  mkdir /some/dir/sonatype-work
+  mkdir /some/dir/sonatype-logs
+  docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -v /some/dir/sonatype-work:/sonatype-work -v /some/dir/sonatype-logs:/var/log/nexus-iq-server sonatype/nexus-iq-server
   ```
   
 ## Running
