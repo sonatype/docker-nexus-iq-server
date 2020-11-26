@@ -36,12 +36,14 @@ USER root
 RUN dnf update --allowerasing -y \
 && dnf install -y procps
 
-# Create folders
+# Create folders, add group and user
 RUN mkdir -p ${TEMP} \
 && mkdir -m 0755 -p ${IQ_HOME} \
 && mkdir -m 0755 -p ${SONATYPE_WORK} \
 && mkdir -m 0755 -p ${CONFIG_HOME} \
-&& mkdir -m 0755 -p ${LOGS_HOME}
+&& mkdir -m 0755 -p ${LOGS_HOME} \
+&& groupadd -g 1000 nexus \
+&& adduser -u 997 -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
@@ -60,14 +62,8 @@ RUN cd ${TEMP} \
 && tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
 && mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} \
 && cd ${IQ_HOME} \
-&& rm -rf ${TEMP}
-
-# Add group and user
-RUN groupadd -g 1000 nexus \
-&& adduser -u 997 -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus
-
-# Change owner to nexus user
-RUN chown -R nexus:nexus ${IQ_HOME} \
+&& rm -rf ${TEMP} \
+&& chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
 && chown -R nexus:nexus ${LOGS_HOME}
