@@ -15,8 +15,8 @@
 FROM registry.access.redhat.com/ubi8/openjdk-8
 
 # Build parameters
-ARG IQ_SERVER_VERSION=1.102.0-02
-ARG IQ_SERVER_SHA256=2a3c0584d43619d3c86a61e626c017061aaf0633130992592e68b128b4b4547e
+ARG IQ_SERVER_VERSION=1.103.0-01
+ARG IQ_SERVER_SHA256=bf021c636c987aa00a3d8f97ba0ea541c23d77e7711d68eeaa4530b95e5e32c0
 ARG TEMP="/tmp/work"
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
