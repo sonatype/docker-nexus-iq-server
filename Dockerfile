@@ -80,6 +80,9 @@ VOLUME ${LOGS_HOME}
 EXPOSE 8070
 EXPOSE 8071
 
+# Configure health check for app port
+HEALTHCHECK CMD curl --fail http://localhost:8070/ || exit 1
+
 # Change to nexus user
 USER nexus
 
