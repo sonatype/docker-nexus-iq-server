@@ -23,8 +23,6 @@ ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
 
-ENV DOCKER_TYPE="docker"
-
 LABEL vendor=Sonatype \
   maintainer="Sonatype <support@sonatype.com>" \
   com.sonatype.license="Apache License, Version 2.0" \
