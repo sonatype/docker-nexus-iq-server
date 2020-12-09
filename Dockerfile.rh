@@ -23,8 +23,6 @@ ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
 
-ENV DOCKER_TYPE="rh-docker"
-
 MAINTAINER Sonatype <support@sonatype.com>
 
 LABEL name="Nexus IQ Server image" \
