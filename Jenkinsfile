@@ -86,7 +86,7 @@ node('ubuntu-zion') {
         OsTools.runSafe(this, "gem install --user-install rspec")
         OsTools.runSafe(this, "gem install --user-install serverspec")
         OsTools.runSafe(this, "gem install --user-install docker-api")
-        OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace spec/Dockerfile_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
       }
 
       if (currentBuild.result == 'FAILURE') {
