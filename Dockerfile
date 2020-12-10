@@ -23,10 +23,25 @@ ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
 
-LABEL vendor=Sonatype \
+LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
+  vendor=Sonatype \
+  version="${IQ_SERVER_VERSION}" \
+  release="1.103.0" \
+  url="https://www.sonatype.com" \
+  summary="The Nexus IQ Server" \
+  description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
+    It provides a number of tools to improve component usage in your software supply chain, allowing you to \
+    automate your processes and achieve accelerated speed to delivery while also increasing product quality" \
   com.sonatype.license="Apache License, Version 2.0" \
-  com.sonatype.name="Nexus IQ Server image"
+  com.sonatype.name="Nexus IQ Server image" \
+  run="docker run -d -p 8070:8070 -p 8071:8071 IMAGE" \
+  io.k8s.description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
+    It provides a number of tools to improve component usage in your software supply chain, allowing you to \
+    automate your processes and achieve accelerated speed to delivery while also increasing product quality" \
+  io.k8s.display-name="Nexus IQ Server" \
+  io.openshift.expose-services="8071:8071" \
+  io.openshift.tags="Sonatype,Nexus,IQ Server"
 
 USER root
 
