@@ -25,16 +25,45 @@ describe 'Dockerfile' do
     set :docker_image, @image.id
   end
 
-  it 'should have a user named nexus' do
-    expect(user('nexus')).to exist
+  describe group('nexus') do
+    it 'should exist' do
+      expect(subject).to exist
+    end
+
+    it 'should have a specific id' do
+      expect(subject).to have_gid(1000)
+    end
   end
 
-  it 'should have a nexus java process running' do
-    expect(process('java')).to be_running
-    expect(process('java')).to have_attributes(:user => 'nexus')
+  describe user('nexus') do
+    it 'should exist' do
+      expect(subject).to exist
+    end
+
+    it 'should belong to the nexus group' do
+      expect(subject).to belong_to_group('nexus')
+    end
+
+    it 'should have a specific id' do
+      expect(subject).to have_uid(997)
+    end
+
+    it 'should have the installation directory as home directory' do
+      expect(subject).to have_home_directory('/opt/sonatype/nexus-iq-server')
+    end
   end
 
-  describe 'port configuration' do
+  describe process('java') do
+    it 'should be running' do
+      expect(subject).to be_running
+    end
+
+    it 'should belong to the nexus user' do
+      expect(subject).to have_attributes(:user => 'nexus')
+    end
+  end
+
+  describe 'Port configuration' do
     it 'exposes the application port' do
       expect(@image.json['Config']['ExposedPorts']).to have_key('8070/tcp')
     end
@@ -44,7 +73,7 @@ describe 'Dockerfile' do
     end
   end
 
-  describe 'log directory' do
+  describe 'Log directory' do
     logDirectory = '/var/log/nexus-iq-server/'
 
     it 'is a directory' do
@@ -70,6 +99,10 @@ describe 'Dockerfile' do
 
     it 'contains the request log' do
       expect(file(logDirectory + 'request.log')).to be_a_file
+    end
+
+    it 'contains the stderr log' do
+      expect(file(logDirectory + 'stderr.log')).to be_a_file
     end
   end
 end
