@@ -33,4 +33,43 @@ describe 'Dockerfile' do
     expect(process('java')).to be_running
     expect(process('java')).to have_attributes(:user => 'nexus')
   end
+
+  describe 'port configuration' do
+    it 'exposes the application port' do
+      expect(@image.json['Config']['ExposedPorts']).to have_key('8070/tcp')
+    end
+
+    it 'exposes the admin port' do
+      expect(@image.json['Config']['ExposedPorts']).to have_key('8071/tcp')
+    end
+  end
+
+  describe 'log directory' do
+    logDirectory = '/var/log/nexus-iq-server/'
+
+    it 'is a directory' do
+      expect(file(logDirectory)).to be_a_directory
+    end
+
+    it 'has the right permissions' do
+      expect(file(logDirectory)).to be_mode(755)
+    end
+
+    it 'is owned by the nexus user/group' do
+      expect(file(logDirectory)).to be_owned_by('nexus')
+      expect(file(logDirectory)).to be_grouped_into('nexus')
+    end
+
+    it 'contains the application log' do
+      expect(file(logDirectory + 'clm-server.log')).to be_a_file
+    end
+
+    it 'contains the audit log' do
+      expect(file(logDirectory + 'audit.log')).to be_a_file
+    end
+
+    it 'contains the request log' do
+      expect(file(logDirectory + 'request.log')).to be_a_file
+    end
+  end
 end
