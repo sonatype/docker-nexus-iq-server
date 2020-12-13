@@ -26,39 +26,39 @@ describe 'Dockerfile' do
   end
 
   describe group('nexus') do
-    it 'should exist' do
+    it 'exists' do
       expect(subject).to exist
     end
 
-    it 'should have a specific id' do
+    it 'has a specific id' do
       expect(subject).to have_gid(1000)
     end
   end
 
   describe user('nexus') do
-    it 'should exist' do
+    it 'exists' do
       expect(subject).to exist
     end
 
-    it 'should belong to the nexus group' do
+    it 'belongs to the nexus group' do
       expect(subject).to belong_to_group('nexus')
     end
 
-    it 'should have a specific id' do
+    it 'has a specific id' do
       expect(subject).to have_uid(997)
     end
 
-    it 'should have the installation directory as home directory' do
+    it 'has the installation directory as home directory' do
       expect(subject).to have_home_directory('/opt/sonatype/nexus-iq-server')
     end
   end
 
   describe process('java') do
-    it 'should be running' do
+    it 'is running' do
       expect(subject).to be_running
     end
 
-    it 'should belong to the nexus user' do
+    it 'belongs to the nexus user' do
       expect(subject).to have_attributes(:user => 'nexus')
     end
   end
