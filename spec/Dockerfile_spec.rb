@@ -113,4 +113,67 @@ describe 'Dockerfile' do
       expect(file(logDirectory + 'stderr.log')).to be_a_file
     end
   end
+
+  describe 'Home directory' do
+    homeDirectory = '/opt/sonatype/nexus-iq-server/'
+
+    it 'is a directory' do
+      expect(file(homeDirectory)).to be_a_directory
+    end
+
+    it 'has the right permissions' do
+      expect(file(homeDirectory)).to be_mode(755)
+    end
+
+    it 'is owned by the nexus user/group' do
+      expect(file(homeDirectory)).to be_owned_by('nexus')
+      expect(file(homeDirectory)).to be_grouped_into('nexus')
+    end
+
+    it 'contains the start script' do
+      expect(file(homeDirectory + 'start.sh')).to be_a_file
+    end
+  end
+
+  describe 'Work directory' do
+    workDirectory = '/sonatype-work/'
+
+    it 'is a directory' do
+      expect(file(workDirectory)).to be_a_directory
+    end
+
+    it 'has the right permissions' do
+      expect(file(workDirectory)).to be_mode(755)
+    end
+
+    it 'is owned by the nexus user/group' do
+      expect(file(workDirectory)).to be_owned_by('nexus')
+      expect(file(workDirectory)).to be_grouped_into('nexus')
+    end
+
+    it 'contains the data directory' do
+      expect(file(workDirectory + 'data')).to be_a_directory
+    end
+  end
+
+  describe 'Config directory' do
+    configDirectory = '/etc/nexus-iq-server/'
+
+    it 'is a directory' do
+      expect(file(configDirectory)).to be_a_directory
+    end
+
+    it 'has the right permissions' do
+      expect(file(configDirectory)).to be_mode(755)
+    end
+
+    it 'is owned by the nexus user/group' do
+      expect(file(configDirectory)).to be_owned_by('nexus')
+      expect(file(configDirectory)).to be_grouped_into('nexus')
+    end
+
+    it 'contains the configuration file' do
+      expect(file(configDirectory + 'config.yml')).to be_a_file
+    end
+  end
 end
