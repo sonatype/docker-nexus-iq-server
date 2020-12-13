@@ -61,6 +61,14 @@ describe 'Dockerfile' do
     it 'belongs to the nexus user' do
       expect(subject).to have_attributes(:user => 'nexus')
     end
+
+    it 'opens the application port' do
+      expect(command('curl --fail --connect-timeout 120 http://localhost:8070/').exit_status).to eq(0)
+    end
+
+    it 'reports as healthy on the admin port' do
+      expect(command('curl --fail --connect-timeout 120 http://localhost:8071/healthcheck').exit_status).to eq(0)
+    end
   end
 
   describe 'Port configuration' do
