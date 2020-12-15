@@ -73,14 +73,14 @@ RUN cd ${TEMP} \
 && tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
 && mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} \
 && cd ${IQ_HOME} \
-&& rm -rf ${TEMP}
-
+&& rm -rf ${TEMP} \
+\
 # Add group and user
-RUN groupadd -g 1000 nexus \
-&& adduser -u 997 -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus
-
+&& groupadd -g 1000 nexus \
+&& adduser -u 997 -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus \
+\
 # Change owner to nexus user
-RUN chown -R nexus:nexus ${IQ_HOME} \
+&& chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
 && chown -R nexus:nexus ${LOGS_HOME}
