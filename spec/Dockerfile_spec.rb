@@ -130,8 +130,16 @@ describe 'Dockerfile' do
       expect(file(homeDirectory)).to be_grouped_into('nexus')
     end
 
-    it 'contains the start script' do
-      expect(file(homeDirectory + 'start.sh')).to be_a_file
+    describe 'Start script' do
+      startScript = file(homeDirectory + 'start.sh')
+
+      it 'exists' do
+        expect(startScript).to be_a_file
+      end
+
+      it 'contains JAVA_OPTS' do
+        expect(startScript.content).to include('${JAVA_OPTS}')
+      end
     end
   end
 
