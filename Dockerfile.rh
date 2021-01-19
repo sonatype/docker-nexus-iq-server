@@ -15,8 +15,8 @@
 FROM registry.access.redhat.com/ubi8/openjdk-8
 
 # Build parameters
-ARG IQ_SERVER_VERSION=1.103.0-01
-ARG IQ_SERVER_SHA256=bf021c636c987aa00a3d8f97ba0ea541c23d77e7711d68eeaa4530b95e5e32c0
+ARG IQ_SERVER_VERSION=1.104.0-02
+ARG IQ_SERVER_SHA256=9258f9abe91cb01e0eaf53b216f0c9c881505aa6d80e68e718e929c0c96eac89
 ARG TEMP="/tmp/work"
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
@@ -27,7 +27,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.103.0" \
+  release="1.104.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
