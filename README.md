@@ -27,6 +27,7 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 * [Product License Installation](#product-license-installation)
 * [Building the Nexus IQ Server image](#building-the-nexus-iq-server-image)
   * [Customizing the Default Built config.yml](#customizing-the-default-built-configyml)
+* [Extending the Nexus IQ Server Image](#extending-the-nexus-iq-server-image)
 * [Testing the Dockerfile](#testing-the-dockerfile)
 * [Red Hat Certified Image](#red-hat-certified-image)
 * [Project License](#project-license)
