@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/ubi8/openjdk-8
+FROM registry.access.redhat.com/ubi8/openjdk-8:1.3-8
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.107.0-01
