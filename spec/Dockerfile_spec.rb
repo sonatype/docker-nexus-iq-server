@@ -81,6 +81,12 @@ describe 'Dockerfile' do
     end
   end
 
+  describe 'Healthcheck' do
+    it 'is configured' do
+      expect(@image.json['Config']['Healthcheck']).to have_key('Test')
+    end
+  end
+
   describe 'Log directory' do
     logDirectory = '/var/log/nexus-iq-server/'
 
