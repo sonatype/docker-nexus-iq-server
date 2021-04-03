@@ -66,8 +66,8 @@ describe 'Dockerfile' do
       expect(command('curl --fail --connect-timeout 120 http://localhost:8070/').exit_status).to eq(0)
     end
 
-    it 'reports as healthy on the admin port' do
-      expect(command('curl --fail --connect-timeout 120 http://localhost:8071/healthcheck').exit_status).to eq(0)
+    it 'opens the admin port' do
+      expect(command('curl --fail --connect-timeout 120 http://localhost:8071/').exit_status).to eq(0)
     end
   end
 
