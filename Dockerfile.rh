@@ -22,6 +22,8 @@ ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
+ARG GID=1000
+ARG UID=997
 
 LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
@@ -76,8 +78,8 @@ RUN cd ${TEMP} \
 && rm -rf ${TEMP} \
 \
 # Add group and user
-&& groupadd -g 1000 nexus \
-&& adduser -u 997 -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus \
+&& groupadd -g ${GID} nexus \
+&& adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false -r nexus \
 \
 # Change owner to nexus user
 && chown -R nexus:nexus ${IQ_HOME} \
