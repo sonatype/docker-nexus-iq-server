@@ -4,15 +4,11 @@
  * "Sonatype" is a trademark of Sonatype, Inc.
  */
 @Library(['private-pipeline-library', 'jenkins-shared']) _
-import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion') {
   def version
-  def organization = 'sonatype',
-      gitHubRepository = 'docker-nexus-iq-server',
-      credentialsId = 'integrations-github-api'
-  GitHub gitHub
+  def credentialsId = 'integrations-github-api'
 
   try {
     stage('Preparation') {
