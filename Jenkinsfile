@@ -13,8 +13,6 @@ properties([
     string(defaultValue: '', description: 'New Nexus IQ Version Sha256', name: 'nexus_iq_version_sha'),
 
     booleanParam(defaultValue: false, description: 'Push Docker Image and Tags', name: 'push_image'),
-    booleanParam(defaultValue: false, description: 'Force Red Hat Certified Build for a non-master branch', name: 'force_red_hat_build'),
-    booleanParam(defaultValue: false, description: 'Skip Red Hat Certified Build', name: 'skip_red_hat_build'),
   ])
 ])
 
@@ -182,16 +180,6 @@ node('ubuntu-zion') {
       }
     }
 
-    if ((! params.skip_red_hat_build) && (branch == 'master' || params.force_red_hat_build)) {
-      stage('Trigger Red Hat Certified Image Build') {
-        withCredentials([
-            string(credentialsId: 'docker-nexus-iq-rh-build-project-id', variable: 'PROJECT_ID'),
-            string(credentialsId: 'rh-build-service-api-key', variable: 'API_KEY')]) {
-          final redHatVersion = "${version}-ubi"
-          runGroovy('ci/TriggerRedHatBuild.groovy', [redHatVersion, PROJECT_ID, API_KEY].join(' '))
-        }
-      }
-    }
   } finally {
     OsTools.runSafe(this, "docker logout")
     OsTools.runSafe(this, "docker system prune -a -f")
