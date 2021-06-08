@@ -20,7 +20,7 @@ node('ubuntu-zion') {
   def commitId, commitDate, version, imageId, branch, dockerFileLocations
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
-      credentialsId = 'integrations-github-api',
+      credentialsId = 'sonaype-ci-github-access-token',
       imageName = 'sonatype/nexus-iq-server',
       archiveName = 'docker-nexus-iq-server',
       iqApplicationId = 'docker-nexus-iq-server',
@@ -115,7 +115,7 @@ node('ubuntu-zion') {
     }
     if (params.nexus_iq_version && params.nexus_iq_version_sha) {
       stage('Commit IQ Version Update') {
-        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'integrations-github-api',
+        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
                         usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
           def commitMessage = [
             params.nexus_iq_version && params.nexus_iq_version_sha ? "Update IQ Server to ${params.nexus_iq_version}." : "",
