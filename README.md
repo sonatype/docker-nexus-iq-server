@@ -34,6 +34,18 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 
 ## Migration
 
+
+### Upgrading from Version 116 or Earlier to Version 117 or Later
+Version 1.117.0 of the Docker image changed the UID of the nexus user from 997 to 1000, and changed it from a system account to a user account. This is to minimize the chance of a future collision with other UIDs. If you use this image with persistent data volumes, then for each volume you will need to run the following command:
+```
+docker run -it -u=0 -v [volume name]:[volume container path] sonatype/nexus-iq-server:1.117.0 chown -R nexus:nexus [volume container path]
+```
+e.g.
+```
+docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server:1.117.0 chown -R nexus:nexus /sonatype-work
+```
+This will start up a 1.117.0 IQ server container with root as the user, allowing it to chown the sonatype-work directory and its files to the correct nexus user.
+
 ### Upgrading from Version 100 or Earlier to Version 101 or Later
 Version 1.101.0 of the Docker image changed the base image from [Red Hat UBI (Universal Base Image)](https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e) to a different [Red
 Hat UBI that includes OpenJDK 1.8](https://catalog.redhat.com/software/containers/ubi8/openjdk-8/5dd6a48dbed8bd164a09589a). This was due to an effort to remove the dependency on Chef. As a result, the UID of
