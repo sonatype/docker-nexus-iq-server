@@ -36,7 +36,7 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 
 
 ### Upgrading from Version 117 or Earlier to Version 118 or Later
-Version 1.117.0 of the Docker image changed the UID of the nexus user from 997 to 1000, and changed it from a system account to a user account. This is to minimize the chance of a future collision with other UIDs. If you use this image with persistent data volumes, then for each volume you will need to run the following command:
+Version 1.118.0 of the Docker image changed the UID of the nexus user from 997 to 1000, and changed it from a system account to a user account. This is to minimize the chance of a future collision with other UIDs. If you use this image with persistent data volumes, then for each volume you will need to run the following command:
 ```
 docker run -it -u=0 -v [volume name]:[volume container path] sonatype/nexus-iq-server:1.117.0 chown -R nexus:nexus [volume container path]
 ```
