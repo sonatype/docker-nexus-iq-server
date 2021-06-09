@@ -42,7 +42,7 @@ docker run -it -u=0 -v [volume name]:[volume container path] sonatype/nexus-iq-s
 ```
 e.g.
 ```
-docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server:1.117.0 chown -R nexus:nexus /sonatype-work
+docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server:1.118.0 chown -R nexus:nexus /sonatype-work
 ```
 This will start up a 1.118.0 IQ server container with root as the user, allowing it to chown the sonatype-work directory and its files to the correct nexus user.
 
