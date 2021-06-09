@@ -45,7 +45,7 @@ describe 'Dockerfile' do
     end
 
     it 'has a specific id' do
-      expect(subject).to have_uid(997)
+      expect(subject).to have_uid(1000)
     end
 
     it 'has the installation directory as home directory' do
