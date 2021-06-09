@@ -44,7 +44,7 @@ e.g.
 ```
 docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server:1.117.0 chown -R nexus:nexus /sonatype-work
 ```
-This will start up a 1.117.0 IQ server container with root as the user, allowing it to chown the sonatype-work directory and its files to the correct nexus user.
+This will start up a 1.118.0 IQ server container with root as the user, allowing it to chown the sonatype-work directory and its files to the correct nexus user.
 
 ### Upgrading from Version 100 or Earlier to Version 101 or Later
 Version 1.101.0 of the Docker image changed the base image from [Red Hat UBI (Universal Base Image)](https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e) to a different [Red
