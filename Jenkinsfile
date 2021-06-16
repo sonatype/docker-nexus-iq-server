@@ -180,7 +180,9 @@ node('ubuntu-zion') {
       }
 
       //Trigger the Red Hat job and It does not care about this result
-      build(job: '/integrations/Red Hat Certified Docker Image/iq-redhat-certified', wait: false)
+      stage('Trigger Red Hat Certified Job Build') {
+        build(job: '/integrations/Red Hat Certified Docker Image/iq-redhat-certified', wait: false)
+      }
     }
 
   } finally {
