@@ -64,7 +64,7 @@ RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]
 && chmod 0644 ${CONFIG_HOME}/config.yml
 
 # Create start script
-RUN echo "trap 'kill -TERM \`cut -f1 -d@ $SONATYPE_WORK/lock\`  && sleep 60' SIGTERM" > ${IQ_HOME}/start.sh \
+RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\` && sleep 60' SIGTERM" > ${IQ_HOME}/start.sh \
 && echo "/usr/bin/java \${JAVA_OPTS} -jar nexus-iq-server-${IQ_SERVER_VERSION}.jar server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
 && echo "wait" >> ${IQ_HOME}/start.sh \
 && chmod 0755 ${IQ_HOME}/start.sh
