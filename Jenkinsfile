@@ -11,8 +11,6 @@ properties([
   parameters([
     string(defaultValue: '', description: 'New Nexus IQ Version', name: 'nexus_iq_version'),
     string(defaultValue: '', description: 'New Nexus IQ Version Sha256', name: 'nexus_iq_version_sha'),
-
-    booleanParam(defaultValue: false, description: 'Push Docker Image and Tags', name: 'push_image'),
   ])
 ])
 
@@ -101,7 +99,7 @@ node('ubuntu-zion') {
         OsTools.runSafe(this, "docker save ${imageName} -o ${tarName}")
       
         //decide which stage we are creating
-        def theStage = branch == 'master' ? (params.push_image ? 'release' : 'stage-release') : 'build'
+        def theStage = branch == 'master' ? 'release' : 'build'
 
         //run the evaluation
         nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
@@ -135,7 +133,7 @@ node('ubuntu-zion') {
       }
     }
 
-    if (branch == 'master' && params.push_image) {
+    if (branch == 'master') {
       stage('Push image') {
         def dockerHubApiToken
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
