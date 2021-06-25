@@ -66,6 +66,8 @@ RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]
 
 # Create start script
 RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
+&& echo "[ -f \$ADDITIONAL_TRUST_BUNDLE_PATH ] && keytool -importcert -file \${ADDITIONAL_TRUST_BUNDLE_PATH} -alias nexus-iq-server-add-cert -trustcacerts -keystore \${JAVA_HOME}/jre/lib/security/cacerts -storepass changeit -noprompt" >> ${IQ_HOME}/start.sh \
+&& echo "su - nexus" >> ${IQ_HOME}/start.sh \
 && echo "/usr/bin/java \${JAVA_OPTS} -jar nexus-iq-server-${IQ_SERVER_VERSION}.jar server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
 && echo "wait" >> ${IQ_HOME}/start.sh \
 && chmod 0755 ${IQ_HOME}/start.sh
@@ -101,10 +103,8 @@ EXPOSE 8071
 # Wire up health check
 HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthcheck || exit 1
 
-# Change to nexus user
-USER nexus
-
 ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs"
+ENV ADDITIONAL_TRUST_BUNDLE_PATH=""
 
 WORKDIR ${IQ_HOME}
 
