@@ -7,15 +7,8 @@
 import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
-properties([
-  parameters([
-    string(defaultValue: '', description: 'New Nexus IQ Version', name: 'nexus_iq_version'),
-    string(defaultValue: '', description: 'New Nexus IQ Version Sha256', name: 'nexus_iq_version_sha'),
-  ])
-])
-
 node('ubuntu-zion') {
-  def commitId, commitDate, version, imageId, branch, dockerFileLocations
+  def commitId, commitDate, version, imageId, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'sonaype-ci-github-access-token',
@@ -27,6 +20,11 @@ node('ubuntu-zion') {
   GitHub gitHub
 
   try {
+    stage('Init IQ Version & Sha') {
+      nexusIqVersion = getVersionFromBuildName(env.releaseBuild_NAME)
+      gatherBuildArtifacts('insight/insight-brain/release', env.releaseBuild_NUMBER)
+      nexusIqSha = readFile(file: "artifacts/nexus-iq-server-${nexusIqVersion}-bundle.tar.gz.sha256", encoding: 'UTF-8')
+    }
     stage('Preparation') {
       deleteDir()
       OsTools.runSafe(this, "docker system prune -a -f")
@@ -54,11 +52,11 @@ node('ubuntu-zion') {
       }
       gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
     }
-    if (params.nexus_iq_version && params.nexus_iq_version_sha) {
+    if (nexusIqVersion && nexusIqSha) {
       stage('Update IQ Version') {
         OsTools.runSafe(this, "git checkout ${branch}")
-        dockerFileLocations.each { updateServerVersion(it) }
-        version = getShortVersion(params.nexus_iq_version)
+        dockerFileLocations.each { updateServerVersion(it, nexusIqVersion, nexusIqSha) }
+        version = getShortVersion(nexusIqVersion)
       }
     }
     stage('Build') {
@@ -111,12 +109,12 @@ node('ubuntu-zion') {
     if (currentBuild.result == 'FAILURE') {
       return
     }
-    if (params.nexus_iq_version && params.nexus_iq_version_sha) {
+    if (nexusIqVersion && nexusIqSha) {
       stage('Commit IQ Version Update') {
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
                         usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
           def commitMessage = [
-            params.nexus_iq_version && params.nexus_iq_version_sha ? "Update IQ Server to ${params.nexus_iq_version}." : "",
+            nexusIqVersion && nexusIqSha ? "Update IQ Server to ${nexusIqVersion}." : "",
           ].findAll({ it }).join(' ')
           OsTools.runSafe(this, """
             git add .
@@ -214,7 +212,7 @@ def getGemInstallDirectory() {
   error 'Could not determine user gem install directory.'
 }
 
-def updateServerVersion(dockerFileLocation) {
+def updateServerVersion(dockerFileLocation, iqVersion, iqSha) {
   def dockerFile = readFile(file: dockerFileLocation)
 
   def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
@@ -223,9 +221,9 @@ def updateServerVersion(dockerFileLocation) {
   def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
 
   dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
-      "\$1${params.nexus_iq_version.substring(0, params.nexus_iq_version.indexOf('-'))}\$3")
-  dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
-  dockerFile = dockerFile.replaceAll(shaRegex, "\$1${params.nexus_iq_version_sha}")
+      "\$1${iqVersion.substring(0, iqVersion.indexOf('-'))}\$3")
+  dockerFile = dockerFile.replaceAll(versionRegex, "\$1${iqVersion}")
+  dockerFile = dockerFile.replaceAll(shaRegex, "\$1${iqSha}")
 
   writeFile(file: dockerFileLocation, text: dockerFile)
 }
