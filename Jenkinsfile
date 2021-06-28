@@ -22,8 +22,8 @@ node('ubuntu-zion') {
   try {
     stage('Init IQ Version & Sha') {
       nexusIqVersion = getVersionFromBuildName(env.releaseBuild_NAME)
-      gatherBuildArtifacts('insight/insight-brain/release', env.releaseBuild_NUMBER)
-      nexusIqSha = readFile(file: "artifacts/nexus-iq-server-${nexusIqVersion}-bundle.tar.gz.sha256", encoding: 'UTF-8')
+      nexusIqSha = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER,
+        "artifacts/nexus-iq-server-${nexusIqVersion}-bundle.tar.gz.sha256")
     }
     stage('Preparation') {
       deleteDir()
