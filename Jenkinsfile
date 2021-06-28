@@ -52,12 +52,10 @@ node('ubuntu-zion') {
       }
       gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
     }
-    if (nexusIqVersion && nexusIqSha) {
-      stage('Update IQ Version') {
-        OsTools.runSafe(this, "git checkout ${branch}")
-        dockerFileLocations.each { updateServerVersion(it, nexusIqVersion, nexusIqSha) }
-        version = getShortVersion(nexusIqVersion)
-      }
+    stage('Update IQ Version') {
+      OsTools.runSafe(this, "git checkout ${branch}")
+      dockerFileLocations.each { updateServerVersion(it, nexusIqVersion, nexusIqSha) }
+      version = getShortVersion(nexusIqVersion)
     }
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
@@ -109,19 +107,17 @@ node('ubuntu-zion') {
     if (currentBuild.result == 'FAILURE') {
       return
     }
-    if (nexusIqVersion && nexusIqSha) {
-      stage('Commit IQ Version Update') {
-        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
-                        usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
-          def commitMessage = [
-            nexusIqVersion && nexusIqSha ? "Update IQ Server to ${nexusIqVersion}." : "",
-          ].findAll({ it }).join(' ')
-          OsTools.runSafe(this, """
-            git add .
-            git diff --exit-code --cached || git commit -m '${commitMessage}'
-            git push https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git ${branch}
-          """)
-        }
+    stage('Commit IQ Version Update') {
+      withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
+                      usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
+        def commitMessage = [
+          nexusIqVersion && nexusIqSha ? "Update IQ Server to ${nexusIqVersion}." : "",
+        ].findAll({ it }).join(' ')
+        OsTools.runSafe(this, """
+          git add .
+          git diff --exit-code --cached || git commit -m '${commitMessage}'
+          git push https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git ${branch}
+        """)
       }
     }
     stage('Archive') {
