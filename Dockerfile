@@ -49,7 +49,9 @@ USER root
 
 # For testing
 RUN dnf update --allowerasing -y \
-&& dnf install -y procps
+&& dnf install -y procps \
+&& dnf remove -y maven
+
 
 # Create folders
 RUN mkdir -p ${TEMP} \
