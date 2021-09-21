@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/ubi8/openjdk-8:1.3-8
+FROM registry.access.redhat.com/ubi8/openjdk-8:1.10-1
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.124.0-01
 ARG IQ_SERVER_SHA256=d98352382be6552edab9e3631fc7fbda3813b97fc7c0e867f39d71bd5c902a70
-
-
-
-
 
 ARG TEMP="/tmp/work"
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -54,8 +50,9 @@ LABEL name="Nexus IQ Server image" \
 USER root
 
 # For testing
-RUN dnf update --allowerasing -y \
-&& dnf install -y procps
+RUN microdnf update -y \
+&& microdnf install -y procps gzip \
+&& microdnf clean all
 
 # Create folders
 RUN mkdir -p ${TEMP} \
@@ -87,13 +84,15 @@ RUN cd ${TEMP} \
 \
 # Add group and user
 && groupadd -g ${GID} nexus \
-&& adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
+&& adduser -u ${UID} -M -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
+&& cp /etc/passwd /home/jboss/passwd \
 \
 # Change owner to nexus user
 && chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME}
+&& chown -R nexus:nexus ${LOGS_HOME} \
+&& chmod 755 /home/jboss
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
