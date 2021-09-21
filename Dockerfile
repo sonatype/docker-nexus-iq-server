@@ -82,17 +82,14 @@ RUN cd ${TEMP} \
 && cd ${IQ_HOME} \
 && rm -rf ${TEMP} \
 \
-# Add group and user
+# Add group and user and copy passwd to the nss_wrapper location
 && groupadd -g ${GID} nexus \
 && adduser -u ${UID} -M -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
 && cp /etc/passwd /home/jboss/passwd \
+&& chmod 755 /home/jboss \
 \
 # Change owner to nexus user
-&& chown -R nexus:nexus ${IQ_HOME} \
-&& chown -R nexus:nexus ${SONATYPE_WORK} \
-&& chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME} \
-&& chmod 755 /home/jboss
+&& chown -R nexus:nexus ${IQ_HOME} ${SONATYPE_WORK} ${CONFIG_HOME} ${LOGS_HOME}
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
