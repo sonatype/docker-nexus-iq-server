@@ -34,6 +34,19 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 
 ## Migration
 
+### Upgrading from Release 118 to Release 119 or Later
+The sonatype/nexus-iq-server docker image for IQ release 119 has fixed the issue with non-graceful shutdown of the IQ server. For stopping the IQ docker instance prior to release 119 (for the purpose of upgrading to 119 or any other reason) you would need to use the following command.
+
+```
+docker exec -ti $(docker container list -a | grep nexus-iq | head -n 1 | awk '{print$1}') bash -c 'kill -TERM "$(cat /sonatype-work/lock | cut -d"@" -f1)"'
+```
+
+Where the portion of the command surrounded by $(docker ...) returns the docker container_id of the nexus-iq server. If you have already identified the container_id of the running nexus iq server, you can alternatively run below by replacing the container_id with the id of the container you have identified:
+
+```
+docker exec -ti container_id bash -c 'kill -TERM "$(cat /sonatype-work/lock | cut -d"@" -f1)"'
+```
+
 
 ### Upgrading from Version 117 or Earlier to Version 118 or Later
 Version 1.118.0 of the Docker image changed the UID of the nexus user from 997 to 1000, and changed it from a system account to a user account. This is to minimize the chance of a future collision with other UIDs. If you use this image with persistent data volumes, then for each volume you will need to run the following command:
