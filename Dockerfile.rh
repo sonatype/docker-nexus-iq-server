@@ -83,7 +83,7 @@ RUN cd ${TEMP} \
 && cd ${IQ_HOME} \
 && rm -rf ${TEMP} \
 \
-# Add group and user
+# Add group and user and copy passwd to the nss_wrapper location
 && groupadd -g ${GID} nexus \
 && adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
 && cp /etc/passwd /home/jboss/passwd \
