@@ -20,7 +20,7 @@ node('ubuntu-zion') {
   GitHub gitHub
 
   try {
-    if (env.releaseBuild_NAME) {
+    if ((env.releaseBuild_NAME) && branch == 'master') {
       stage('Init IQ Version & Sha') {
         nexusIqVersion = getVersionFromBuildName(env.releaseBuild_NAME)
         nexusIqSha = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER,
@@ -54,7 +54,7 @@ node('ubuntu-zion') {
       }
       gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
     }
-    if ((nexusIqVersion && nexusIqSha) && branch == 'master') {
+    if ((env.releaseBuild_NAME) && branch == 'master') {
       stage('Update IQ Version') {
         OsTools.runSafe(this, "git checkout ${branch}")
         dockerFileLocations.each { updateServerVersion(it, nexusIqVersion, nexusIqSha) }
@@ -111,7 +111,7 @@ node('ubuntu-zion') {
     if (currentBuild.result == 'FAILURE') {
       return
     }
-    if ((nexusIqVersion && nexusIqSha) && branch == 'master') {
+    if ((env.releaseBuild_NAME) && branch == 'master') {
       stage('Commit IQ Version Update') {
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
                         usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
