@@ -20,10 +20,12 @@ node('ubuntu-zion') {
   GitHub gitHub
 
   try {
-    stage('Init IQ Version & Sha') {
-      nexusIqVersion = getVersionFromBuildName(env.releaseBuild_NAME)
-      nexusIqSha = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER,
-        "artifacts/nexus-iq-server-${nexusIqVersion}-bundle.tar.gz.sha256")
+    if (env.releaseBuild_NAME) {
+      stage('Init IQ Version & Sha') {
+        nexusIqVersion = getVersionFromBuildName(env.releaseBuild_NAME)
+        nexusIqSha = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER,
+          "artifacts/nexus-iq-server-${nexusIqVersion}-bundle.tar.gz.sha256")
+      }
     }
     stage('Preparation') {
       deleteDir()
@@ -52,10 +54,12 @@ node('ubuntu-zion') {
       }
       gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
     }
-    stage('Update IQ Version') {
-      OsTools.runSafe(this, "git checkout ${branch}")
-      dockerFileLocations.each { updateServerVersion(it, nexusIqVersion, nexusIqSha) }
-      version = getShortVersion(nexusIqVersion)
+    if ((nexusIqVersion && nexusIqSha) && branch == 'master') {
+      stage('Update IQ Version') {
+        OsTools.runSafe(this, "git checkout ${branch}")
+        dockerFileLocations.each { updateServerVersion(it, nexusIqVersion, nexusIqSha) }
+        version = getShortVersion(nexusIqVersion)
+      }
     }
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
@@ -107,17 +111,19 @@ node('ubuntu-zion') {
     if (currentBuild.result == 'FAILURE') {
       return
     }
-    stage('Commit IQ Version Update') {
-      withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
-                      usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
-        def commitMessage = [
-          nexusIqVersion && nexusIqSha ? "Update IQ Server to ${nexusIqVersion}." : "",
-        ].findAll({ it }).join(' ')
-        OsTools.runSafe(this, """
-          git add .
-          git diff --exit-code --cached || git commit -m '${commitMessage}'
-          git push https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git ${branch}
-        """)
+    if ((nexusIqVersion && nexusIqSha) && branch == 'master') {
+      stage('Commit IQ Version Update') {
+        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
+                        usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
+          def commitMessage = [
+            nexusIqVersion && nexusIqSha ? "Update IQ Server to ${nexusIqVersion}." : "",
+          ].findAll({ it }).join(' ')
+          OsTools.runSafe(this, """
+            git add .
+            git diff --exit-code --cached || git commit -m '${commitMessage}'
+            git push https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git ${branch}
+          """)
+        }
       }
     }
     stage('Archive') {
