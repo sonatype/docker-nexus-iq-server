@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/ubi8/openjdk-8:1.3-8
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.4-210
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.124.0-01
 ARG IQ_SERVER_SHA256=d98352382be6552edab9e3631fc7fbda3813b97fc7c0e867f39d71bd5c902a70
-
-
-
-
 
 ARG TEMP="/tmp/work"
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -54,8 +50,11 @@ LABEL name="Nexus IQ Server image" \
 USER root
 
 # For testing
-RUN dnf update --allowerasing -y \
-&& dnf install -y procps
+# For testing
+RUN microdnf update -y \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-devel \
+&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync \
+&& microdnf clean all
 
 # Create folders
 RUN mkdir -p ${TEMP} \
