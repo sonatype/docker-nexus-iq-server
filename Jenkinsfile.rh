@@ -1,0 +1,48 @@
+/*
+ * Copyright (c) 2017-present Sonatype, Inc. All rights reserved.
+ * Includes the third-party code listed at http://links.sonatype.com/products/nexus/attributions.
+ * "Sonatype" is a trademark of Sonatype, Inc.
+ */
+@Library(['private-pipeline-library', 'jenkins-shared']) _
+import com.sonatype.jenkins.pipeline.OsTools
+
+node('ubuntu-zion') {
+  def version
+  def credentialsId = 'integrations-github-api'
+
+  try {
+    stage('Preparation') {
+      deleteDir()
+
+      def checkoutDetails = checkout scm
+
+      checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
+
+      version = readVersion()
+    }
+    stage('Trigger Red Hat Certified Image Build') {
+        withCredentials([
+            string(credentialsId: 'docker-nexus-iq-rh-build-project-id', variable: 'PROJECT_ID'),
+            string(credentialsId: 'rh-build-service-api-key', variable: 'API_KEY')]) {
+          final redHatVersion = "${version}-ubi"
+          runGroovy('ci/TriggerRedHatBuild.groovy', [redHatVersion, PROJECT_ID, API_KEY].join(' '))
+        }
+      }
+  } finally {
+    OsTools.runSafe(this, 'git clean -f && git reset --hard origin/master')
+  }
+}
+
+def readVersion() {
+  def content = readFile 'Dockerfile'
+  for (line in content.split('\n')) {
+    if (line.startsWith('ARG IQ_SERVER_VERSION=')) {
+      return getShortVersion(line.substring(22))
+    }
+  }
+  error 'Could not determine version.'
+}
+
+def getShortVersion(version) {
+  return version.split('-')[0]
+}

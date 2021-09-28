@@ -7,22 +7,11 @@
 import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
-properties([
-  parameters([
-    string(defaultValue: '', description: 'New Nexus IQ Version', name: 'nexus_iq_version'),
-    string(defaultValue: '', description: 'New Nexus IQ Version Sha256', name: 'nexus_iq_version_sha'),
-
-    booleanParam(defaultValue: false, description: 'Push Docker Image and Tags', name: 'push_image'),
-    booleanParam(defaultValue: false, description: 'Force Red Hat Certified Build for a non-master branch', name: 'force_red_hat_build'),
-    booleanParam(defaultValue: false, description: 'Skip Red Hat Certified Build', name: 'skip_red_hat_build'),
-  ])
-])
-
 node('ubuntu-zion') {
-  def commitId, commitDate, version, imageId, branch, dockerFileLocations
+  def commitId, commitDate, version, imageId, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
-      credentialsId = 'integrations-github-api',
+      credentialsId = 'sonaype-ci-github-access-token',
       imageName = 'sonatype/nexus-iq-server',
       archiveName = 'docker-nexus-iq-server',
       iqApplicationId = 'docker-nexus-iq-server',
@@ -31,6 +20,13 @@ node('ubuntu-zion') {
   GitHub gitHub
 
   try {
+    if ((env.releaseBuild_NAME) && branch == 'master') {
+      stage('Init IQ Version & Sha') {
+        nexusIqVersion = getVersionFromBuildName(env.releaseBuild_NAME)
+        nexusIqSha = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER,
+          "artifacts/nexus-iq-server-${nexusIqVersion}-bundle.tar.gz.sha256")
+      }
+    }
     stage('Preparation') {
       deleteDir()
       OsTools.runSafe(this, "docker system prune -a -f")
@@ -58,11 +54,11 @@ node('ubuntu-zion') {
       }
       gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
     }
-    if (params.nexus_iq_version && params.nexus_iq_version_sha) {
+    if ((env.releaseBuild_NAME) && branch == 'master') {
       stage('Update IQ Version') {
         OsTools.runSafe(this, "git checkout ${branch}")
-        dockerFileLocations.each { updateServerVersion(it) }
-        version = getShortVersion(params.nexus_iq_version)
+        dockerFileLocations.each { updateServerVersion(it, nexusIqVersion, nexusIqSha) }
+        version = getShortVersion(nexusIqVersion)
       }
     }
     stage('Build') {
@@ -103,7 +99,7 @@ node('ubuntu-zion') {
         OsTools.runSafe(this, "docker save ${imageName} -o ${tarName}")
       
         //decide which stage we are creating
-        def theStage = branch == 'master' ? (params.push_image ? 'release' : 'stage-release') : 'build'
+        def theStage = branch == 'master' ? 'release' : 'build'
 
         //run the evaluation
         nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
@@ -115,12 +111,12 @@ node('ubuntu-zion') {
     if (currentBuild.result == 'FAILURE') {
       return
     }
-    if (params.nexus_iq_version && params.nexus_iq_version_sha) {
+    if ((env.releaseBuild_NAME) && branch == 'master') {
       stage('Commit IQ Version Update') {
-        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'integrations-github-api',
+        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
                         usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
           def commitMessage = [
-            params.nexus_iq_version && params.nexus_iq_version_sha ? "Update IQ Server to ${params.nexus_iq_version}." : "",
+            nexusIqVersion && nexusIqSha ? "Update IQ Server to ${nexusIqVersion}." : "",
           ].findAll({ it }).join(' ')
           OsTools.runSafe(this, """
             git add .
@@ -137,7 +133,7 @@ node('ubuntu-zion') {
       }
     }
 
-    if (branch == 'master' && params.push_image) {
+    if (branch == 'master') {
       stage('Push image') {
         def dockerHubApiToken
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
@@ -180,18 +176,13 @@ node('ubuntu-zion') {
         }
         OsTools.runSafe(this, "git tag -d ${version}")
       }
-    }
 
-    if ((! params.skip_red_hat_build) && (branch == 'master' || params.force_red_hat_build)) {
-      stage('Trigger Red Hat Certified Image Build') {
-        withCredentials([
-            string(credentialsId: 'docker-nexus-iq-rh-build-project-id', variable: 'PROJECT_ID'),
-            string(credentialsId: 'rh-build-service-api-key', variable: 'API_KEY')]) {
-          final redHatVersion = "${version}-ubi"
-          runGroovy('ci/TriggerRedHatBuild.groovy', [redHatVersion, PROJECT_ID, API_KEY].join(' '))
-        }
+      //Trigger the Red Hat job and It does not care about this result
+      stage('Trigger Red Hat Certified Job Build') {
+        build(job: '/integrations/Red Hat Certified Docker Image/iq-redhat-certified', wait: false)
       }
     }
+
   } finally {
     OsTools.runSafe(this, "docker logout")
     OsTools.runSafe(this, "docker system prune -a -f")
@@ -223,7 +214,7 @@ def getGemInstallDirectory() {
   error 'Could not determine user gem install directory.'
 }
 
-def updateServerVersion(dockerFileLocation) {
+def updateServerVersion(dockerFileLocation, iqVersion, iqSha) {
   def dockerFile = readFile(file: dockerFileLocation)
 
   def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
@@ -232,9 +223,9 @@ def updateServerVersion(dockerFileLocation) {
   def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
 
   dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
-      "\$1${params.nexus_iq_version.substring(0, params.nexus_iq_version.indexOf('-'))}\$3")
-  dockerFile = dockerFile.replaceAll(versionRegex, "\$1${params.nexus_iq_version}")
-  dockerFile = dockerFile.replaceAll(shaRegex, "\$1${params.nexus_iq_version_sha}")
+      "\$1${iqVersion.substring(0, iqVersion.indexOf('-'))}\$3")
+  dockerFile = dockerFile.replaceAll(versionRegex, "\$1${iqVersion}")
+  dockerFile = dockerFile.replaceAll(shaRegex, "\$1${iqSha}")
 
   writeFile(file: dockerFileLocation, text: dockerFile)
 }
