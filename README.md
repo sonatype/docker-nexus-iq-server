@@ -41,7 +41,7 @@ The sonatype/nexus-iq-server docker image for IQ release 119 has fixed the issue
 docker exec -ti $(docker container list -a | grep nexus-iq | head -n 1 | awk '{print$1}') bash -c 'kill -TERM "$(cat /sonatype-work/lock | cut -d"@" -f1)"'
 ```
 
-Where the portion of the command surrounded by $(docker ...) returns the docker container_id of the nexus-iq server. If you have already identified the container_id of the running nexus iq server, you can alternatively run below by replacing the container_id with the id of the container you have identified:
+Where the portion of the command surrounded by $(docker ...) returns the docker container_id of the IQ server. If you have already identified the container_id of the running IQ server, you can alternatively run the below command by replacing the container_id with the id of the container you have identified:
 
 ```
 docker exec -ti container_id bash -c 'kill -TERM "$(cat /sonatype-work/lock | cut -d"@" -f1)"'
