@@ -20,7 +20,7 @@ node('ubuntu-zion') {
   GitHub gitHub
 
   try {
-    if ((env.releaseBuild_NAME) && branch == 'master') {
+    if (env.releaseBuild_NAME) {
       stage('Init IQ Version & Sha') {
         nexusIqVersion = getVersionFromBuildName(env.releaseBuild_NAME)
         nexusIqSha = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER,
