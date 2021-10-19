@@ -96,6 +96,8 @@ node('ubuntu-zion') {
       
       //Create tar of our image
       dir('build') {      
+        OsTools.runSafe(this, "docker save ${imageName}")
+        
         //decide which stage we are creating
         def theStage = branch == 'master' ? 'release' : 'build'
 
