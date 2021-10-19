@@ -101,18 +101,9 @@ node('ubuntu-zion') {
         //decide which stage we are creating
         def theStage = branch == 'master' ? 'release' : 'build'
 
-        withEnv(['NEXUS_CONTAINER_SCANNING_REGISTRY_URL=https://registry.neuvector.com',
-                 'NEXUS_CONTAINER_SCANNING_SCANNER_IMAGE=sonatype/scanner:latest']) {
-          withCredentials([
-            string(credentialsId: 'NEXUS_CONTAINER_SCANNING_LICENSE', variable: 'NEXUS_CONTAINER_SCANNING_LICENSE'),
-            usernamePassword(credentialsId: 'NEXUS_CONTAINER_SCANNING_REGISTRY', usernameVariable: 'NEXUS_CONTAINER_SCANNING_REGISTRY_USER', passwordVariable: 'NEXUS_CONTAINER_SCANNING_REGISTRY_PASSWORD')]) {
-
-            //run the evaluation
-            nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
-              iqScanPatterns: [[scanPattern: "container:${imageName}"]],
-              failBuildOnNetworkError: true
-          }
-        }
+        runEvaluation({ stage ->
+          nexusPolicyEvaluation(iqStage: stage, iqApplication: iqApplicationId,
+          iqScanPatterns: [[scanPattern: "container:${imageName}"]], failBuildOnNetworkError: true)}, theStage)
       }
     }
 
