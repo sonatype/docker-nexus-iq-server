@@ -95,16 +95,23 @@ node('ubuntu-zion') {
     stage('Evaluate') {
       
       //Create tar of our image
-      dir('build') {
-        OsTools.runSafe(this, "docker save ${imageName} -o ${tarName}")
-      
+      dir('build') {      
         //decide which stage we are creating
         def theStage = branch == 'master' ? 'release' : 'build'
 
-        //run the evaluation
-        nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
-          iqScanPatterns: [[scanPattern: '*.tar']],
-          failBuildOnNetworkError: true
+        withEnv(['NEXUS_CONTAINER_SCANNING_REGISTRY_URL=https://registry.neuvector.com',
+                 'NEXUS_CONTAINER_SCANNING_SCANNER_IMAGE=sonatype/scanner:latest']) {
+          withCredentials([
+            string(credentialsId: 'NEXUS_CONTAINER_SCANNING_LICENSE', variable: 'NEXUS_CONTAINER_SCANNING_LICENSE'),
+            usernamePassword(credentialsId: 'NEXUS_CONTAINER_SCANNING_REGISTRY', usernameVariable: 'NEXUS_CONTAINER_SCANNING_REGISTRY_USER', passwordVariable: 'NEXUS_CONTAINER_SCANNING_REGISTRY_PASSWORD'),
+            usernamePassword(credentialsId: 'docker-admin-for-zion-nexus-3', usernameVariable: 'NEXUS_CONTAINER_IMAGE_REGISTRY_USER', passwordVariable: 'NEXUS_CONTAINER_IMAGE_REGISTRY_PASSWORD')]) {
+            
+            //run the evaluation
+            nexusPolicyEvaluation iqStage: theStage, iqApplication: iqApplicationId,
+              iqScanPatterns: [[scanPattern: '*.tar']],
+              failBuildOnNetworkError: true
+          }
+        }
       }
     }
 
