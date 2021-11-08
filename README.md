@@ -34,6 +34,9 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 
 ## Migration
 
+### Upgrading from Version 124 or Earlier to Version 125 or Later
+Version 1.125.0 of the Docker image changed the base image from [Red Hat UBI (Universal Base Image)](https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e) to [Red Hat UBI (Universal Base Image) Minimal](https://catalog.redhat.com/software/containers/ubi8-minimal/5c64772edd19c77a158ea216). As part of this, `dnf` is replaced by `microdnf` as the package manager.
+
 ### Upgrading from Release 118 to Release 119 or Later
 The sonatype/nexus-iq-server docker image for IQ release 119 has fixed the issue with non-graceful shutdown of the IQ server. For stopping the IQ docker instance prior to release 119 (for the purpose of upgrading to 119 or any other reason) you would need to use the following command.
 
@@ -75,7 +78,7 @@ This will start up a 1.101.0 IQ server container with `root` as the user, allowi
 and its files to the correct `nexus` user.
 
 ### Upgrading from Version 68 or Earlier to Version 69 or Later
-Version 1.69.0 of the Docker image changed the base image from [CentOS](https://hub.docker.com/_/centos) to [Red Hat UBI (Universal Base Image)](https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e). 
+Version 1.69.0 of the Docker image changed the base image from [CentOS](https://hub.docker.com/_/centos) to [Red Hat UBI (Universal Base Image)](https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e).
 As a result, the UID of the `nexus` user has changed. If you use this image with persistent data volumes, then for each
 volume you will need to run the following command:
 ```
@@ -85,7 +88,7 @@ e.g.
 ```
 docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server:1.69.0 chown -R nexus:nexus /sonatype-work
 ```
-This will start up a 1.69.0 IQ server container with `root` as the user, allowing it to chown the sonatype-work directory 
+This will start up a 1.69.0 IQ server container with `root` as the user, allowing it to chown the sonatype-work directory
 and its files to the correct `nexus` user.
 
 ## Runtime Server Configuration
@@ -127,7 +130,7 @@ for additional information.
 
   1. *Use a data volume*.  Since data volumes are persistent
   until no containers use them, a volume can be created specifically for
-  this purpose.  This is the recommended approach.  
+  this purpose.  This is the recommended approach.
 
   ```
   docker volume create --name sonatype-work
@@ -138,14 +141,14 @@ for additional information.
   2. *Mount a host directory as the volume*.  This is not portable, as it
   relies on the directory existing with correct permissions on the host.
   However it can be useful in certain situations where this volume needs
-  to be assigned to certain specific underlying storage.  
+  to be assigned to certain specific underlying storage.
 
   ```
   mkdir /some/dir/sonatype-work
   mkdir /some/dir/sonatype-logs
   docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -v /some/dir/sonatype-work:/sonatype-work -v /some/dir/sonatype-logs:/var/log/nexus-iq-server sonatype/nexus-iq-server
   ```
-  
+
 ## Running
 
 To run with ports 8070 (web UI) and 8071 (admin port) use:
@@ -159,10 +162,10 @@ or to let docker assign available ports use:
 To get the assigned port or check if the server is running use:
 
     docker ps --filter "name=nexus-iq-server"
-    
+
 ## Product License Installation
 
-Once running, the IQ Server product license must be installed. This should be done [using the user interface](https://help.sonatype.com/iqserver/installing/iq-server-installation#IQServerInstallation-InstalltheLicense). 
+Once running, the IQ Server product license must be installed. This should be done [using the user interface](https://help.sonatype.com/iqserver/installing/iq-server-installation#IQServerInstallation-InstalltheLicense).
 
 Default admin credentials are: `admin` / `admin123`
 
@@ -175,7 +178,7 @@ The IQ Server product license is stored using Java preferences API. By default, 
 customized by a Java system property to be under the sonatype-work directory i.e.
 `-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs` so as to survive image restarts.
 
-If customized using `JAVA_OPTS`, the absolute path to user prefs must point to an already created directory readable by the user account owning the process. 
+If customized using `JAVA_OPTS`, the absolute path to user prefs must point to an already created directory readable by the user account owning the process.
 
 Under the preferences directory, IQ Server will store the installed license file at a path ./com/sonatype/clm/prefs.xml
 
@@ -205,6 +208,7 @@ are supported.
 If you would like to use this image as the basis for another image that adds additional packages, e.g. `git` for SCM
 integration, take note that different versions of the image provide different package managers:
 
+* Version 125 and newer provide `microdnf` as package manager.
 * Version 101 and newer provide `dnf` as package manager.
 * Version 100 and older provide `yum` as package manager.
 
