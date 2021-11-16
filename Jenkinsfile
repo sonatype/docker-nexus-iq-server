@@ -93,9 +93,9 @@ node('ubuntu-zion') {
       }
     }
     stage('Evaluate') {
-      
-      //Create tar of our image
       dir('build') {
+        writeFile file:'dummy', text:'why-do-we-need-this-folder'
+
         //decide which stage we are creating
         def theStage = branch == 'master' ? 'release' : 'build'
 
