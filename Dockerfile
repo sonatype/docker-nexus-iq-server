@@ -55,6 +55,7 @@ RUN microdnf update -y \
 && microdnf install -y \
   findutils \
   git \
+  git-lfs \
   gzip \
   less \
   procps \
