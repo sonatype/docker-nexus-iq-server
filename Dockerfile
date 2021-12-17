@@ -18,12 +18,6 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:8.5-204
 ARG IQ_SERVER_VERSION=1.130.0-01
 ARG IQ_SERVER_SHA256=a9c4b83f204687fb2c9bd8c6948cc35cc10d5bc0a003436747bf1bcdfe52caa5
 
-
-
-
-
-
-
 ARG TEMP="/tmp/work"
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
@@ -58,7 +52,17 @@ USER root
 # For testing
 RUN microdnf update -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-devel \
-&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync \
+&& microdnf install -y \
+  findutils \
+  git \
+  gzip \
+  less \
+  procps \
+  rsync \
+  shadow-utils \
+  tar \
+  unzip \
+  util-linux \
 && microdnf clean all
 
 # Create folders
