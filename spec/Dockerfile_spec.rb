@@ -146,6 +146,10 @@ describe 'Dockerfile' do
       it 'contains JAVA_OPTS' do
         expect(startScript.content).to include('${JAVA_OPTS}')
       end
+
+      it 'contains SONATYPE_INTERNAL_HOST_SYSTEM' do
+        expect(startScript.content).to include('${SONATYPE_INTERNAL_HOST_SYSTEM}')
+      end
     end
   end
 

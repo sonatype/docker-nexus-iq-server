@@ -117,6 +117,7 @@ HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthch
 USER nexus
 
 ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs"
+ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 
 WORKDIR ${IQ_HOME}
 
