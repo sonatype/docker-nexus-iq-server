@@ -205,8 +205,8 @@ are supported.
 
 ## Extending the Nexus IQ Server Image
 
-If you would like to use this image as the basis for another image that adds additional packages, e.g. `git` for SCM
-integration, take note that different versions of the image provide different package managers:
+If you would like to use this image as the basis for another image that adds additional packages,
+take note that different versions of the image provide different package managers:
 
 * Version 125 and newer provide `microdnf` as package manager.
 * Version 101 and newer provide `dnf` as package manager.
