@@ -8,7 +8,7 @@ import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion') {
-  def commitId, commitDate, version, imageId, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
+  def commitId, commitDate, version, imageId, slimImageId, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'sonaype-ci-github-access-token',
@@ -65,8 +65,9 @@ node('ubuntu-zion') {
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
 
-      def hash = OsTools.runSafe(this, "docker build --quiet --no-cache -f Dockerfile --tag ${imageName} .")
-      imageId = hash.split(':')[1]
+      imageId = buildImage(imageName)
+
+      slimImageId = buildImage("${imageName}-slim")
 
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
@@ -84,6 +85,7 @@ node('ubuntu-zion') {
         OsTools.runSafe(this, "gem install --user-install serverspec")
         OsTools.runSafe(this, "gem install --user-install docker-api")
         OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
       }
 
       if (currentBuild.result == 'FAILURE') {
@@ -98,8 +100,15 @@ node('ubuntu-zion') {
       def theStage = branch == 'master' ? 'release' : 'build'
 
       runEvaluation({ stage ->
-        nexusPolicyEvaluation(iqStage: stage, iqApplication: iqApplicationId,
-        iqScanPatterns: [[scanPattern: "container:${imageName}"]], failBuildOnNetworkError: true)}, theStage)
+        nexusPolicyEvaluation(
+          iqStage: stage,
+          iqApplication: iqApplicationId,
+          iqScanPatterns: [
+            [scanPattern: "container:${imageName}"],
+            [scanPattern: "container:${imageName}-slim"],
+          ],
+          failBuildOnNetworkError: true)
+      }, theStage)
     }
 
     if (currentBuild.result == 'FAILURE') {
@@ -134,6 +143,8 @@ node('ubuntu-zion') {
             usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
           OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
           OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
+          OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:${version}-slim")
+          OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:latest-slim")
           OsTools.runSafe(this, """
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
           """)
@@ -186,6 +197,11 @@ def readVersion() {
     }
   }
   error 'Could not determine version.'
+}
+
+def buildImage(imageName) {
+  OsTools.runSafe(this, "docker build --quiet --no-cache -f Dockerfile --tag ${imageName} .")
+    .split(':')[1]
 }
 
 def getShortVersion(version) {
