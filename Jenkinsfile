@@ -34,8 +34,9 @@ node('ubuntu-zion') {
       def checkoutDetails = checkout scm
 
       dockerFileLocations = [
-          "${pwd()}/Dockerfile",
-          "${pwd()}/Dockerfile.rh"
+        "${pwd()}/Dockerfile",
+        "${pwd()}/Dockerfile.slim",
+        "${pwd()}/Dockerfile.rh",
       ]
 
       branch = checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
@@ -64,7 +65,7 @@ node('ubuntu-zion') {
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
 
-      def hash = OsTools.runSafe(this, "docker build --quiet --no-cache --tag ${imageName} .")
+      def hash = OsTools.runSafe(this, "docker build --quiet --no-cache -f Dockerfile --tag ${imageName} .")
       imageId = hash.split(':')[1]
 
       if (currentBuild.result == 'FAILURE') {
