@@ -202,7 +202,7 @@ def readVersion() {
   error 'Could not determine version.'
 }
 
-def buildImage(dockerFile, imageName) {
+String buildImage(String dockerFile, String imageName) {
   OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
     .split(':')[1]
 }
