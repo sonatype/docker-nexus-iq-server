@@ -65,9 +65,9 @@ node('ubuntu-zion') {
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
 
-      imageId = buildImage(imageName)
+      imageId = buildImage('Dockerfile', imageName)
 
-      slimImageId = buildImage("${imageName}-slim")
+      slimImageId = buildImage('Dockerfile.slim', "${imageName}-slim")
 
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
@@ -199,8 +199,8 @@ def readVersion() {
   error 'Could not determine version.'
 }
 
-def buildImage(imageName) {
-  OsTools.runSafe(this, "docker build --quiet --no-cache -f Dockerfile --tag ${imageName} .")
+def buildImage(dockerFile, imageName) {
+  OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
     .split(':')[1]
 }
 
