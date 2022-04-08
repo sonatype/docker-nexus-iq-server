@@ -133,6 +133,9 @@ node('ubuntu-zion') {
       dir('build/target') {
         OsTools.runSafe(this, "docker save ${imageName} | gzip > ${archiveName}.tar.gz")
         archiveArtifacts artifacts: "${archiveName}.tar.gz", onlyIfSuccessful: true
+
+        OsTools.runSafe(this, "docker save ${imageName}-slim | gzip > ${archiveName}-slim.tar.gz")
+        archiveArtifacts artifacts: "${archiveName}-slim.tar.gz", onlyIfSuccessful: true
       }
     }
 
