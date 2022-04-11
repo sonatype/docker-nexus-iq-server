@@ -205,8 +205,8 @@ are supported.
 
 ## Extending the Nexus IQ Server Image
 
-If you would like to use this image as the basis for another image that adds additional packages, e.g. `git` for SCM
-integration, take note that different versions of the image provide different package managers:
+If you would like to use this image as the basis for another image that adds additional packages,
+take note that different versions of the image provide different package managers:
 
 * Version 125 and newer provide `microdnf` as package manager.
 * Version 101 and newer provide `dnf` as package manager.
@@ -219,6 +219,14 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
  (e.g. yum, apt,...).
 
     rspec [--backtrace] spec/Dockerfile_spec.rb
+    
+## Alternative Slim Docker Image
+
+The default Dockerfile includes:
+* `git` for enhanced SCM Integrations
+
+If you want an image without the extra tooling already installed, use the slim tag of the image:
+`sonatype/nexus-iq-server:<version>-slim`, which can also be `sonatype/nexus-iq-server:latest-slim`.
 
 ## Red Hat Certified Image
 

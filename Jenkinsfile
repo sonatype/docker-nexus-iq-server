@@ -8,7 +8,7 @@ import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion') {
-  def commitId, commitDate, version, imageId, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
+  def commitId, commitDate, version, imageId, slimImageId, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'sonaype-ci-github-access-token',
@@ -34,8 +34,9 @@ node('ubuntu-zion') {
       def checkoutDetails = checkout scm
 
       dockerFileLocations = [
-          "${pwd()}/Dockerfile",
-          "${pwd()}/Dockerfile.rh"
+        "${pwd()}/Dockerfile",
+        "${pwd()}/Dockerfile.slim",
+        "${pwd()}/Dockerfile.rh",
       ]
 
       branch = checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
@@ -64,8 +65,9 @@ node('ubuntu-zion') {
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
 
-      def hash = OsTools.runSafe(this, "docker build --quiet --no-cache --tag ${imageName} .")
-      imageId = hash.split(':')[1]
+      imageId = buildImage('Dockerfile', imageName)
+
+      slimImageId = buildImage('Dockerfile.slim', "${imageName}-slim")
 
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
@@ -83,6 +85,7 @@ node('ubuntu-zion') {
         OsTools.runSafe(this, "gem install --user-install serverspec")
         OsTools.runSafe(this, "gem install --user-install docker-api")
         OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
       }
 
       if (currentBuild.result == 'FAILURE') {
@@ -97,8 +100,15 @@ node('ubuntu-zion') {
       def theStage = branch == 'master' ? 'release' : 'build'
 
       runEvaluation({ stage ->
-        nexusPolicyEvaluation(iqStage: stage, iqApplication: iqApplicationId,
-        iqScanPatterns: [[scanPattern: "container:${imageName}"]], failBuildOnNetworkError: true)}, theStage)
+        nexusPolicyEvaluation(
+          iqStage: stage,
+          iqApplication: iqApplicationId,
+          iqScanPatterns: [
+            [scanPattern: "container:${imageName}"],
+            [scanPattern: "container:${imageName}-slim"],
+          ],
+          failBuildOnNetworkError: true)
+      }, theStage)
     }
 
     if (currentBuild.result == 'FAILURE') {
@@ -123,6 +133,9 @@ node('ubuntu-zion') {
       dir('build/target') {
         OsTools.runSafe(this, "docker save ${imageName} | gzip > ${archiveName}.tar.gz")
         archiveArtifacts artifacts: "${archiveName}.tar.gz", onlyIfSuccessful: true
+
+        OsTools.runSafe(this, "docker save ${imageName}-slim | gzip > ${archiveName}-slim.tar.gz")
+        archiveArtifacts artifacts: "${archiveName}-slim.tar.gz", onlyIfSuccessful: true
       }
     }
 
@@ -133,6 +146,8 @@ node('ubuntu-zion') {
             usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
           OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
           OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
+          OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:${version}-slim")
+          OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:latest-slim")
           OsTools.runSafe(this, """
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
           """)
@@ -185,6 +200,11 @@ def readVersion() {
     }
   }
   error 'Could not determine version.'
+}
+
+String buildImage(String dockerFile, String imageName) {
+  OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
+    .split(':')[1]
 }
 
 def getShortVersion(version) {
