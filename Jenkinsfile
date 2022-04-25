@@ -139,7 +139,7 @@ node('ubuntu-zion') {
       }
     }
 
-    if (branch == 'master') {
+    if ((env.releaseBuild_NAME) && branch == 'master') {
       stage('Push image') {
         def dockerHubApiToken
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
