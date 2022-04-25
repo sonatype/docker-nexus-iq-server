@@ -97,7 +97,7 @@ node('ubuntu-zion') {
     }
     stage('Evaluate') {
       //decide which stage we are creating
-      def theStage = branch == 'master' ? 'release' : 'build'
+      def theStage = branch == 'master' ? 'release' : 'develop'
 
       runEvaluation({ stage ->
         nexusPolicyEvaluation(
