@@ -19,16 +19,20 @@
 #   * https://github.com/redhat-openshift-ecosystem/openshift-preflight
 #   * https://podman.io/
 # * environment variables:
-#   * IMAGE name of the docker image to build for the red hat registry
 #   * VERSION of the docker image  to build for the red hat registry
-#   * PROJECT_ID from red hat config page for image
-#   * CERT_PROJECT_ID from the url to red hat config page for image
 #   * REGISTRY_PASSWORD from red hat config page for image
 #   * API_TOKEN from red hat token/account page for API access
-#   * DOCKERFILE to use to build the red hat image
 
 set -x # log commands as they execute
 set -e # stop execution on the first failed command
+
+IMAGE=nexus-iq-server
+DOCKERFILE=Dockerfile.rh
+
+# from config/scanning page at red hat
+PROJECT_ID=ospid-12731870-d048-49fc-b877-6e5316ae0d11
+# from url of project at red hat
+CERT_PROJECT_ID=5e61602c2f3c1acdd05f61d3
 
 AUTHFILE=temp-auth.json
 
