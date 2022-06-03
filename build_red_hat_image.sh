@@ -33,20 +33,20 @@ set -e # stop execution on the first failed command
 AUTHFILE=temp-auth.json
 
 podman login scan.connect.redhat.com -u unused \
-       --password ${REGISTRY_PASSWORD} \
-       --authfile=${AUTHFILE}
+       --password "${REGISTRY_PASSWORD}" \
+       --authfile "${AUTHFILE}"
 
 podman build \
-    -f ${DOCKERFILE} \
-    -t scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}
+       -f "${DOCKERFILE}" \
+       -t "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
 
-podman push scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}
+podman push "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
 
 preflight check container \
-    scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION} \
-    --docker-config=${AUTHFILE} \
-    --submit \
-    --certification-project-id=${CERT_PROJECT_ID} \
-    --pyxis-api-token=${API_TOKEN}
+          "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}" \
+          --docker-config="${AUTHFILE}" \
+          --submit \
+          --certification-project-id="${CERT_PROJECT_ID}" \
+          --pyxis-api-token="${API_TOKEN}"
 
 rm $AUTHFILE
