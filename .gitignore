@@ -2,3 +2,6 @@
 .idea/
 Berksfile.lock
 build/
+*.log
+artifacts
+temp-auth.json
