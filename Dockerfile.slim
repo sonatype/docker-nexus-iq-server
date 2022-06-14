@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.5-204
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.5-243.1651231653
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.138.0-01
 ARG IQ_SERVER_SHA256=b29c56ac4e8e81620d46c246da048e22800e8b2cc9d2009aea11e58fbe7ae5aa
-
-
-
-
 
 ARG TEMP="/tmp/work"
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
