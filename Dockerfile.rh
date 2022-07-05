@@ -21,6 +21,7 @@ ARG IQ_SERVER_SHA256=eb938efc1dbf4c83bc1a2b0e26ad6fc2d1c14e18104c2db07501668840c
 
 
 
+
 ARG TEMP="/tmp/work"
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
