@@ -24,8 +24,10 @@ RUN dnf update -y \
 # ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 
 # get preflight
-RUN wget -q https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/1.3.0/preflight-linux-amd64 \
+RUN wget -q https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/1.3.1/preflight-linux-amd64 \
   && chmod 755 preflight-linux-amd64 \
   && mv preflight-linux-amd64 /usr/bin/preflight
 
-#WORKDIR ${IQ_HOME}
+VOLUME /workspace
+
+WORKDIR /workspace
