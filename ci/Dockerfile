@@ -30,6 +30,9 @@ RUN wget -q https://github.com/redhat-openshift-ecosystem/openshift-preflight/re
   && chmod 755 preflight-linux-amd64 \
   && mv preflight-linux-amd64 /usr/bin/preflight
 
-VOLUME /workspace
+# set this up to use Jenkins injected private keys for pulling private npm dependencies
+RUN useradd -u 1002 -g 100 jenkins
+COPY --chown=jenkins:100 ci/home /home/
+RUN chmod 700 /home/jenkins/.ssh/
 
-WORKDIR /workspace
+WORKDIR /home/jenkins/
