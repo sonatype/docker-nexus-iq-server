@@ -15,9 +15,9 @@ properties([
 ])
 
 dockerizedBuildPipeline(
-  pathToDockerfile: 'ci/Dockerfile'
+  pathToDockerfile: 'ci/Dockerfile',
   prepare: {
-  }
+  },
   buildAndTest: {
     withCredentials([
       string(
@@ -29,5 +29,5 @@ dockerizedBuildPipeline(
     ]) {
       sh './build_red_hat_image.sh'
     }
-  }
+  },
 )
