@@ -20,7 +20,7 @@ USER root
 
 # For testing
 RUN dnf update -y \
-&& dnf install -y git wget iptables \
+&& dnf install -y git wget iptables docker \
 && dnf clean all
 
 # ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
@@ -37,10 +37,6 @@ RUN wget -q https://github.com/redhat-openshift-ecosystem/openshift-preflight/re
 # set this up to use Jenkins injected private keys for pulling private npm dependencies
 RUN useradd -u 1002 -g 100 jenkins
 COPY --chown=jenkins:100 ci/home /home/
-RUN chmod 700 /home/jenkins/.ssh/ \
-  && echo jenkins:0:45000 > /etc/subuid \
-  && echo jenkins:0:45000 > /etc/subgid \
-  && podman system migrate \
-  && chmod 777 /var/spool/mail
+RUN chmod 700 /home/jenkins/.ssh/
 
 WORKDIR /home/jenkins/
