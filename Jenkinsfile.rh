@@ -28,6 +28,9 @@ node('ubuntu-zion') {
   try {
     stage('Preparation') {
       deleteDir()
+
+      checkout scm
+
       sh 'docker system prune -a -f'
       sh '''
         wget -q -O preflight \
