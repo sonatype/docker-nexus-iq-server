@@ -37,23 +37,22 @@ CERT_PROJECT_ID=5e61602c2f3c1acdd05f61d3
 
 AUTHFILE=temp-auth.json
 
-PODMAN=podman
+PODMAN=docker
 
 $PODMAN build \
        -f "${DOCKERFILE}" \
-       -t "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
+       -t "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}" \
+       .
 
 $PODMAN login scan.connect.redhat.com -u unused \
-       --password "${REGISTRY_PASSWORD}" \
-       --authfile "${AUTHFILE}"
+       --password "${REGISTRY_PASSWORD}"
 
 $PODMAN push \
-       --authfile "${AUTHFILE}" \
        "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
 
 preflight check container \
           "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}" \
-          --docker-config="${AUTHFILE}" \
+          --docker-config="${HOME}/.docker/config.json" \
           --submit \
           --certification-project-id="${CERT_PROJECT_ID}" \
           --pyxis-api-token="${API_TOKEN}"
