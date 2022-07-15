@@ -27,7 +27,7 @@ dockerizedBuildPipeline(
         credentialsId: 'red-hat-api-token',
         variable: 'API_TOKEN'),
     ]) {
-      sh './build_red_hat_image.sh'
+      sh 'VERSION=$version ./build_red_hat_image.sh'
     }
   },
 )
