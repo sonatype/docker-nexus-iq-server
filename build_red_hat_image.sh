@@ -37,15 +37,17 @@ CERT_PROJECT_ID=5e61602c2f3c1acdd05f61d3
 
 AUTHFILE=temp-auth.json
 
-podman build \
+PODMAN=podman
+
+$PODMAN build \
        -f "${DOCKERFILE}" \
        -t "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
 
-podman login scan.connect.redhat.com -u unused \
+$PODMAN login scan.connect.redhat.com -u unused \
        --password "${REGISTRY_PASSWORD}" \
        --authfile "${AUTHFILE}"
 
-podman push \
+$PODMAN push \
        --authfile "${AUTHFILE}" \
        "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
 
