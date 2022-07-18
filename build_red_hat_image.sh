@@ -35,26 +35,21 @@ PROJECT_ID=ospid-12731870-d048-49fc-b877-6e5316ae0d11
 # from url of project at red hat
 CERT_PROJECT_ID=5e61602c2f3c1acdd05f61d3
 
-AUTHFILE=temp-auth.json
+AUTHFILE="${HOME}/.docker/config.json"
 
-PODMAN=docker
-
-$PODMAN build \
+docker build \
        -f "${DOCKERFILE}" \
        -t "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}" \
        .
-
-$PODMAN login scan.connect.redhat.com -u unused \
+docker login scan.connect.redhat.com -u unused \
        --password "${REGISTRY_PASSWORD}"
 
-$PODMAN push \
+docker push \
        "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
 
 preflight check container \
           "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}" \
-          --docker-config="${HOME}/.docker/config.json" \
+          --docker-config="${AUTHFILE}" \
           --submit \
           --certification-project-id="${CERT_PROJECT_ID}" \
           --pyxis-api-token="${API_TOKEN}"
-
-rm -f $AUTHFILE
