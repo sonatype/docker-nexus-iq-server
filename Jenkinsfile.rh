@@ -1,48 +1,58 @@
 /*
- * Copyright (c) 2017-present Sonatype, Inc. All rights reserved.
- * Includes the third-party code listed at http://links.sonatype.com/products/nexus/attributions.
- * "Sonatype" is a trademark of Sonatype, Inc.
+ * Copyright (c) 2017-present Sonatype, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 @Library(['private-pipeline-library', 'jenkins-shared']) _
-import com.sonatype.jenkins.pipeline.OsTools
+
+properties([
+  parameters([
+    string(
+      name: 'version',
+      description: 'Version tag to apply to the image, like 1.140.0-ubi-1.'
+    ),
+  ]),
+])
 
 node('ubuntu-zion') {
-  def version
-  def credentialsId = 'integrations-github-api'
-
   try {
     stage('Preparation') {
       deleteDir()
 
-      def checkoutDetails = checkout scm
+      checkout scm
 
-      checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
-
-      version = readVersion()
+      sh 'docker system prune -a -f'
+      sh '''
+        wget -q -O preflight \
+          https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/1.3.1/preflight-linux-amd64
+        chmod 755 preflight
+      '''
     }
-    stage('Trigger Red Hat Certified Image Build') {
-        withCredentials([
-            string(credentialsId: 'docker-nexus-iq-rh-build-project-id', variable: 'PROJECT_ID'),
-            string(credentialsId: 'rh-build-service-api-key', variable: 'API_KEY')]) {
-          final redHatVersion = "${version}-ubi"
-          runGroovy('ci/TriggerRedHatBuild.groovy', [redHatVersion, PROJECT_ID, API_KEY].join(' '))
-        }
+    stage('Build') {
+      withCredentials([
+        string(
+          credentialsId: 'red-hat-scan-registry-password',
+          variable: 'REGISTRY_PASSWORD'),
+        string(
+          credentialsId: 'red-hat-api-token',
+          variable: 'API_TOKEN'),
+      ]) {
+        sh 'PATH="$PATH:." VERSION=$version ./build_red_hat_image.sh'
       }
-  } finally {
-    OsTools.runSafe(this, 'git clean -f && git reset --hard origin/master')
-  }
-}
-
-def readVersion() {
-  def content = readFile 'Dockerfile'
-  for (line in content.split('\n')) {
-    if (line.startsWith('ARG IQ_SERVER_VERSION=')) {
-      return getShortVersion(line.substring(22))
     }
+  } finally {
+    sh 'docker logout'
+    sh 'docker system prune -a -f'
+    sh 'git clean -f && git reset --hard origin/master'
   }
-  error 'Could not determine version.'
-}
-
-def getShortVersion(version) {
-  return version.split('-')[0]
 }

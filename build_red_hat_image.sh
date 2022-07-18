@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+#
 # Copyright (c) 2017-present Sonatype, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 # prerequisites:
 # * software:
@@ -34,17 +35,17 @@ PROJECT_ID=ospid-12731870-d048-49fc-b877-6e5316ae0d11
 # from url of project at red hat
 CERT_PROJECT_ID=5e61602c2f3c1acdd05f61d3
 
-AUTHFILE=temp-auth.json
+AUTHFILE="${HOME}/.docker/config.json"
 
-podman login scan.connect.redhat.com -u unused \
-       --password "${REGISTRY_PASSWORD}" \
-       --authfile "${AUTHFILE}"
-
-podman build \
+docker build \
        -f "${DOCKERFILE}" \
-       -t "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
+       -t "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}" \
+       .
+docker login scan.connect.redhat.com -u unused \
+       --password "${REGISTRY_PASSWORD}"
 
-podman push "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
+docker push \
+       "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}"
 
 preflight check container \
           "scan.connect.redhat.com/${PROJECT_ID}/${IMAGE}:${VERSION}" \
@@ -52,5 +53,3 @@ preflight check container \
           --submit \
           --certification-project-id="${CERT_PROJECT_ID}" \
           --pyxis-api-token="${API_TOKEN}"
-
-rm $AUTHFILE

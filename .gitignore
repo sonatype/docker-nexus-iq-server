@@ -5,3 +5,5 @@ build/
 *.log
 artifacts
 temp-auth.json
+build.sh
+

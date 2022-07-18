@@ -1,0 +1,4 @@
+<excludes>
+  <exclude>**/.idea/**</exclude>
+  <exclude>**/.github/**</exclude>
+</excludes>
