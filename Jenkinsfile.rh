@@ -19,7 +19,7 @@ properties([
   parameters([
     string(
       name: 'version',
-      description: 'Version tag to apply to the image.'
+      description: 'Version tag to apply to the image, like 1.140.0-ubi-1.'
     ),
   ]),
 ])
