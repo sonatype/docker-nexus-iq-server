@@ -47,7 +47,6 @@ node('ubuntu-zion') {
           credentialsId: 'red-hat-api-token',
           variable: 'API_TOKEN'),
       ]) {
-        sh 'pwd; ls -la'
         sh 'PATH="$PATH:." VERSION=$version ./build_red_hat_image.sh'
       }
     }
