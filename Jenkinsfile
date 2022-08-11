@@ -153,7 +153,7 @@ node('ubuntu-zion') {
         archiveArtifacts artifacts: "${archiveName}-slim.tar.gz", onlyIfSuccessful: true
 
         OsTools.runSafe(this, "docker save ${imageName}-redhat | gzip > ${archiveName}-redhat.tar.gz")
-        archiveArtifacts artifacts: "${archiveName}-slim.tar.gz", onlyIfSuccessful: true
+        archiveArtifacts artifacts: "${archiveName}-redhat.tar.gz", onlyIfSuccessful: true
       }
     }
 
