@@ -18,7 +18,8 @@ import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion') {
-  def commitId, commitDate, version, imageId, slimImageId, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
+  def commitId, commitDate, version, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
+  def imageId, slimImageId, redHatImageId
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'sonaype-ci-github-access-token',
@@ -79,6 +80,8 @@ node('ubuntu-zion') {
 
       slimImageId = buildImage('Dockerfile.slim', "${imageName}-slim")
 
+      redHatImageId = buildImage('Dockerfile.rh', "${imageName}-redhat")
+
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
         return
@@ -96,6 +99,7 @@ node('ubuntu-zion') {
         OsTools.runSafe(this, "gem install --user-install docker-api")
         OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
         OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${redHatImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
       }
 
       if (currentBuild.result == 'FAILURE') {
@@ -116,6 +120,7 @@ node('ubuntu-zion') {
           iqScanPatterns: [
             [scanPattern: "container:${imageName}"],
             [scanPattern: "container:${imageName}-slim"],
+            [scanPattern: "container:${imageName}-redhat"],
           ],
           failBuildOnNetworkError: true)
       }, theStage)
@@ -145,6 +150,9 @@ node('ubuntu-zion') {
         archiveArtifacts artifacts: "${archiveName}.tar.gz", onlyIfSuccessful: true
 
         OsTools.runSafe(this, "docker save ${imageName}-slim | gzip > ${archiveName}-slim.tar.gz")
+        archiveArtifacts artifacts: "${archiveName}-slim.tar.gz", onlyIfSuccessful: true
+
+        OsTools.runSafe(this, "docker save ${imageName}-redhat | gzip > ${archiveName}-redhat.tar.gz")
         archiveArtifacts artifacts: "${archiveName}-slim.tar.gz", onlyIfSuccessful: true
       }
     }
