@@ -34,8 +34,11 @@ node('ubuntu-zion') {
     if (env.releaseBuild_NAME) {
       stage('Init IQ Version & Sha') {
         nexusIqVersion = getVersionFromBuildName(env.releaseBuild_NAME)
-        nexusIqSha = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER,
-          "artifacts/nexus-iq-server-${nexusIqVersion}-bundle.tar.gz.sha256")
+        nexusIqSha = readBuildArtifact(
+          'insight/insight-brain/release',
+          env.releaseBuild_NUMBER,
+          "artifacts/nexus-iq-server-${nexusIqVersion}-bundle.tar.gz.sha256"
+        ).trim()
       }
     }
     stage('Preparation') {
