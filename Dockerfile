@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6-854
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6-902
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.142.0-02
