@@ -53,7 +53,7 @@ USER root
 # For testing
 RUN microdnf update -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-devel \
-&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git \
+&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git gem \
 && microdnf clean all
 
 # Create folders
