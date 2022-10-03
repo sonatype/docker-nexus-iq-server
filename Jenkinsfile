@@ -17,7 +17,7 @@
 import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
-node('ubuntu-zion') {
+node('ubuntu-zion-legacy') {
   def commitId, commitDate, version, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
   def imageId, slimImageId, redHatImageId
   def organization = 'sonatype',
