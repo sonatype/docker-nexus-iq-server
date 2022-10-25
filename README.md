@@ -161,6 +161,12 @@ or to let docker assign available ports use:
 To get the assigned port or check if the server is running use:
 
     docker ps --filter "name=nexus-iq-server"
+    
+When stopping, be sure to allow sufficient time for the databases to fully shut down.  
+
+```
+docker stop --time=180 <CONTAINER_NAME>
+```
 
 ## Product License Installation
 
