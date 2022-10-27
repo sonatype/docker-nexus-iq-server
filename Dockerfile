@@ -15,9 +15,9 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6-854
 
 # Build parameters
-ARG IQ_SERVER_VERSION=1.141.0-01
-ARG IQ_SERVER_SHA256=eb938efc1dbf4c83bc1a2b0e26ad6fc2d1c14e18104c2db07501668840c5637d
-
+ARG IQ_SERVER_VERSION=1.147.0-SNAPSHOT
+ARG IQ_SERVER_SHA256=1c1f4b7de2fa3825b7e4d68f504e832431e89fc837e318addb7a08aa987da8fd
+ARG IQ_SERVER_DOWNLOAD_URL=http://10.0.0.143:5555
 
 
 
@@ -79,7 +79,7 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 
 # Download the server bundle, verify its checksum, and extract the server jar to the install directory
 RUN cd ${TEMP} \
-&& curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
+&& curl -L ${IQ_SERVER_DOWNLOAD_URL}/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
 && echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
