@@ -73,7 +73,7 @@ RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]
 
 # Create start script
 RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
-&& echo "/usr/bin/java \${JAVA_OPTS} -jar nexus-iq-server-${IQ_SERVER_VERSION}.jar server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
+&& echo "/usr/bin/java -javaagent:/opt/datadog/dd-java-agent.jar \${JAVA_OPTS} -jar nexus-iq-server-${IQ_SERVER_VERSION}.jar server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
 && echo "wait" >> ${IQ_HOME}/start.sh \
 && chmod 0755 ${IQ_HOME}/start.sh
 
@@ -96,6 +96,9 @@ RUN cd ${TEMP} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
 && chown -R nexus:nexus ${LOGS_HOME}
+
+# Setup datadog for MTIQ (DO NOT MERGE!!!)
+RUN mkdir /opt/datadog && curl -L -o /opt/datadog/dd-java-agent.jar https://github.com/DataDog/dd-trace-java/releases/latest/download/dd-java-agent.jar
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
