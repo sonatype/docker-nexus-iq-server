@@ -161,18 +161,18 @@ node('ubuntu-zion-legacy') {
     }
 
     if ((env.releaseBuild_NAME) && branch == 'master') {
-      stage('Push image') {
+      stage('Push images') {
         def dockerHubApiToken
         OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'")
         OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
         withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1']) {
           withCredentials([
               string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE'),
-              file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'REGISTRY_KEY'),
+              file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'REPOSITORY_KEY'),
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
-            OsTools.runSafe(this, 'docker trust key load $REGISTRY_KEY --name reg-key')
+            OsTools.runSafe(this, 'docker trust key load $REPOSITORY_KEY --name reg-key')
 
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
