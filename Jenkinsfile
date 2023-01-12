@@ -178,10 +178,14 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
             OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:${version}-slim")
             OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:latest-slim")
+
             OsTools.runSafe(this, """
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
             """)
-            OsTools.runSafe(this, "docker push --all-tags ${organization}/${dockerHubRepository}")
+            OsTools.runSafe(this, "docker push ${organization}/${dockerHubRepository}:${version}")
+            OsTools.runSafe(this, "docker push ${organization}/${dockerHubRepository}:latest")
+            OsTools.runSafe(this, "docker push ${organization}/${dockerHubRepository}:${version}-slim")
+            OsTools.runSafe(this, "docker push ${organization}/${dockerHubRepository}:latest-slim")
 
             response = OsTools.runSafe(this, """
             curl -X POST https://hub.docker.com/v2/users/login/ \
