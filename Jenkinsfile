@@ -178,9 +178,12 @@ node('ubuntu-zion-legacy') {
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
             //OsTools.runSafe(this, 'docker trust key load $PUBLIC_DOCKER_ROOT_KEY --name public-docker-root-key')
-            OsTools.runSafe(this, 'docker trust key load $PRIVATE_DOCKER_ROOT_KEY --name private-docker-root-key')
-            OsTools.runSafe(this, 'docker trust key load $GUN_REPOSITORY_KEY --name gun-reg-key')
-            OsTools.runSafe(this, 'docker trust key load $ROOT_REPOSITORY_KEY --name root-reg-key')
+           // OsTools.runSafe(this, 'docker trust key load $PRIVATE_DOCKER_ROOT_KEY --name private-docker-root-key')
+            //OsTools.runSafe(this, 'docker trust key load $GUN_REPOSITORY_KEY --name gun-reg-key')
+            //OsTools.runSafe(this, 'docker trust key load $ROOT_REPOSITORY_KEY --name root-reg-key')
+            
+            OsTools.runSafe(this, "docker trust key load $ROOT_REPOSITORY_KEY --name root-reg-key")
+            OsTools.runSafe(this, "docker trust signer add --key $GUN_REPOSITORY_KEY root-reg-key ${organization}/${dockerHubRepository}")
 
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
