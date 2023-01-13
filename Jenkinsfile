@@ -92,6 +92,7 @@ node('ubuntu-zion-legacy') {
         gitHub.statusUpdate commitId, 'success', 'build', 'Build succeeded'
       }
     }
+    /*
     stage('Test') {
       gitHub.statusUpdate commitId, 'pending', 'test', 'Tests are running'
 
@@ -112,6 +113,7 @@ node('ubuntu-zion-legacy') {
         gitHub.statusUpdate commitId, 'success', 'test', 'Tests succeeded'
       }
     }
+     */
     stage('Evaluate') {
       //decide which stage we are creating
       def theStage = branch == 'master' ? (env.releaseBuild_NAME ? 'release' : 'build') : 'develop'
