@@ -172,7 +172,7 @@ node('ubuntu-zion-legacy') {
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
-            OsTools.runSafe(this, 'docker trust key load $REPOSITORY_KEY --name reg-key')
+            OsTools.runSafe(this, 'docker trust key load $REPOSITORY_KEY --name sonatype')
 
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
