@@ -167,7 +167,7 @@ node('ubuntu-zion-legacy') {
         def dockerHubApiToken
         OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'")
         OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
-        withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1']) {
+        withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig"]) {
           withCredentials([
               string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE'),
               file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'REPOSITORY_KEY'),
