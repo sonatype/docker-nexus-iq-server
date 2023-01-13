@@ -168,11 +168,13 @@ node('ubuntu-zion-legacy') {
         withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1']) {
           withCredentials([
               string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE'),
-              file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'REPOSITORY_KEY'),
+              file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'GUN_REPOSITORY_KEY'),
+              file(credentialsId: 'nexus-iq-server_dct_root_key', variable: 'ROOT_REPOSITORY_KEY'),
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
-            OsTools.runSafe(this, 'docker trust key load $REPOSITORY_KEY --name reg-key')
+            OsTools.runSafe(this, 'docker trust key load $GUN_REPOSITORY_KEY --name gun-reg-key')
+            OsTools.runSafe(this, 'docker trust key load $ROOT_REPOSITORY_KEY --name root-reg-key')
 
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
