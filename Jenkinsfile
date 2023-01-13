@@ -92,7 +92,6 @@ node('ubuntu-zion-legacy') {
         gitHub.statusUpdate commitId, 'success', 'build', 'Build succeeded'
       }
     }
-    /* 
     stage('Test') {
       gitHub.statusUpdate commitId, 'pending', 'test', 'Tests are running'
 
@@ -129,7 +128,6 @@ node('ubuntu-zion-legacy') {
           failBuildOnNetworkError: true)
       }, theStage)
     }
-    */
 
     if (currentBuild.result == 'FAILURE') {
       return
