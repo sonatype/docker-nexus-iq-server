@@ -171,7 +171,7 @@ node('ubuntu-zion-legacy') {
           withCredentials([
               string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE'),
               //file(credentialsId: 'sonatype_docker_root_public_key', variable: 'PUBLIC_DOCKER_ROOT_KEY'),
-              file(credentialsId: 'sonatype_docker_root_private_key', variable: 'PRIVATE_DOCKER_KEY'),
+              file(credentialsId: 'sonatype_docker_root_private_key', variable: 'PRIVATE_DOCKER_ROOT_KEY'),
               file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'GUN_REPOSITORY_KEY'),
               file(credentialsId: 'nexus-iq-server_dct_root_key', variable: 'ROOT_REPOSITORY_KEY'),
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
