@@ -188,7 +188,7 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, 'docker trust key load $DELEGATION_KEY --name sonatype')
 
             // Add delegation public key
-            OsTools.runSafe(this, "docker trust signer add -key $PUBLIC_KEY sonatype ${organization}/${dockerHubRepository}")
+            OsTools.runSafe(this, "docker trust signer add --key $PUBLIC_KEY sonatype ${organization}/${dockerHubRepository}")
 
             // Sign the images
             OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}")
