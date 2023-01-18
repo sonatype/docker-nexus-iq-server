@@ -18,9 +18,6 @@ import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion-legacy') {
-  def organization = 'sonatype',
-      credentialsId = 'sonaype-ci-github-access-token'
-
   try {
     stage('Preparation') {
       deleteDir()
