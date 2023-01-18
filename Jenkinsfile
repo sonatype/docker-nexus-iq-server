@@ -62,24 +62,6 @@ node('ubuntu-zion-legacy') {
 
             // Sign the images
             OsTools.runSafe(this, "docker trust sign sonatype/nexus-iq-server:1.40.0")
-
-            response = OsTools.runSafe(this, """
-            curl -X POST https://hub.docker.com/v2/users/login/ \
-              -H 'cache-control: no-cache' -H 'content-type: application/json' \
-              -d '{ "username": "${env.DOCKERHUB_API_USERNAME}", "password": "${env.DOCKERHUB_API_PASSWORD}" }'
-            """)
-            token = readJSON text: response
-            dockerHubApiToken = token.token
-
-            def readme = readFile file: 'README.md', encoding: 'UTF-8'
-            readme = readme.replaceAll("(?s)<!--.*?-->", "")
-            readme = readme.replace("\"", "\\\"")
-            readme = readme.replace("\n", "\\n")
-            readme = readme.replace("\\\$", "\\\\\$")
-            response = httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerHubApiToken}"]],
-                acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH',
-                requestBody: "{ \"full_description\": \"${readme}\" }",
-                url: "https://hub.docker.com/v2/repositories/${organization}/${dockerHubRepository}/"
           }
         }
       }
