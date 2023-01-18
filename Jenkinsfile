@@ -18,8 +18,6 @@ import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion-legacy') {
-  def commitId, commitDate, version, branch, nexusIqVersion, nexusIqSha
-  def imageId, slimImageId, redHatImageId
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'sonaype-ci-github-access-token',
@@ -36,14 +34,8 @@ node('ubuntu-zion-legacy') {
 
       def checkoutDetails = checkout scm
 
-      branch = checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
-      commitId = checkoutDetails.GIT_COMMIT
-      commitDate = OsTools.runSafe(this, "git show -s --format=%cd --date=format:%Y%m%d-%H%M%S ${commitId}")
-
       OsTools.runSafe(this, 'git config --global user.email sonatype-ci@sonatype.com')
       OsTools.runSafe(this, 'git config --global user.name Sonatype CI')
-
-      version = '1.40.0'
     }
 
       stage('Sign image') {
@@ -67,8 +59,6 @@ node('ubuntu-zion-legacy') {
 
             // Add delegation private key
             OsTools.runSafe(this, 'docker trust key load $DELEGATION_KEY --name sonatype')
-
-            // Add delegation public key
 
             // Sign the images
             OsTools.runSafe(this, "docker trust sign sonatype/nexus-iq-server:1.40.0")
