@@ -48,7 +48,7 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, "docker pull sonatype/nexus-iq-server:1.40.0")
 
             // Sign the images
-            OsTools.runSafe(this, "docker trust sign sonatype/nexus-iq-server:1.40.0")
+            OsTools.runSafe(this, "docker trust sign --local sonatype/nexus-iq-server:1.40.0")
           }
         }
       }
