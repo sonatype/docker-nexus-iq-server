@@ -31,16 +31,6 @@ node('ubuntu-zion-legacy') {
   GitHub gitHub
 
   try {
-//    if (env.releaseBuild_NAME) {
-//      stage('Init IQ Version & Sha') {
-//        nexusIqVersion = getVersionFromBuildName(env.releaseBuild_NAME)
-//        nexusIqSha = readBuildArtifact(
-//          'insight/insight-brain/release',
-//          env.releaseBuild_NUMBER,
-//          "artifacts/nexus-iq-server-${nexusIqVersion}-bundle.tar.gz.sha256"
-//        ).trim()
-//      }
-//    }
     stage('Preparation') {
       deleteDir()
       OsTools.runSafe(this, "docker system prune -a -f")
@@ -69,98 +59,7 @@ node('ubuntu-zion-legacy') {
       }
       gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
     }
-//    if ((env.releaseBuild_NAME) && branch == 'master') {
-//      stage('Update IQ Version') {
-//        OsTools.runSafe(this, "git checkout ${branch}")
-//        dockerFileLocations.each { updateServerVersion(it, nexusIqVersion, nexusIqSha) }
-//        version = getShortVersion(nexusIqVersion)
-//      }
-//    }
-    stage('Build') {
-//      gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
 
-//      imageId = buildImage('Dockerfile', imageName)
-
-//      slimImageId = buildImage('Dockerfile.slim', "${imageName}-slim")
-
-//      redHatImageId = buildImage('Dockerfile.rh', "${imageName}-redhat")
-
-//      if (currentBuild.result == 'FAILURE') {
-//        gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
-//        return
-//      } else {
-//        gitHub.statusUpdate commitId, 'success', 'build', 'Build succeeded'
-//      }
-    }
-//    stage('Test') {
-//      gitHub.statusUpdate commitId, 'pending', 'test', 'Tests are running'
-//
-//      def gemInstallDirectory = getGemInstallDirectory()
-//      withEnv(["PATH+GEMS=${gemInstallDirectory}/bin"]) {
-//        OsTools.runSafe(this, "gem install --user-install rspec")
-//        OsTools.runSafe(this, "gem install --user-install serverspec")
-//        OsTools.runSafe(this, "gem install --user-install docker-api")
-//        OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
-//        OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
-//        OsTools.runSafe(this, "IMAGE_ID=${redHatImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
-//      }
-//
-//      if (currentBuild.result == 'FAILURE') {
-//        gitHub.statusUpdate commitId, 'failure', 'test', 'Tests failed'
-//        return
-//      } else {
-//        gitHub.statusUpdate commitId, 'success', 'test', 'Tests succeeded'
-//      }
-//    }
-//    stage('Evaluate') {
-//      //decide which stage we are creating
-//      def theStage = branch == 'master' ? (env.releaseBuild_NAME ? 'release' : 'build') : 'develop'
-//
-//      runEvaluation({ stage ->
-//        nexusPolicyEvaluation(
-//          iqStage: stage,
-//          iqApplication: iqApplicationId,
-//          iqScanPatterns: [
-//            [scanPattern: "container:${imageName}"],
-//            [scanPattern: "container:${imageName}-slim"],
-//            [scanPattern: "container:${imageName}-redhat"],
-//          ],
-//          failBuildOnNetworkError: true)
-//      }, theStage)
-//    }
-
-//   if (currentBuild.result == 'FAILURE') {
-//     return
-//   }
-//    if ((env.releaseBuild_NAME) && branch == 'master') {
-//      stage('Commit IQ Version Update') {
-//        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
-//                        usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
-//          def commitMessage = [
-//            nexusIqVersion && nexusIqSha ? "Update IQ Server to ${nexusIqVersion}." : "",
-//          ].findAll({ it }).join(' ')
-//          OsTools.runSafe(this, """
-//            git add .
-//            git diff --exit-code --cached || git commit -m '${commitMessage}'
-//            git push https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git ${branch}
-//          """)
-//        }
-//      }
-//    }
-//    stage('Archive') {
-//      dir('build/target') {
-//        OsTools.runSafe(this, "docker save ${imageName} | gzip > ${archiveName}.tar.gz")
-//        archiveArtifacts artifacts: "${archiveName}.tar.gz", onlyIfSuccessful: true
-//
-//        OsTools.runSafe(this, "docker save ${imageName}-slim | gzip > ${archiveName}-slim.tar.gz")
-//        archiveArtifacts artifacts: "${archiveName}-slim.tar.gz", onlyIfSuccessful: true
-//
-//        OsTools.runSafe(this, "docker save ${imageName}-redhat | gzip > ${archiveName}-redhat.tar.gz")
-//        archiveArtifacts artifacts: "${archiveName}-redhat.tar.gz", onlyIfSuccessful: true
-//      }
-//    }
-
-//    if ((env.releaseBuild_NAME) && branch == 'master') {
       stage('Push images') {
         def dockerHubApiToken
         OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'")
@@ -175,10 +74,6 @@ node('ubuntu-zion-legacy') {
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
 
-//            OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
-//            OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
-//            OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:${version}-slim")
-//            OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:latest-slim")
 
             OsTools.runSafe(this, """
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
@@ -188,14 +83,9 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, 'docker trust key load $DELEGATION_KEY --name sonatype')
 
             // Add delegation public key
-//            OsTools.runSafe(this, "docker trust signer add --key $PUBLIC_KEY sonatype ${organization}/${dockerHubRepository}")
 
             // Sign the images
             OsTools.runSafe(this, "docker trust sign sonatype/nexus-iq-server:1.40.0")
-//            OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}")
-//            OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:latest")
-//            OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}-slim")
-//            OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:latest-slim")
 
             response = OsTools.runSafe(this, """
             curl -X POST https://hub.docker.com/v2/users/login/ \
@@ -217,19 +107,6 @@ node('ubuntu-zion-legacy') {
           }
         }
       }
-//      stage('Push tags') {
-//        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
-//                          usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
-//          OsTools.runSafe(this, "git tag ${version}")
-//          OsTools.runSafe(this, """
-//            git push \
-//            https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git \
-//              ${version}
-//          """)
-//        }
-//        OsTools.runSafe(this, "git tag -d ${version}")
-//      }
-//    }
   } finally {
     OsTools.runSafe(this, "docker logout")
     OsTools.runSafe(this, "docker system prune -a -f")
