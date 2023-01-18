@@ -18,7 +18,7 @@ import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion-legacy') {
-  def commitId, commitDate, version, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
+  def commitId, commitDate, version, branch, nexusIqVersion, nexusIqSha
   def imageId, slimImageId, redHatImageId
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
@@ -35,12 +35,6 @@ node('ubuntu-zion-legacy') {
       OsTools.runSafe(this, "docker system prune -a -f")
 
       def checkoutDetails = checkout scm
-
-      dockerFileLocations = [
-        "${pwd()}/Dockerfile",
-        "${pwd()}/Dockerfile.slim",
-        "${pwd()}/Dockerfile.rh",
-      ]
 
       branch = checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
       commitId = checkoutDetails.GIT_COMMIT
