@@ -52,7 +52,7 @@ node('ubuntu-zion-legacy') {
       version = '1.40.0'
     }
 
-      stage('Push images') {
+      stage('Sign image') {
         def dockerHubApiToken
         OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'")
         OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
