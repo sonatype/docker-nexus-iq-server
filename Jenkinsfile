@@ -31,11 +31,6 @@ node('ubuntu-zion-legacy') {
     stage('Preparation') {
       deleteDir()
       OsTools.runSafe(this, "docker system prune -a -f")
-
-      def checkoutDetails = checkout scm
-
-      OsTools.runSafe(this, 'git config --global user.email sonatype-ci@sonatype.com')
-      OsTools.runSafe(this, 'git config --global user.name Sonatype CI')
     }
 
       stage('Sign image') {
@@ -52,7 +47,6 @@ node('ubuntu-zion-legacy') {
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
 
-
             OsTools.runSafe(this, """
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
             """)
@@ -68,6 +62,5 @@ node('ubuntu-zion-legacy') {
   } finally {
     OsTools.runSafe(this, "docker logout")
     OsTools.runSafe(this, "docker system prune -a -f")
-    OsTools.runSafe(this, 'git clean -f && git reset --hard origin/master')
   }
 }
