@@ -28,7 +28,6 @@ node('ubuntu-zion-legacy') {
       iqApplicationId = 'docker-nexus-iq-server',
       dockerHubRepository = 'nexus-iq-server',
       tarName = 'docker-nexus-iq-server.tar'
-  GitHub gitHub
 
   try {
     stage('Preparation') {
@@ -51,13 +50,6 @@ node('ubuntu-zion-legacy') {
       OsTools.runSafe(this, 'git config --global user.name Sonatype CI')
 
       version = '1.40.0'
-
-      def apiToken
-      withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
-                        usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
-        apiToken = env.GITHUB_API_PASSWORD
-      }
-      gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
     }
 
       stage('Push images') {
