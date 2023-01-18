@@ -19,13 +19,7 @@ import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion-legacy') {
   def organization = 'sonatype',
-      gitHubRepository = 'docker-nexus-iq-server',
-      credentialsId = 'sonaype-ci-github-access-token',
-      imageName = 'sonatype/nexus-iq-server',
-      archiveName = 'docker-nexus-iq-server',
-      iqApplicationId = 'docker-nexus-iq-server',
-      dockerHubRepository = 'nexus-iq-server',
-      tarName = 'docker-nexus-iq-server.tar'
+      credentialsId = 'sonaype-ci-github-access-token'
 
   try {
     stage('Preparation') {
