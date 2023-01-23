@@ -48,7 +48,7 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, "docker pull sonatype/sign-me:3")
 
             // Sign the images
-            OsTools.runSafe(this, "docker trust sign --local sonatype/sign-me:3")
+            // OsTools.runSafe(this, "docker trust sign --local sonatype/sign-me:3")
           }
         }
       }
