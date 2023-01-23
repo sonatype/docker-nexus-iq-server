@@ -40,11 +40,11 @@ node('ubuntu-zion-legacy') {
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
 
+            OsTools.runSafe(this, "docker pull sonatype/sign-me:3")
+
             OsTools.runSafe(this, """
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
             """)
-
-            // OsTools.runSafe(this, 'export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld')
 
             withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
               OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
@@ -52,8 +52,6 @@ node('ubuntu-zion-legacy') {
 
              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $PUBLIC_KEY')
             // OsTools.runSafe(this, 'docker trust key load $PUBLIC_KEY --name sonatype')
-
-            OsTools.runSafe(this, "docker pull sonatype/sign-me:3")
 
             // Sign the images
             // OsTools.runSafe(this, "docker trust sign --local sonatype/sign-me:3")
