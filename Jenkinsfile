@@ -43,12 +43,12 @@ node('ubuntu-zion-legacy') {
             """)
 
             // Add delegation private key
-            OsTools.runSafe(this, 'docker trust key load $DELEGATION_KEY --name sonatype')
+            OsTools.runSafe(this, 'docker trust key load $PUBLIC_KEY --name sonatype')
 
-            OsTools.runSafe(this, "docker pull sonatype/nexus-iq-server:1.40.0")
+            OsTools.runSafe(this, "docker pull sonatype/sign-me:3")
 
             // Sign the images
-            OsTools.runSafe(this, "docker trust sign --local sonatype/nexus-iq-server:1.40.0")
+            OsTools.runSafe(this, "docker trust sign --local sonatype/sign-me:3")
           }
         }
       }
