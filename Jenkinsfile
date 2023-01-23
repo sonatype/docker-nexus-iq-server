@@ -48,9 +48,7 @@ node('ubuntu-zion-legacy') {
             export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld
             """)
 
-            OsTools.runSafe(this, """
-            docker trust key load $0fe2ec
-            """)
+            OsTools.runSafe(this, 'docker trust key load $0fe2ec')
 
              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $PUBLIC_KEY')
             // OsTools.runSafe(this, 'docker trust key load $PUBLIC_KEY --name sonatype')
