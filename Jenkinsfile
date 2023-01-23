@@ -45,7 +45,7 @@ node('ubuntu-zion-legacy') {
             """)
 
             OsTools.runSafe(this, """
-            export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$0fe2ec-password
+            export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld
             """)
 
             OsTools.runSafe(this, """
