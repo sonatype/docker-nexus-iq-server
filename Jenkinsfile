@@ -44,7 +44,7 @@ node('ubuntu-zion-legacy') {
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
             """)
 
-            OsTools.runSafe(this, 'export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld')
+            // OsTools.runSafe(this, 'export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld')
 
             OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
 
