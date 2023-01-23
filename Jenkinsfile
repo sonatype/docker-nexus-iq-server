@@ -31,7 +31,7 @@ node('ubuntu-zion-legacy') {
         withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=0']) {
           withCredentials([
               string(credentialsId: '0fe2ec-password', variable: '0fe2ec-password'),
-              file(credentialsId: '0fe2ec', variable: '0fe2ec'),
+              file(credentialsId: '0fe2ec', variable: 'FE2EC_KEY'),
               string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE'),
               string(credentialsId: 'sonatype_docker_root_pw', variable: 'DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE'),
               file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'DELEGATION_KEY'),
@@ -48,7 +48,7 @@ node('ubuntu-zion-legacy') {
             export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld
             """)
 
-            OsTools.runSafe(this, 'docker trust key load $0fe2ec')
+            OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
 
              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $PUBLIC_KEY')
             // OsTools.runSafe(this, 'docker trust key load $PUBLIC_KEY --name sonatype')
