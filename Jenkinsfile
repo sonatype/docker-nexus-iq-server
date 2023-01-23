@@ -39,12 +39,11 @@ node('ubuntu-zion-legacy') {
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
-
-            OsTools.runSafe(this, "docker pull sonatype/sign-me:3")
-
             OsTools.runSafe(this, """
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
             """)
+
+            OsTools.runSafe(this, "docker pull sonatype/sign-me:3")
 
             withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
               OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
