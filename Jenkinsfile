@@ -26,10 +26,10 @@ node('ubuntu-zion-legacy') {
 
       stage('Sign image') {
         def dockerHubApiToken
-        // OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'")
-        // OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
-        // withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=0']) {
-        withEnv(['DOCKER_CONTENT_TRUST=0']) {
+        OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'")
+        OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
+        withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=0']) {
+        // withEnv(['DOCKER_CONTENT_TRUST=0']) {
           withCredentials([
               string(credentialsId: '0fe2ec-password', variable: '0fe2ec-password'),
               file(credentialsId: '0fe2ec', variable: 'FE2EC_KEY'),
@@ -49,6 +49,8 @@ node('ubuntu-zion-legacy') {
             withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
               OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
             }
+
+            find $DOCKER_CONFIG
 
              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $PUBLIC_KEY')
             // OsTools.runSafe(this, 'docker trust key load $PUBLIC_KEY --name sonatype')
