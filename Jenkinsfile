@@ -42,7 +42,7 @@ node('ubuntu-zion-legacy') {
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
             """)
 
-             OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-test --key $PUBLIC_KEY')
+             OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $PUBLIC_KEY')
             // OsTools.runSafe(this, 'docker trust key load $PUBLIC_KEY --name sonatype')
 
             OsTools.runSafe(this, "docker pull sonatype/sign-me:3")
