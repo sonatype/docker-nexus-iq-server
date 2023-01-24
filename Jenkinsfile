@@ -40,6 +40,8 @@ node('ubuntu-zion-legacy') {
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
+            OsTools.runSafe(this, "find $DOCKER_CONFIG")
+
             OsTools.runSafe(this, """
             docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
             """)
