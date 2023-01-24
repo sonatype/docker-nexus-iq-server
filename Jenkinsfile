@@ -59,7 +59,7 @@ node('ubuntu-zion-legacy') {
             // sign pushes so careful..
             // password needed here is the password for signers private key
             withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-              OsTools.runSafe(this, 'docker push sonatype/sign-me:$(date +"%d%H%M")')
+              OsTools.runSafe(this, 'docker trust sign sonatype/sign-me:$(date +"%d%H%M")')
             }
           }
         }
