@@ -45,32 +45,27 @@ node('ubuntu-zion-legacy') {
               docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
              """)
 
+            // load the repository key..
             OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
+
+            // load the signers private key
             OsTools.runSafe(this, 'docker trust key load $SONATYPE_KEY')
 
+            // add signer - for this you need signers public key and repository keys password
             withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
               OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $SONATYPE_PUB')
             }
 
+            // build the image locally
             OsTools.runSafe(this, 'docker pull alpine:3.6')
             OsTools.runSafe(this, 'docker tag alpine:3.6 sonatype/sign-me:$(date +"%d%H%M")')
             OsTools.runSafe(this, 'docker image ls')
 
-            //withEnv(['DOCKER_CONTENT_TRUST=0']) {
-            //withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$SONATYPE_PASSWORD']) {
+            // sign pushes so careful..
+            // password needed here is the password for signers private key
             withEnv(["DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=${env.SONATYPE_PASSWORD}"]) {
               OsTools.runSafe(this, 'docker push sonatype/sign-me:$(date +"%d%H%M")')
             }
-
-
-            //OsTools.runSafe(this, 'docker image rm sonatype/sign-me:$(date +"%d%H%M")')
-            //OsTools.runSafe(this, 'docker image prune')
-            //OsTools.runSafe(this, 'docker image ls')
-            //OsTools.runSafe(this, 'docker pull sonatype/sign-me:$(date +"%d%H%M")')
-            //OsTools.runSafe(this, 'docker image ls')
-            // withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=xEbDHcGwmJKtNuQ4']) {
-            //   OsTools.runSafe(this, 'docker trust sign sonatype/sign-me:$(date +"%d%H%M")')
-            // }
           }
         }
       }
