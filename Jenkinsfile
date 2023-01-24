@@ -56,7 +56,7 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, "find $DOCKER_CONFIG")
 
             withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
-              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key SONATYPE_PUB')
+              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $SONATYPE_PUB')
             }
             // OsTools.runSafe(this, 'docker trust key load $PUBLIC_KEY --name sonatype')
 
