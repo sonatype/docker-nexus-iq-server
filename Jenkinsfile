@@ -41,36 +41,29 @@ node('ubuntu-zion-legacy') {
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
-            OsTools.runSafe(this, "find $DOCKER_CONFIG")
+            tag=(date +"%H%M")
 
-            OsTools.runSafe(this, """
-            docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
-            """)
+            OsTools.runSafe(this, 'docker pull alpine:3.6')
+            OsTools.runSafe(this, 'docker tag alpine:3.6 sonatype/sign-me:$tag')
+            OsTools.runSafe(this, 'docker image ls')
 
-            OsTools.runSafe(this, "docker pull sonatype/sign-me:3")
+            // OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
+
+            // OsTools.runSafe(this, """
+            // docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
+            // """)
+
+            // OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
 
             // withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
-              OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
-            //}
+            //   OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $SONATYPE_PUB')
+            // }
 
-            // OsTools.runSafe(this, "docker trust inspect sonatype/sign-me")
-            OsTools.runSafe(this, "find $DOCKER_CONFIG")
+            // withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$SONATYPE_PASSWORD']) {
+            //   OsTools.runSafe(this, 'docker trust key load $SONATYPE_KEY')
+            // }
 
-            withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
-              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $SONATYPE_PUB')
-            }
-
-            withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$SONATYPE_PASSWORD']) {
-              OsTools.runSafe(this, 'docker trust key load $SONATYPE_KEY')
-            }
-
-            OsTools.runSafe(this, 'docker trust sign docker.io/sonatype/sign-me:3')
-
-
-            // OsTools.runSafe(this, 'docker trust key load $PUBLIC_KEY --name sonatype')
-
-            // Sign the images
-            // OsTools.runSafe(this, "docker trust sign --local sonatype/sign-me:3")
+            // OsTools.runSafe(this, 'docker trust sign docker.io/sonatype/sign-me:3')
           }
         }
       }
