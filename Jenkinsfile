@@ -52,7 +52,7 @@ node('ubuntu-zion-legacy') {
               OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
             }
 
-            OsTools.runSafe(this, "docker trust inspect")
+            OsTools.runSafe(this, "docker trust inspect sonatype/sign-me")
             OsTools.runSafe(this, "find $DOCKER_CONFIG")
 
              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $PUBLIC_KEY')
