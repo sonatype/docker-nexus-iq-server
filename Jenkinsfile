@@ -167,34 +167,40 @@ node('ubuntu-zion-legacy') {
         OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
         withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1']) {
           withCredentials([
-              string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE'),
-              string(credentialsId: 'sonatype_docker_root_pw', variable: 'DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE'),
-              file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'DELEGATION_KEY'),
-              file(credentialsId: 'sonatype_docker_root_public_key', variable: 'PUBLIC_KEY'),
+              file(credentialsId: 'nexus-iq-server-repository-key', variable: 'NEXUS_IQ_SERVER_REPOSITORY_KEY'),
+              file(credentialsId: 'sonatype-pub', variable: 'SONATYPE_PUB'),
+              file(credentialsId: 'sonatype-key', variable: 'SONATYPE_KEY'),
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
+            OsTools.runSafe(this, """
+            docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
+            """)
+
+            // load the repository key..
+            OsTools.runSafe(this, 'docker trust key load $NEXUS_IQ_SERVER_REPOSITORY_KEY')
+
+            // load the signers private key
+            OsTools.runSafe(this, 'docker trust key load $SONATYPE_KEY')
+
+            // add signer - for this you need signers public key and repository keys password
+            withCredentials([string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
+              OsTools.runSafe(this, 'docker trust signer add sonatype ${organization}/${dockerHubRepository} --key $SONATYPE_PUB')
+            }
 
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:${version}")
             OsTools.runSafe(this, "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest")
             OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:${version}-slim")
             OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:latest-slim")
 
-            OsTools.runSafe(this, """
-            docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
-            """)
-
-            // Add delegation private key
-            OsTools.runSafe(this, 'docker trust key load $DELEGATION_KEY --name sonatype')
-
-            // Add delegation public key
-            OsTools.runSafe(this, "docker trust signer add --key $PUBLIC_KEY sonatype ${organization}/${dockerHubRepository}")
-
             // Sign the images
-            OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}")
-            OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:latest")
-            OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}-slim")
-            OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:latest-slim")
+            // Signing images also pushes them
+            withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
+              OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}")
+              OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:latest")
+              OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}-slim")
+              OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:latest-slim")
+            }
 
             response = OsTools.runSafe(this, """
             curl -X POST https://hub.docker.com/v2/users/login/ \
