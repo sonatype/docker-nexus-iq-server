@@ -48,7 +48,7 @@ node('ubuntu-zion-legacy') {
 
             // add signer - for this you need signers public key and repository keys password
             withCredentials([string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-              OsTools.runSafe(this, 'docker trust signer add sonatype ${organization}/${dockerHubRepository} --key $SONATYPE_PUB')
+              OsTools.runSafe(this, 'docker trust signer add sonatype sonatype/nexus-iq-server --key $SONATYPE_PUB')
             }
 
             // build the image locally
