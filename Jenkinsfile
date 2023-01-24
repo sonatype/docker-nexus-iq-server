@@ -30,11 +30,11 @@ node('ubuntu-zion-legacy') {
         OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
         withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1']) {
           withCredentials([
-              string(credentialsId: 'fe2ec-password', variable: 'fe2ec-password'),
+              string(credentialsId: 'fe2ec-password', variable: 'FE_PASSWORD'),
+              string(credentialsId: 'sonatype-password', variable: 'SONATYPE_PASSWORD'),
               file(credentialsId: '0fe2ec', variable: 'FE2EC_KEY'),
               file(credentialsId: 'sonatype-pub', variable: 'SONATYPE_PUB'),
               file(credentialsId: 'sonatype-key', variable: 'SONATYPE_KEY'),
-              string(credentialsId: 'sonatype-password', variable: 'SONATYPE_PASSWORD'),
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
@@ -49,7 +49,7 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, 'docker trust key load $SONATYPE_KEY')
 
             // add signer - for this you need signers public key and repository keys password
-            withEnv(["DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=${env.fe2ec-password}"]) {
+            withEnv(["DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=${env.FE_PASSWORD}"]) {
               OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $SONATYPE_PUB')
             }
 
