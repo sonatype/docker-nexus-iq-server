@@ -26,9 +26,9 @@ node('ubuntu-zion-legacy') {
 
       stage('Sign image') {
         def dockerHubApiToken
-        OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfigkt'")
-        OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfigkt' || true")
-        withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfigkt", 'DOCKER_CONTENT_TRUST=0']) {
+        OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'")
+        OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
+        withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=0']) {
           withCredentials([
               string(credentialsId: '0fe2ec-password', variable: '0fe2ec-password'),
               file(credentialsId: '0fe2ec', variable: 'FE2EC_KEY'),
