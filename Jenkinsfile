@@ -43,8 +43,7 @@ node('ubuntu-zion-legacy') {
           ]) {
             OsTools.runSafe(this, 'docker pull alpine:3.6')
 
-            // OsTools.runSafe(this, 'tagVersion=\(date+"%H%M"\)')
-            OsTools.runSafe(this, 'docker tag alpine:3.6 sonatype/sign-me:$(date +"%H%M")')
+            OsTools.runSafe(this, 'docker tag alpine:3.6 sonatype/sign-me:$(date +"%d%H%M%S")')
 
 
             OsTools.runSafe(this, 'docker image ls')
