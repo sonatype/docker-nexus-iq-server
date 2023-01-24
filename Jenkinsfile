@@ -30,7 +30,7 @@ node('ubuntu-zion-legacy') {
         OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
         withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1']) {
           withCredentials([
-              file(credentialsId: '0fe2ec', variable: 'FE2EC_KEY'),
+              file(credentialsId: 'nexus-iq-server-repository-key', variable: 'NEXUS_IQ_SERVER_REPOSITORY_KEY'),
               file(credentialsId: 'sonatype-pub', variable: 'SONATYPE_PUB'),
               file(credentialsId: 'sonatype-key', variable: 'SONATYPE_KEY'),
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
@@ -41,25 +41,24 @@ node('ubuntu-zion-legacy') {
              """)
 
             // load the repository key..
-            OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
+            OsTools.runSafe(this, 'docker trust key load $NEXUS_IQ_SERVER_REPOSITORY_KEY')
 
             // load the signers private key
             OsTools.runSafe(this, 'docker trust key load $SONATYPE_KEY')
 
             // add signer - for this you need signers public key and repository keys password
-            withCredentials([string(credentialsId: 'fe2ec-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-              OsTools.runSafe(this, 'docker trust signer add sonatype sonatype/sign-me --key $SONATYPE_PUB')
+            withCredentials([string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
+              OsTools.runSafe(this, 'docker trust signer add sonatype ${organization}/${dockerHubRepository} --key $SONATYPE_PUB')
             }
 
             // build the image locally
-            OsTools.runSafe(this, 'docker pull alpine:3.6')
-            OsTools.runSafe(this, 'docker tag alpine:3.6 sonatype/sign-me:$(date +"%d%H%M")')
-            OsTools.runSafe(this, 'docker image ls')
+            OsTools.runSafe(this, 'docker pull sonatype/nexus-iq-server:latest')
+            OsTools.runSafe(this, 'docker tag sonatype/nexus-iq-server:latest sonatype/nexus-iq-server:latest-test')
 
             // sign pushes so careful..
             // password needed here is the password for signers private key
             withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-              OsTools.runSafe(this, 'docker trust sign sonatype/sign-me:$(date +"%d%H%M")')
+              OsTools.runSafe(this, 'docker trust sign sonatype/nexus-iq-server:latest-test')
             }
           }
         }
