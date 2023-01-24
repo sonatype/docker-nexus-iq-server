@@ -32,7 +32,7 @@ node('ubuntu-zion-legacy') {
         // withEnv(['DOCKER_CONTENT_TRUST=0']) {
           withCredentials([
               string(credentialsId: '0fe2ec-password', variable: '0fe2ec-password'),
-              file(credentialsId: '0fe2ec', variable: 'FE2EC_KEY'),
+              file(credentialsId: '0f2ec25', variable: 'FE2EC_KEY'),
               string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE'),
               string(credentialsId: 'sonatype_docker_root_pw', variable: 'DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE'),
               file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'DELEGATION_KEY'),
