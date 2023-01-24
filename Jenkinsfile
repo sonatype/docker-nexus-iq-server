@@ -41,6 +41,10 @@ node('ubuntu-zion-legacy') {
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
+            OsTools.runSafe(this, """
+              docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
+             """)
+
             OsTools.runSafe(this, 'docker pull alpine:3.6')
 
             OsTools.runSafe(this, 'docker tag alpine:3.6 sonatype/sign-me:$(date +"%d%H%M")')
@@ -50,10 +54,6 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, 'docker push sonatype/sign-me:$(date +"%d%H%M")')
 
             OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
-
-            OsTools.runSafe(this, """
-              docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
-             """)
 
              OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
 
