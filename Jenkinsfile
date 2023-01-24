@@ -48,7 +48,7 @@ node('ubuntu-zion-legacy') {
 
             // add signer - for this you need signers public key and repository keys password
             withCredentials([string(credentialsId: 'fe2ec-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $SONATYPE_PUB')
+              OsTools.runSafe(this, 'docker trust signer add sonatype sonatype/sign-me --key $SONATYPE_PUB')
             }
 
             // build the image locally
