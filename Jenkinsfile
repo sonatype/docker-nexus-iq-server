@@ -35,7 +35,7 @@ node('ubuntu-zion-legacy') {
               file(credentialsId: 'sonatype-pub', variable: 'SONATYPE_PUB'),
               file(credentialsId: 'sonatype-key', variable: 'SONATYPE_KEY'),
               string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'FIXMELATER'),
-              string(credentialsId: 'sonatype_docker_root_pw', variable: 'SONATYPE_PASSWORD'),
+              string(credentialsId: 'sonatype-password', variable: 'SONATYPE_PASSWORD'),
               file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'DELEGATION_KEY'),
               file(credentialsId: 'sonatype_docker_root_public_key', variable: 'PUBLIC_KEY'),
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
