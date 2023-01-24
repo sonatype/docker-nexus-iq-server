@@ -28,7 +28,7 @@ node('ubuntu-zion-legacy') {
         def dockerHubApiToken
         OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'")
         OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true")
-        withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=0']) {
+        withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1']) {
           withCredentials([
               string(credentialsId: '0fe2ec-password', variable: '0fe2ec-password'),
               file(credentialsId: '0fe2ec', variable: 'FE2EC_KEY'),
@@ -48,21 +48,24 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, 'docker pull alpine:3.6')
             OsTools.runSafe(this, 'docker tag alpine:3.6 sonatype/sign-me:$(date +"%d%H%M")')
             OsTools.runSafe(this, 'docker image ls')
+
             OsTools.runSafe(this, 'docker push sonatype/sign-me:$(date +"%d%H%M")')
             OsTools.runSafe(this, 'docker image rm sonatype/sign-me:$(date +"%d%H%M")')
             OsTools.runSafe(this, 'docker image prune')
+            OsTools.runSafe(this, 'docker image ls')
 
             OsTools.runSafe(this, 'docker pull sonatype/sign-me:$(date +"%d%H%M")')
+            OsTools.runSafe(this, 'docker image ls')
 
             OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
+            OsTools.runSafe(this, 'docker trust key load $SONATYPE_KEY')
+
             withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
-              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $SONATYPE_PUB')
+              OsTools.runSafe(this, 'docker trust signer add sonatype sonatype/sign-me --key $SONATYPE_PUB')
             }
 
-             OsTools.runSafe(this, 'docker trust key load $SONATYPE_KEY')
-
-             withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$SONATYPE_PASSWORD']) {
-               OsTools.runSafe(this, 'docker trust sign docker.io/sonatype/sign-me:$(date +"%d%H%M")')
+             withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=xEbDHcGwmJKtNuQ4']) {
+               OsTools.runSafe(this, 'docker trust sign sonatype/sign-me:$(date +"%d%H%M")')
              }
           }
         }
