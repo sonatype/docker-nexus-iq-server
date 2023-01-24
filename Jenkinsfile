@@ -57,7 +57,7 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, 'docker image ls')
 
             //withEnv(['DOCKER_CONTENT_TRUST=0']) {
-            withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=xEbDHcGwmJKtNuQ4']) {
+            withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$SONATYPE_PASSWORD']) {
               OsTools.runSafe(this, 'docker push sonatype/sign-me:$(date +"%d%H%M")')
             }
 
