@@ -34,10 +34,7 @@ node('ubuntu-zion-legacy') {
               file(credentialsId: '0fe2ec', variable: 'FE2EC_KEY'),
               file(credentialsId: 'sonatype-pub', variable: 'SONATYPE_PUB'),
               file(credentialsId: 'sonatype-key', variable: 'SONATYPE_KEY'),
-              string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'FIXMELATER'),
               string(credentialsId: 'sonatype-password', variable: 'SONATYPE_PASSWORD'),
-              file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'DELEGATION_KEY'),
-              file(credentialsId: 'sonatype_docker_root_public_key', variable: 'PUBLIC_KEY'),
               [$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']
           ]) {
@@ -52,7 +49,7 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, 'docker trust key load $SONATYPE_KEY')
 
             // add signer - for this you need signers public key and repository keys password
-            withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
+            withEnv(["DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=${env.0fe2ec-password}"]) {
               OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $SONATYPE_PUB')
             }
 
