@@ -47,7 +47,7 @@ node('ubuntu-zion-legacy') {
 
             OsTools.runSafe(this, "docker pull sonatype/sign-me:3")
 
-            withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
+            withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloxxxxxxworld']) {
               OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
             }
 
