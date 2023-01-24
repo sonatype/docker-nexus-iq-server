@@ -26,10 +26,10 @@ node('ubuntu-zion-legacy') {
 
       stage('Sign image') {
         def dockerHubApiToken
+        OsTools.runSafe(this, "rm -r '${env.WORKSPACE_TMP}/.dockerConfigkt'")
         OsTools.runSafe(this, "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfigkt'")
         OsTools.runSafe(this, "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfigkt' || true")
         withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfigkt", 'DOCKER_CONTENT_TRUST=0']) {
-        // withEnv(['DOCKER_CONTENT_TRUST=0']) {
           withCredentials([
               string(credentialsId: '0fe2ec-password', variable: '0fe2ec-password'),
               file(credentialsId: '0f2ec25', variable: 'FE2EC_KEY'),
@@ -52,6 +52,7 @@ node('ubuntu-zion-legacy') {
               OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
             }
 
+            OsTools.runSafe(this, "docker trust inspect")
             OsTools.runSafe(this, "find $DOCKER_CONFIG")
 
              OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $PUBLIC_KEY')
