@@ -43,9 +43,11 @@ node('ubuntu-zion-legacy') {
           ]) {
             OsTools.runSafe(this, 'docker pull alpine:3.6')
 
-            OsTools.runSafe(this, 'docker tag alpine:3.6 docker.io/sonatype/sign-me:$(date +"%d%H%M")')
+            OsTools.runSafe(this, 'docker tag alpine:3.6 sonatype/sign-me:$(date +"%d%H%M")')
 
             OsTools.runSafe(this, 'docker image ls')
+
+            OsTools.runSafe(this, 'docker push sonatype/sign-me:$(date +"%d%H%M")')
 
             OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
 
@@ -56,7 +58,7 @@ node('ubuntu-zion-legacy') {
              OsTools.runSafe(this, 'docker trust key load $FE2EC_KEY')
 
              withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=helloworld']) {
-               OsTools.runSafe(this, 'docker trust signer add sonatype docker.io/sonatype/sign-me --key $SONATYPE_PUB')
+               OsTools.runSafe(this, 'docker trust signer add sonatype sonatype/sign-me --key $SONATYPE_PUB')
              }
 
              withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$SONATYPE_PASSWORD']) {
@@ -64,7 +66,7 @@ node('ubuntu-zion-legacy') {
              }
 
              withEnv(['DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=$SONATYPE_PASSWORD']) {
-               OsTools.runSafe(this, 'docker trust sign docker.io/sonatype/sign-me:$(date +"%d%H%M")')
+               OsTools.runSafe(this, 'docker trust sign sonatype/sign-me:$(date +"%d%H%M")')
              }
           }
         }
