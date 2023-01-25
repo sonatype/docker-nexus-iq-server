@@ -196,6 +196,12 @@ node('ubuntu-zion-legacy') {
             // Sign the images
             // Signing images also pushes them
             withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
+              // push the images
+              OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:${version}")
+              OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:latest")
+              OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:${version}-slim")
+              OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:latest-slim")
+
               OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}")
               OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:latest")
               OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}-slim")
