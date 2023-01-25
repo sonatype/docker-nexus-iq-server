@@ -201,11 +201,6 @@ node('ubuntu-zion-legacy') {
               OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:latest")
               OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:${version}-slim")
               OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:latest-slim")
-
-              OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}")
-              OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:latest")
-              OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:${version}-slim")
-              OsTools.runSafe(this, "docker trust sign ${organization}/${dockerHubRepository}:latest-slim")
             }
 
             response = OsTools.runSafe(this, """
