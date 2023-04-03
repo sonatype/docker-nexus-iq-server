@@ -58,7 +58,11 @@ dockerizedBuildPipeline(
       iqStage: 'release')
   },
   deploy: {
-    // TODO deploy to docker hub
+    withSonatypeDockerRegistry() {
+      sh """docker tag $DOCKER_IMAGE_ID ${sonatypeDockerRegistryId()}/${imageName}-${env.BUILD_NUMBER}
+            docker push ${sonatypeDockerRegistryId()}/${imageName}-${env.BUILD_NUMBER}
+            docker rmi ${sonatypeDockerRegistryId()}/${imageName}-${env.BUILD_NUMBER}"""
+    }
   },
   postDeploy: {
     sshagent(credentials: [sonatypeZionCredentialsId()]) {
