@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@Library(['private-pipeline-library', 'jenkins-shared']) _
+@Library(['private-pipeline-library', 'jenkins-shared', 'iq-pipeline-library']) _
 
 import com.sonatype.jenkins.shared.Expectation
 
@@ -36,5 +36,11 @@ dockerizedBuildPipeline(
       iqApplication: 'docker-nexus-iq-server',
       iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
       iqStage: 'develop')
+  },
+  onSuccess: {
+    buildNotifications(currentBuild, env)
+  },
+  onFailure: {
+    buildNotifications(currentBuild, env)
   }
 )
