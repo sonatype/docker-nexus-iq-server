@@ -43,6 +43,9 @@ dockerizedBuildPipeline(
   setVersion: {
     env['VERSION'] = version.split('-')[0]
   },
+  lint: {
+    hadolint(['Dockerfile'])
+  },
   postPrepareImage: {
     dir('build') {
       runSafely "docker save ${imageName} | gzip > docker-nexus-iq-server-${env.VERSION}.tar.gz"
@@ -54,9 +57,6 @@ dockerizedBuildPipeline(
     // TODO add tests
   },
   testResults: ['**/validate-expectations-results.xml'],
-  lint: {
-    hadolint(['Dockerfile'])
-  },
   vulnerabilityScan: {
     nexusPolicyEvaluation(
       iqApplication: 'docker-nexus-iq-server',

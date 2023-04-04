@@ -18,26 +18,17 @@
 import com.sonatype.jenkins.shared.Expectation
 
 dockerizedBuildPipeline(
-  prepare: {
-    githubStatusUpdate('pending')
+  lint: {
+    hadolint(['Dockerfile'])
   },
   buildAndTest: {
     // TODO add tests
   },
   testResults: ['**/validate-expectations-results.xml'],
-  lint: {
-    hadolint(['Dockerfile'])
-  },
   vulnerabilityScan: {
     nexusPolicyEvaluation(
       iqApplication: 'docker-nexus-iq-server',
       iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
       iqStage: 'develop')
-  },
-  onSuccess: {
-    githubStatusUpdate('success')
-  },
-  onFailure: {
-    githubStatusUpdate('failure')
   }
 )
