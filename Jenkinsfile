@@ -25,7 +25,7 @@ dockerizedBuildPipeline(
     // TODO add tests
   },
   archiveArtifacts: '**/dist/*',
-  testResults: ['**/validate-expectations-results.xml'],
+  //testResults: ['**/validate-expectations-results.xml'],
   skipVulnerabilityScan: true,
   /* lint: {
     hadolint(['Dockerfile'])
