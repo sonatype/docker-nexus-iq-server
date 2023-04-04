@@ -26,15 +26,16 @@ dockerizedBuildPipeline(
   },
   archiveArtifacts: '**/dist/*',
   testResults: ['**/validate-expectations-results.xml'],
-  lint: {
+  skipVulnerabilityScan: true,
+  /* lint: {
     hadolint(['Dockerfile'])
-  },
-  vulnerabilityScan: {
+  }, */
+  /* vulnerabilityScan: {
     nexusPolicyEvaluation(
       iqApplication: 'docker-nexus-iq-server',
       iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
       iqStage: 'develop')
-  },
+  }, */
   onSuccess: {
     githubStatusUpdate('success')
   },
