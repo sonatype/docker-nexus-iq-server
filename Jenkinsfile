@@ -24,6 +24,7 @@ dockerizedBuildPipeline(
   buildAndTest: {
     // TODO add tests
   },
+  archiveArtifacts: '**/dist/*',
   testResults: ['**/validate-expectations-results.xml'],
   lint: {
     hadolint(['Dockerfile'])
