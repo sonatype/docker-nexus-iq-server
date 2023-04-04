@@ -22,12 +22,14 @@ dockerizedBuildPipeline(
     githubStatusUpdate('pending')
   },
   postPrepareImage: {
+    dir('build') {
     runSafely '''docker save sonatype/nexus-iq-server | gzip > docker-nexus-iq-server.tar.gz'''
+    }
   },
   buildAndTest: {
     // TODO add tests
   },
-  archiveArtifacts: '*',
+  archiveArtifacts: 'build/*.tar.gz',
   //testResults: ['**/validate-expectations-results.xml'],
   skipVulnerabilityScan: true,
   /* lint: {
