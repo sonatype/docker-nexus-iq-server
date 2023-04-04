@@ -21,26 +21,19 @@ dockerizedBuildPipeline(
   prepare: {
     githubStatusUpdate('pending')
   },
-  postPrepareImage: {
-    dir('build') {
-    runSafely '''docker save sonatype/nexus-iq-server | gzip > docker-nexus-iq-server.tar.gz'''
-    }
-  },
   buildAndTest: {
     // TODO add tests
   },
-  archiveArtifacts: 'build/*.tar.gz',
-  //testResults: ['**/validate-expectations-results.xml'],
-  skipVulnerabilityScan: true,
-  /* lint: {
+  testResults: ['**/validate-expectations-results.xml'],
+  lint: {
     hadolint(['Dockerfile'])
-  }, */
-  /* vulnerabilityScan: {
+  },
+  vulnerabilityScan: {
     nexusPolicyEvaluation(
       iqApplication: 'docker-nexus-iq-server',
       iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
       iqStage: 'develop')
-  }, */
+  },
   onSuccess: {
     githubStatusUpdate('success')
   },

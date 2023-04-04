@@ -43,6 +43,12 @@ dockerizedBuildPipeline(
   setVersion: {
     env['VERSION'] = version.split('-')[0]
   },
+  postPrepareImage: {
+    dir('build') {
+      runSafely "docker save ${imageName} | gzip > docker-nexus-iq-server-${env.VERSION}.tar.gz"
+    }
+  },
+  archiveArtifacts: 'build/*.tar.gz',
   buildAndTest: {
     currentBuild.displayName = "#${currentBuild.id} ${imageName}-${env.VERSION}"
     // TODO add tests
