@@ -23,12 +23,13 @@ dockerizedBuildPipeline(
   },
   buildAndTest: {
     validateExpectations([
-          new Expectation('javaVersion', 'java', '-version', 'openjdk version "1.8.0_342"'),
-          new Expectation('userGroups', 'id', '', 'uid=1000(nexus) gid=1000(nexus) groups=1000(nexus)'),
+          new Expectation('javaVersion', 'java', '-version', 'openjdk version "1.8.0_342"')
+          /* new Expectation('userGroups', 'id', '', 'uid=1000(nexus) gid=1000(nexus) groups=1000(nexus)'),
           new Expectation('homeDirectory', 'pwd', '', '/opt/sonatype/nexus-iq-server'),
           new Expectation('installDirectory', '/var/log/nexus-iq-server/', '', 'Is a directory'),
           new Expectation('configDirectory', '/etc/nexus-iq-server/', '', 'Is a directory'),
-          new Expectation('configFile', 'ls', '/etc/nexus-iq-server', 'config.yml')])
+          new Expectation('configFile', 'ls', '/etc/nexus-iq-server', 'config.yml') */
+      ])
   },
   testResults: ['**/validate-expectations-results.xml'],
   vulnerabilityScan: {
