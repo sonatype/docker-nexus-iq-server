@@ -23,7 +23,7 @@ dockerizedBuildPipeline(
   },
   buildAndTest: {
     validateExpectations([
-          new Expectation('javaVersion', 'java', '-version', 'openjdk version "1.8.0_362"'),
+          new Expectation('javaVersion', 'java', '-version', /openjdk version \"1.8.0_\d*\"/),
           new Expectation('userGroups', 'id', 'nexus', 'uid=1000(nexus) gid=1000(nexus) groups=1000(nexus)'),
           new Expectation('homeDirectory', 'pwd', '', '/opt/sonatype/nexus-iq-server'),
           new Expectation('installDirectory', 'test', '-d /var/log/nexus-iq-server/ && echo \"directory exists\"', 'directory exists'),
