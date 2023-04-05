@@ -14,7 +14,11 @@
 # limitations under the License.
 #
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+FROM docker-all.repo.sonatype.com/alpine:latest
+RUN apk update \
+  && apk add --no-cache bash \
+  && apk add --no-cache curl \
+  && apk add --no-cache openjdk8-jre
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.158.0-01
@@ -51,10 +55,10 @@ LABEL name="Nexus IQ Server image" \
 USER root
 
 # For testing
-RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-devel \
-&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git \
-&& microdnf clean all
+RUN apk update \
+&& apk add --no-cache openjdk8 \
+   procps gzip unzip tar shadow \
+   findutils util-linux less rsync git
 
 # Create folders
 RUN mkdir -p ${TEMP} \
@@ -75,7 +79,8 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 && chmod 0755 ${IQ_HOME}/start.sh
 
 # Download the server bundle, verify its checksum, and extract the server jar to the install directory
-RUN cd ${TEMP} \
+RUN apk update \
+&& cd ${TEMP} \
 && curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
 && echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
@@ -108,7 +113,12 @@ HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthch
 # Change to nexus user
 USER nexus
 
-ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs"
+ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs" \
+  JAVA_HOME=/usr/lib/jvm/java-1.8-openjdk \
+  PATH=/usr/lib/jvm/java-1.8-openjdk/bin:$PATH \
+  LANG=en_US.UTF-8 \
+  LANGUAGE=en_US:en \
+  LC_ALL=en_US.UTF-8
 ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 
 WORKDIR ${IQ_HOME}
