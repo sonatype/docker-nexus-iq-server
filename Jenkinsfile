@@ -27,7 +27,7 @@ dockerizedBuildPipeline(
           new Expectation('userGroups', 'id', 'nexus', 'uid=1000(nexus) gid=1000(nexus) groups=1000(nexus)'),
           new Expectation('homeDirectory', 'echo', '~nexus', '/opt/sonatype/nexus-iq-server'),
           new Expectation('installDirectory', 'test', '-d /var/log/nexus-iq-server/ && echo \"directory exists\"', 'directory exists'),
-          new Expectation('configFile', 'ls', '/etc/nexus-iq-server', 'config.yml')
+          new Expectation('configFile', 'test', '-f /etc/nexus-iq-server/config.yml && echo \"file exists\"', 'file exists')
       ])
   },
   testResults: ['**/validate-expectations-results.xml'],
