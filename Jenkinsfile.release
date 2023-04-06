@@ -105,6 +105,6 @@ void commitAndPushChanges(String version) {
 
     // pull and merge any new commits on main so that the push doesn't fail
    runSafely 'git pull --no-rebase --no-edit origin main'
-   runSafely 'git push origin HEAD:main
+   runSafely 'git push origin HEAD:main'
   }
 }
