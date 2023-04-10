@@ -57,8 +57,8 @@ USER root
 # For testing
 RUN apk update \
 && apk add --no-cache openjdk8 \
-   procps gzip unzip tar shadow \
-   findutils util-linux less rsync git
+&& apk add --no-cache procps gzip unzip tar shadow findutils util-linux less rsync git coreutils \
+&& rm -rf /var/cache/apk/*
 
 # Create folders
 RUN mkdir -p ${TEMP} \
@@ -79,8 +79,7 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 && chmod 0755 ${IQ_HOME}/start.sh
 
 # Download the server bundle, verify its checksum, and extract the server jar to the install directory
-RUN apk update \
-&& cd ${TEMP} \
+RUN cd ${TEMP} \
 && curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
 && echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
@@ -90,8 +89,9 @@ RUN apk update \
 && rm -rf ${TEMP} \
 \
 # Add group and user
-&& groupadd -g ${GID} nexus \
-&& adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
+&& addgroup -g ${GID} nexus \
+&& adduser -u ${UID} -D -h ${IQ_HOME} -G nexus -s /sbin/nologin nexus \
+&& chown -R ${UID}:${GID} ${IQ_HOME} \
 \
 # Change owner to nexus user
 && chown -R nexus:nexus ${IQ_HOME} \
