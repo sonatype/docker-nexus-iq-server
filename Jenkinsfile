@@ -254,6 +254,11 @@ def readVersion() {
 }
 
 String buildImage(String dockerFile, String imageName) {
+   withSonatypeDockerRegistry() {
+     sh "docker push --all-tags ${sonatypeDockerRegistryId()}/sonatype/${imageId}"
+   }
+   sh 'docker login --username "$DOCKERHUB_USERNAME" --password "$DOCKERHUB_PASSWORD" docker.io'
+   sh "docker push --all-tags sonatype/${imageId}"
   OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
     .split(':')[1]
 }
