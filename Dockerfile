@@ -111,8 +111,16 @@ EXPOSE 8071
 # Wire up health check
 HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthcheck || exit 1
 
+# Print JAVA_HOME
+RUN echo "Current JAVA_HOME is: \$JAVA_HOME"
+
 # Change to nexus user
 USER nexus
+
+# Print JAVA_HOME
+RUN echo "Current JAVA_HOME is: \$JAVA_HOME"
+RUN echo "Current user is: $(whoami)"
+
 
 ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs" \
   JAVA_HOME=/usr/lib/jvm/java-1.8-openjdk \
