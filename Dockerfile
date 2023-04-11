@@ -92,14 +92,25 @@ RUN cd ${TEMP} \
 && addgroup -g ${GID} nexus \
 && adduser -u ${UID} -D -h ${IQ_HOME} -G nexus -s /sbin/nologin nexus \
 && chown -R ${UID}:${GID} ${IQ_HOME}  \
-&& chmod -R 0755 ${IQ_HOME} \
 \
 # Change owner to nexus user
 && chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME}
-
+&& chown -R nexus:nexus ${LOGS_HOME} \
+\
+# Verify that "nexus" user belongs to "nexus" group
+&& id nexus \
+\
+# Check permissions of directories and files
+&& ls -la ${IQ_HOME} \
+&& ls -la ${SONATYPE_WORK} \
+&& ls -la ${CONFIG_HOME} \
+&& ls -la ${LOGS_HOME} \
+\
+# Restart the Java process
+&& pkill -f java \
+&& nohup java -jar /path/to/application.jar > /dev/null 2>&1 &
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
 VOLUME ${LOGS_HOME}
