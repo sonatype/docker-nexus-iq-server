@@ -98,7 +98,7 @@ RUN cd ${TEMP} \
 && chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME} \
+&& chown -R nexus:nexus ${LOGS_HOME}
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
