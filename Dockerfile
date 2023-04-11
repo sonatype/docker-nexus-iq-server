@@ -91,6 +91,7 @@ RUN cd ${TEMP} \
 # Add group and user
 && addgroup -g ${GID} nexus \
 && adduser -u ${UID} -D -h ${IQ_HOME} -G nexus -s /sbin/nologin nexus \
+&& chown -R ${UID}:${GID} ${IQ_HOME} \
 \
 # Change owner to nexus user
 && chown -R nexus:nexus ${IQ_HOME} \
