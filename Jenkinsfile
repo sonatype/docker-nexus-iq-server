@@ -20,6 +20,7 @@ import com.sonatype.jenkins.shared.Expectation
 dockerizedBuildPipeline(
   lint: {
     hadolint(['Dockerfile'])
+    recordIssues(failOnError: false)
   },
   buildAndTest: {
     validateExpectations([
