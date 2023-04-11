@@ -18,7 +18,8 @@ FROM docker-all.repo.sonatype.com/alpine
 RUN apk update \
   && apk add --no-cache bash \
   && apk add --no-cache curl \
-  && apk add --no-cache openjdk8-jre
+  && apk add --no-cache openjdk8-jre \
+  && apk upgrade --no-cache # Update packages
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.158.0-01
