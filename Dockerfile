@@ -97,20 +97,8 @@ RUN cd ${TEMP} \
 && chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME} \
-\
-# Verify that "nexus" user belongs to "nexus" group
-&& id nexus \
-\
-# Check permissions of directories and files
-&& ls -la ${IQ_HOME} \
-&& ls -la ${SONATYPE_WORK} \
-&& ls -la ${CONFIG_HOME} \
-&& ls -la ${LOGS_HOME} \
-\
-# Restart the Java process
-&& pkill -f java \
-&& nohup java -jar /path/to/application.jar > /dev/null 2>&1 &
+&& chown -R nexus:nexus ${LOGS_HOME}
+
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
 VOLUME ${LOGS_HOME}
