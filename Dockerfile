@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-FROM docker-all.repo.sonatype.com/alpine:latest
+FROM docker-all.repo.sonatype.com/alpine
 RUN apk update \
   && apk add --no-cache bash \
   && apk add --no-cache curl \
