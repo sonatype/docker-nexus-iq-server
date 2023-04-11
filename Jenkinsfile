@@ -256,12 +256,13 @@ def readVersion() {
 String buildImage(String dockerFile, String imageName) {
    withSonatypeDockerRegistry() {
     echo "starting buildImage 4"
+     OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
+        .split(':')[1]
    }
    echo "starting buildImage 5"
 
-  OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
-    .split(':')[1]
-     echo "starting buildImage 6"
+
+   echo "starting buildImage 6"
 }
 
 def getShortVersion(version) {
