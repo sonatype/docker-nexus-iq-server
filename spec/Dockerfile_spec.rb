@@ -61,7 +61,7 @@ describe 'Dockerfile' do
     end
 
     it 'belongs to the nexus user' do
-     puts "Actual mode: #{subject}"
+     puts "Actual user: #{subject}"
       expect(subject).to have_attributes(:user => 'nexus')
     end
 
