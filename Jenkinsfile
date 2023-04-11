@@ -19,7 +19,7 @@ import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion-legacy') {
   def commitId, commitDate, version, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
-  def imageId, slimImageId, redHatImageId
+  def imageId, slimImageId
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'sonaype-ci-github-access-token',
@@ -50,7 +50,6 @@ node('ubuntu-zion-legacy') {
       dockerFileLocations = [
         "${pwd()}/Dockerfile",
         "${pwd()}/Dockerfile.slim",
-        "${pwd()}/Dockerfile.rh",
       ]
 
       branch = checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
@@ -83,8 +82,6 @@ node('ubuntu-zion-legacy') {
 
       slimImageId = buildImage('Dockerfile.slim', "${imageName}-slim")
 
-      redHatImageId = buildImage('Dockerfile.rh', "${imageName}-redhat")
-
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
         return
@@ -102,7 +99,6 @@ node('ubuntu-zion-legacy') {
         OsTools.runSafe(this, "gem install --user-install docker-api")
         OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
         OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
-        OsTools.runSafe(this, "IMAGE_ID=${redHatImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
       }
 
       if (currentBuild.result == 'FAILURE') {
