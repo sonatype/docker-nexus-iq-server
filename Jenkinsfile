@@ -258,11 +258,10 @@ String buildImage(String dockerFile, String imageName) {
     echo "starting buildImage 4"
    }
    echo "starting buildImage 5"
-   sh 'docker login --username "$DOCKERHUB_USERNAME" --password "$DOCKERHUB_PASSWORD" docker.io'
-   sh "docker push --all-tags sonatype/${imageName}"
-   echo "starting buildImage 6"
+
   OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
     .split(':')[1]
+     echo "starting buildImage 6"
 }
 
 def getShortVersion(version) {
