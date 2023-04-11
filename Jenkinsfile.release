@@ -46,7 +46,6 @@ dockerizedBuildPipeline(
   },
   lint: {
     hadolint(['Dockerfile'])
-    recordIssues(failOnError: false)
   },
   postPrepareImage: {
     dir('build') {
