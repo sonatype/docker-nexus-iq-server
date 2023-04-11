@@ -56,6 +56,14 @@ describe 'Dockerfile' do
   end
 
   describe process('java') do
+    it 'is running' do
+      expect(subject).to be_running
+    end
+
+    it 'belongs to the nexus user' do
+      expect(subject).to have_attributes(:user => 'nexus')
+    end
+
     it 'opens the application port' do
       expect(command('curl --fail --connect-timeout 120 http://localhost:8070/').exit_status).to eq(0)
     end
@@ -119,6 +127,10 @@ describe 'Dockerfile' do
 
     it 'is a directory' do
       expect(file(homeDirectory)).to be_a_directory
+    end
+
+    it 'has the right permissions' do
+      expect(file(homeDirectory)).to be_mode(755)
     end
 
     it 'is owned by the nexus user/group' do
