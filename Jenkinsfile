@@ -78,11 +78,11 @@ node('ubuntu-zion-legacy') {
     }
     stage('Build') {
       gitHub.statusUpdate commitId, 'pending', 'build', 'Build is running'
-      echo "starting build image"
+
       imageId = buildImage('Dockerfile', imageName)
-      echo "starting build image 2"
+
       slimImageId = buildImage('Dockerfile.slim', "${imageName}-slim")
-       echo "starting build image 3"
+
       redHatImageId = buildImage('Dockerfile.rh', "${imageName}-redhat")
 
       if (currentBuild.result == 'FAILURE') {
@@ -255,14 +255,9 @@ def readVersion() {
 
 String buildImage(String dockerFile, String imageName) {
    withSonatypeDockerRegistry() {
-    echo "starting buildImage 4"
      OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
         .split(':')[1]
    }
-   echo "starting buildImage 5"
-
-
-   echo "starting buildImage 6"
 }
 
 def getShortVersion(version) {
