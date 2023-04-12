@@ -128,11 +128,13 @@ describe 'Dockerfile' do
     it 'is a directory' do
       expect(file(homeDirectory)).to be_a_directory
     end
-
+    puts "Hello homeDirectory #{file(homeDirectory)}"
     it 'has the right permissions' do
       expect(file(homeDirectory)).to be_mode(755)
     end
 
+  puts "Hello owned #{file(homeDirectory)}"
+    puts "Hello homeDirectory #{file(homeDirectory)}"
     it 'is owned by the nexus user/group' do
       expect(file(homeDirectory)).to be_owned_by('nexus')
       expect(file(homeDirectory)).to be_grouped_into('nexus')
