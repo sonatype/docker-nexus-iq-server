@@ -99,6 +99,9 @@ EXPOSE 8071
 # Wire up health check
 HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthcheck || exit 1
 
+# Change to nexus user
+USER nexus
+
 # Print JAVA_HOME
 RUN echo "Current JAVA_HOME is: \$JAVA_HOME"
 
