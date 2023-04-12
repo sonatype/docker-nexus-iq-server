@@ -83,6 +83,8 @@ node('ubuntu-zion-legacy') {
 
       slimImageId = buildImage('Dockerfile.slim', "${imageName}-slim")
 
+      redHatImageId = buildImage('Dockerfile.rh', "${imageName}-redhat")
+
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
         return
@@ -100,6 +102,7 @@ node('ubuntu-zion-legacy') {
         OsTools.runSafe(this, "gem install --user-install docker-api")
         OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
         OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${redHatImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
       }
 
       if (currentBuild.result == 'FAILURE') {
