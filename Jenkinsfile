@@ -107,8 +107,8 @@ node('ubuntu-zion-legacy') {
         OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
         OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
         OsTools.runSafe(this, "IMAGE_ID=${redHatImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
-        OsTools.runSafe(this, "IMAGE_ID=${alpineImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
-        OsTools.runSafe(this, "IMAGE_ID=${alpineSlimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${alpineImageId} rspec --backtrace --format documentation spec/Dockerfile_alpine_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${alpineSlimImageId} rspec --backtrace --format documentation spec/Dockerfile_alpine_spec.rb")
       }
 
       if (currentBuild.result == 'FAILURE') {
