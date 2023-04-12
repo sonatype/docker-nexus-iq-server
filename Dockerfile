@@ -14,12 +14,7 @@
 # limitations under the License.
 #
 
-FROM docker-all.repo.sonatype.com/alpine
-RUN apk update \
-  && apk add --no-cache bash \
-  && apk add --no-cache curl \
-  && apk add --no-cache openjdk8-jre \
-  && apk upgrade --no-cache # Update packages
+FROM registry.access.redhat.com/ubi8/ubi-minimal
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.158.0-01
@@ -56,10 +51,10 @@ LABEL name="Nexus IQ Server image" \
 USER root
 
 # For testing
-RUN apk update \
-&& apk add --no-cache openjdk8 \
-&& apk add --no-cache procps gzip unzip tar shadow findutils util-linux less rsync git coreutils \
-&& rm -rf /var/cache/apk/*
+RUN microdnf update -y \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-devel \
+&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git \
+&& microdnf clean all
 
 # Create folders
 RUN mkdir -p ${TEMP} \
@@ -90,9 +85,8 @@ RUN cd ${TEMP} \
 && rm -rf ${TEMP} \
 \
 # Add group and user
-&& addgroup -g ${GID} nexus \
-&& adduser -u ${UID} -D -h ${IQ_HOME} -G nexus -s /sbin/nologin nexus \
-&& chown -R ${UID}:${GID} ${IQ_HOME}  \
+&& groupadd -g ${GID} nexus \
+&& adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
 \
 # Change owner to nexus user
 && chown -R nexus:nexus ${IQ_HOME} \
@@ -111,23 +105,10 @@ EXPOSE 8071
 # Wire up health check
 HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthcheck || exit 1
 
-# Print JAVA_HOME
-RUN echo "Current JAVA_HOME is: \$JAVA_HOME"
-
 # Change to nexus user
 USER nexus
 
-# Print JAVA_HOME
-RUN echo "Current JAVA_HOME is: \$JAVA_HOME"
-RUN echo "Current user is: $(whoami)"
-
-
-ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs" \
-  JAVA_HOME=/usr/lib/jvm/java-1.8-openjdk \
-  PATH=/usr/lib/jvm/java-1.8-openjdk/bin:$PATH \
-  LANG=en_US.UTF-8 \
-  LANGUAGE=en_US:en \
-  LC_ALL=en_US.UTF-8
+ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs"
 ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 
 WORKDIR ${IQ_HOME}

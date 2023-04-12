@@ -22,7 +22,7 @@ describe 'Dockerfile' do
     Docker.options[:read_timeout] = 900
     @image = Docker::Image.get(ENV['IMAGE_ID'])
 
-    set :os, family: :alpine
+    set :os, family: :redhat
     set :backend, :docker
     set :docker_image, @image.id
   end
