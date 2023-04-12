@@ -88,6 +88,11 @@ RUN cd ${TEMP} \
 && mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} \
 && cd ${IQ_HOME} \
 && rm -rf ${TEMP} \
+\
+# Add group and user
+&& addgroup -g ${GID} nexus \
+&& adduser -u ${UID} -D -h ${IQ_HOME} -G nexus -s /sbin/nologin nexus
+
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
 VOLUME ${LOGS_HOME}
@@ -101,13 +106,6 @@ HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthch
 
 # Change to nexus user
 USER nexus
-
-# Print JAVA_HOME
-RUN echo "Current JAVA_HOME is: \$JAVA_HOME"
-
-# Print JAVA_HOME
-RUN echo "Current JAVA_HOME is: \$JAVA_HOME"
-RUN echo "Current user is: $(whoami)"
 
 
 ENV JAVA_OPTS="-Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs" \
