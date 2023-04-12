@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@Library(['private-pipeline-library', 'jenkins-shared@test-expectations', 'iq-pipeline-library']) _
+@Library(['private-pipeline-library', 'jenkins-shared', 'iq-pipeline-library']) _
 
 import com.sonatype.jenkins.shared.Expectation
 
