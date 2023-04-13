@@ -84,10 +84,11 @@ node('ubuntu-zion-legacy') {
       slimImageId = buildImage('Dockerfile.slim', "${imageName}-slim")
 
       redHatImageId = buildImage('Dockerfile.rh', "${imageName}-redhat")
-
+      withSonatypeDockerRegistry() {
       alpineImageId = buildImage('Dockerfile.alpine', "${imageName}-alpine")
 
       alpineSlimImageId = buildImage('Dockerfile.alpine.slim', "${imageName}-alpine-slim")
+      }
 
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
@@ -104,7 +105,11 @@ node('ubuntu-zion-legacy') {
         OsTools.runSafe(this, "gem install --user-install rspec")
         OsTools.runSafe(this, "gem install --user-install serverspec")
         OsTools.runSafe(this, "gem install --user-install docker-api")
+        OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${redHatImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
         OsTools.runSafe(this, "IMAGE_ID=${alpineImageId} rspec --backtrace --format documentation spec/Dockerfile_alpine_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${alpineSlimImageId} rspec --backtrace --format documentation spec/Dockerfile_alpine_spec.rb")
       }
 
       if (currentBuild.result == 'FAILURE') {
@@ -256,10 +261,8 @@ def readVersion() {
 }
 
 String buildImage(String dockerFile, String imageName) {
-   withSonatypeDockerRegistry() {
-     OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
-        .split(':')[1]
-   }
+  OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
+    .split(':')[1]
 }
 
 def getShortVersion(version) {
