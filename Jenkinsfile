@@ -84,11 +84,10 @@ node('ubuntu-zion-legacy') {
       slimImageId = buildImage('Dockerfile.slim', "${imageName}-slim")
 
       redHatImageId = buildImage('Dockerfile.rh', "${imageName}-redhat")
-      withSonatypeDockerRegistry() {
+
       alpineImageId = buildImage('Dockerfile.alpine', "${imageName}-alpine")
 
       alpineSlimImageId = buildImage('Dockerfile.alpine.slim', "${imageName}-alpine-slim")
-      }
 
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
@@ -261,8 +260,10 @@ def readVersion() {
 }
 
 String buildImage(String dockerFile, String imageName) {
-  OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
-    .split(':')[1]
+   withSonatypeDockerRegistry() {
+     OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
+        .split(':')[1]
+   }
 }
 
 def getShortVersion(version) {
