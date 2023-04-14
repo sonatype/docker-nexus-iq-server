@@ -19,7 +19,7 @@ import com.sonatype.jenkins.pipeline.OsTools
 
 node('ubuntu-zion-legacy') {
   def commitId, commitDate, version, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
-  def imageId, slimImageId, redHatImageId
+  def imageId, slimImageId, redHatImageId, alpineImageId, alpineSlimImageId
   def organization = 'sonatype',
       gitHubRepository = 'docker-nexus-iq-server',
       credentialsId = 'sonaype-ci-github-access-token',
@@ -85,6 +85,10 @@ node('ubuntu-zion-legacy') {
 
       redHatImageId = buildImage('Dockerfile.rh', "${imageName}-redhat")
 
+      alpineImageId = buildImage('Dockerfile.alpine', "${imageName}-alpine")
+      
+      alpineSlimImageId = buildImage('Dockerfile.alpine-slim', "${imageName}-alpine-slim")
+
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'build', 'Build failed'
         return
@@ -103,6 +107,8 @@ node('ubuntu-zion-legacy') {
         OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
         OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
         OsTools.runSafe(this, "IMAGE_ID=${redHatImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${alpineImageId} rspec --backtrace --format documentation spec/Dockerfile_alpine_spec.rb")
+        OsTools.runSafe(this, "IMAGE_ID=${alpineSlimImageId} rspec --backtrace --format documentation spec/Dockerfile_alpine_spec.rb")
       }
 
       if (currentBuild.result == 'FAILURE') {
@@ -124,6 +130,8 @@ node('ubuntu-zion-legacy') {
             [scanPattern: "container:${imageName}"],
             [scanPattern: "container:${imageName}-slim"],
             [scanPattern: "container:${imageName}-redhat"],
+            [scanPattern: "container:${imageName}-alpine"],
+            [scanPattern: "container:${imageName}-alpine-slim"],
           ],
           failBuildOnNetworkError: true)
       }, theStage)
@@ -193,6 +201,11 @@ node('ubuntu-zion-legacy') {
             OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:${version}-slim")
             OsTools.runSafe(this, "docker tag ${slimImageId} ${organization}/${dockerHubRepository}:latest-slim")
 
+            OsTools.runSafe(this, "docker tag ${alpineImageId} ${organization}/${dockerHubRepository}:${version}-alpine")
+            OsTools.runSafe(this, "docker tag ${alpineImageId} ${organization}/${dockerHubRepository}:alpine-latest")
+            OsTools.runSafe(this, "docker tag ${alpineSlimImageId} ${organization}/${dockerHubRepository}:${version}-alpine-slim")
+            OsTools.runSafe(this, "docker tag ${alpineSlimImageId} ${organization}/${dockerHubRepository}:latest-alpine-slim")
+
             // Sign the images
             // Signing images also pushes them
             withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
@@ -201,6 +214,11 @@ node('ubuntu-zion-legacy') {
               OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:latest")
               OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:${version}-slim")
               OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:latest-slim")
+
+              OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:${version}-alpine")
+              OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:alpine-latest")
+              OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:${version}-alpine-slim")
+              OsTools.runSafe(this, "docker image push ${organization}/${dockerHubRepository}:latest-alpine-slim")
             }
 
             response = OsTools.runSafe(this, """
@@ -254,8 +272,10 @@ def readVersion() {
 }
 
 String buildImage(String dockerFile, String imageName) {
-  OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
-    .split(':')[1]
+  withSonatypeDockerRegistry() {
+    OsTools.runSafe(this, "docker build --quiet --no-cache -f ${dockerFile} --tag ${imageName} .")
+      .split(':')[1]
+  }
 }
 
 def getShortVersion(version) {
