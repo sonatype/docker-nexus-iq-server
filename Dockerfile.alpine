@@ -51,9 +51,7 @@ LABEL name="Nexus IQ Server image" \
 USER root
 
 RUN apk update \
-  && apk add --no-cache curl \
-  && apk add --no-cache openjdk8-jre \
-  && apk add --no-cache git
+  && apk add --no-cache curl openjdk8-jre git
 
 # Create folders
 RUN mkdir -p ${TEMP} \
