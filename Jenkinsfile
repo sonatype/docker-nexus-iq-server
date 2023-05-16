@@ -16,6 +16,7 @@
 @Library(['private-pipeline-library', 'jenkins-shared']) _
 import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
+import com.sonatype.jenkins.shared.Expectation
 
 node('ubuntu-zion-legacy') {
   def commitId, commitDate, version, branch, dockerFileLocations, nexusIqVersion, nexusIqSha
@@ -95,15 +96,15 @@ node('ubuntu-zion-legacy') {
     stage('Test') {
       gitHub.statusUpdate commitId, 'pending', 'test', 'Tests are running'
 
-      def gemInstallDirectory = getGemInstallDirectory()
-      withEnv(["PATH+GEMS=${gemInstallDirectory}/bin"]) {
-        OsTools.runSafe(this, "gem install --user-install rspec")
-        OsTools.runSafe(this, "gem install --user-install serverspec")
-        OsTools.runSafe(this, "gem install --user-install docker-api")
-        OsTools.runSafe(this, "IMAGE_ID=${imageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
-        OsTools.runSafe(this, "IMAGE_ID=${slimImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
-        OsTools.runSafe(this, "IMAGE_ID=${redHatImageId} rspec --backtrace --format documentation spec/Dockerfile_spec.rb")
-      }
+      validateContainer([
+        new Expectation('nexus-group', 'grep', '^nexus:', '/etc/group', 'nexus:x:1000:'),
+        new Expectation('nexus-user', 'grep', '^nexus:', '/etc/passwd', 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
+        new Expectation('iq-process', 'ps', '-e', '-o', 'command,user', '|', 'grep', '-q', '^/usr/bin/java.*nexus$', '|', 'echo', '$?', '0'),
+        new Expectation('application-port', 'curl', '-s', '--fail', '--connect-timeout', '120', 'http:\/\/localhost:8070/', '|', 'echo', '$?', '0'),
+        new Expectation('admin-port', 'curl', '-s', '--fail', '--connect-timeout', '120', 'http:\/\/localhost:8070/', '|', 'echo', '$?', '0'),
+        new Expectation('log-directory', 'ls', '-la', '/var/log', '|', 'awk', '\$9 !~ /^\.*\$/{print \$1,\$3,\$4,\$9}', 'drwxr-xr-x nexus nexus nexus-iq-server'),
+        new Expectation('audit-log', 'ls', '-la', '/var/log/nexus-iq-server/audit.log', '|', 'awk', '\$9 !~ /^\.*\$/{print \$1,\$3,\$4,\$9}', '-rw-r--r-- nexus nexus /var/log/nexus-iq-server/audit.log'),
+      ])
 
       if (currentBuild.result == 'FAILURE') {
         gitHub.statusUpdate commitId, 'failure', 'test', 'Tests failed'
