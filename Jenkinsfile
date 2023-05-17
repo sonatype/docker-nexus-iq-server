@@ -36,9 +36,9 @@ dockerizedBuildPipeline(
       iqStage: 'develop')
   },
   onSuccess: {
-    githubStatusUpdate('success')
+    buildNotifications(currentBuild, env)
   },
   onFailure: {
-    githubStatusUpdate('failure')
+    buildNotifications(currentBuild, env)
   }
 )
