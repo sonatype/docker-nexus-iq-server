@@ -16,9 +16,21 @@
 @Library(['private-pipeline-library', 'jenkins-shared']) _
 import com.sonatype.jenkins.shared.Expectation
 
+deployBranch = 'main'
+
 dockerizedBuildPipeline(
+  prepare: {
+    githubStatusUpdate('pending')
+  },
+  setVersion: {
+    if (env.BRANCH_NAME == deployBranch) {
+      env['VERSION'] = "${env.BUILD_NUMBER}"
+    } else {
+      env['VERSION'] = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+    }
+  },
   buildAndTest: {
-      validateExpectations([
+      validateContainer([
         new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
         new Expectation('nexus-user', 'grep', '^nexus: /etc/passwd', 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
         new Expectation('iq-process', 'ps', '-e -o command,user | grep -q ^/usr/bin/java.*nexus$ | echo $?', '0'),
@@ -36,9 +48,9 @@ dockerizedBuildPipeline(
       iqStage: 'develop')
   },
   onSuccess: {
-    buildNotifications(currentBuild, env)
+    githubStatusUpdate('success')
   },
   onFailure: {
-    buildNotifications(currentBuild, env)
+    githubStatusUpdate('failure')
   }
 )
