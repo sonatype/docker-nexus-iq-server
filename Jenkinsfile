@@ -21,14 +21,12 @@ dockerizedBuildPipeline(
     hadolint(['Dockerfile'])
   },
   buildAndTest: {
-      validateContainer([
-        new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
-        new Expectation('nexus-user', 'grep', '^nexus: /etc/passwd', 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
-        new Expectation('iq-process', 'ps', '-e -o command,user | grep -q ^/usr/bin/java.*nexus$ | echo $?', '0'),
-        new Expectation('application-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8070/ | echo $?', '0'),
-        new Expectation('admin-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8070/ | echo $?', '0'),
-        new Expectation('log-directory', 'ls', '-la /var/log | awk $9 !~ /^.*$/{print $1,$3,$4,$9}', 'drwxr-xr-x nexus nexus nexus-iq-server'),
-        new Expectation('audit-log', 'ls', '-la /var/log/nexus-iq-server/audit.log | awk $9 !~ /^.*$/{print $1,$3,$4,$9}', '-rw-r--r-- nexus nexus /var/log/nexus-iq-server/audit.log'),
+    validateExpectations([
+          new Expectation('javaVersion', 'java', '-version', /openjdk version \"1.8.0_\d*\"/),
+          new Expectation('userGroups', 'id', 'nexus', 'uid=1000(nexus) gid=1000(nexus) groups=1000(nexus)'),
+          new Expectation('homeDirectory', 'echo', '~nexus', '/opt/sonatype/nexus-iq-server'),
+          new Expectation('installDirectory', 'test', '-d /var/log/nexus-iq-server/ && echo \"directory exists\"', 'directory exists'),
+          new Expectation('configFile', 'test', '-f /etc/nexus-iq-server/config.yml && echo \"file exists\"', 'file exists')
       ])
   },
   testResults: ['**/validate-expectations-results.xml'],
