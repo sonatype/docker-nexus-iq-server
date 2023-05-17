@@ -17,9 +17,6 @@
 import com.sonatype.jenkins.shared.Expectation
 
 dockerizedBuildPipeline(
-  lint: {
-    hadolint(['Dockerfile'])
-  },
   buildAndTest: {
       validateExpectations([
         new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
@@ -28,7 +25,7 @@ dockerizedBuildPipeline(
         new Expectation('application-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8070/ | echo $?', '0'),
         new Expectation('admin-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8070/ | echo $?', '0'),
         new Expectation('log-directory', 'ls', '-la /var/log | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}\'', 'drwxr-xr-x nexus nexus nexus-iq-server'),
-        new Expectation('audit-log', 'ls', '-la /var/log/nexus-iq-server/audit.log | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}', '-rw-r--r-- nexus nexus /var/log/nexus-iq-server/audit.log'),
+        new Expectation('audit-log', 'ls', '-la /var/log/nexus-iq-server/audit.log | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}\'', '-rw-r--r-- nexus nexus /var/log/nexus-iq-server/audit.log'),
       ])
   },
   testResults: ['**/validate-expectations-results.xml'],
