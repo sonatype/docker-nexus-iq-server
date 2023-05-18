@@ -23,7 +23,7 @@ dockerizedBuildPipeline(
   setVersion: {
     env['VERSION'] = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
   },
-  pathToDockerfile: "./Dockerfile.rh",
+  pathToDockerfile: "./Dockerfile.slim",
   buildAndTest: {
     validateExpectations([
         new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
