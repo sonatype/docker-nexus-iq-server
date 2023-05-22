@@ -27,7 +27,7 @@ properties([
   ])
 ])
 
-String imageName = 'sonatype/nexus-iq-server',
+String imageName = 'sonatype/nexus-iq-server-slim',
 String slimImageId = 'sonatype/nexus-iq-server-slim',
 String dockerHubRepository = 'nexus-iq-server',
 String version = ''
@@ -50,8 +50,8 @@ dockerizedBuildPipeline(
     hadolint(['Dockerfile'])
   },
   postPrepareImage: {
-    dir('build') {
-      runSafely "docker save ${imageName} | gzip > docker-nexus-iq-server-${env.VERSION}.tar.gz"
+    dir('build/target') {
+      runSafely "docker save ${imageName} | gzip > docker-nexus-iq-server-slim-${env.VERSION}.tar.gz"
     }
   },
   archiveArtifacts: 'build/*.tar.gz',

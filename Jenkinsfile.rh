@@ -24,6 +24,9 @@ dockerizedBuildPipeline(
     env['VERSION'] = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
   },
   pathToDockerfile: "./Dockerfile.rh",
+  lint: {
+    hadolint(['./Dockerfile.rh'])
+  },
   buildAndTest: {
      validateExpectations([
         new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),

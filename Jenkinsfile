@@ -20,6 +20,9 @@ dockerizedBuildPipeline(
   prepare: {
     githubStatusUpdate('pending')
   },
+  lint: {
+    hadolint(['./Dockerfile'])
+  },
   setVersion: {
     env['VERSION'] = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
   },
