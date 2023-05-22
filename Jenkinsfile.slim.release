@@ -47,10 +47,10 @@ dockerizedBuildPipeline(
     env['VERSION'] = version.split('-')[0]
   },
   lint: {
-    hadolint(['Dockerfile'])
+    hadolint(['./Dockerfile.slim'])
   },
   postPrepareImage: {
-    dir('build/target') {
+    dir('build') {
       runSafely "docker save ${imageName} | gzip > docker-nexus-iq-server-slim-${env.VERSION}.tar.gz"
     }
   },
