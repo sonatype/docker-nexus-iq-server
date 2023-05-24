@@ -27,8 +27,8 @@ properties([
   ])
 ])
 
-String imageName = 'sonatype/nexus-iq-server',
-String dockerHubRepository = 'nexus-iq-server',
+String imageName = 'sonatype/nexus-iq-server'
+String dockerHubRepository = 'nexus-iq-server'
 String version = ''
 String checksum = ''
 
