@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sonatype.docker.nexus.iq.server
 
 @Library(['jenkins-shared']) _
 import com.sonatype.jenkins.shared.Expectation
 
-public final class DockerNexusIqServerTest
+final class DockerNexusIqServerTest
 {
-  public static Expectation[] nexusIqServerContainerExpectations() {
+  static Expectation[] nexusIqServerContainerExpectations() {
     return [
       new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
       new Expectation('nexus-user', 'grep', '^nexus: /etc/passwd', 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
