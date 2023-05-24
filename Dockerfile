@@ -71,7 +71,7 @@ RUN mkdir -p ${TEMP} \
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
-# hadolint ignore=DL4006
+# hadolint ignore=DL4006,SC3060
 RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${CONFIG_HOME}/config.yml \
 && chmod 0644 ${CONFIG_HOME}/config.yml
 
@@ -89,7 +89,7 @@ RUN curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER
 && tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
 && mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME}
 WORKDIR ${IQ_HOME} 
-RUN rm -rf ${TEMP}\
+RUN rm -rf ${TEMP} \
 # Add group and user
 && groupadd -g ${GID} nexus \
 && adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
