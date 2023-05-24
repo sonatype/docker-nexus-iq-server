@@ -14,7 +14,8 @@
 # limitations under the License.
 #
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+# hadolint ignore=DL3026
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.161.0-01
@@ -51,17 +52,22 @@ LABEL name="Nexus IQ Server image" \
 USER root
 
 # For testing
+# hadolint ignore=DL3041
 RUN microdnf update -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-devel \
 && microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which \
 && microdnf clean all
 
-# Create folders
+# Create folders & set permissions
 RUN mkdir -p ${TEMP} \
-&& mkdir -m 0755 -p ${IQ_HOME} \
-&& mkdir -m 0755 -p ${SONATYPE_WORK} \
-&& mkdir -m 0755 -p ${CONFIG_HOME} \
-&& mkdir -m 0755 -p ${LOGS_HOME}
+&& mkdir -p ${IQ_HOME} \
+&& mkdir -p ${SONATYPE_WORK} \
+&& mkdir -p ${CONFIG_HOME} \
+&& mkdir -p ${LOGS_HOME} \
+&& chmod 0755 ${TEMP} \
+&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \ 
+&& chmod 0755 ${CONFIG_HOME} \ 
+&& chmod 0755 ${LOGS_HOME}
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
