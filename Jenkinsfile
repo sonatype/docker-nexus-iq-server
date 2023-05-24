@@ -24,8 +24,8 @@ dockerizedBuildPipeline(
     hadolint(['./Dockerfile'])
   },
   buildAndTest: {
-    def DockerNexusIqServerTest = load 'src/test/com/sonatype/docker/nexus/iq/server/DockerNexusIqServerTest.groovy'
-    DockerNexusIqServerTest.containerExpectations()
+    def dockerNexusIqServerTest = load 'src/test/com/sonatype/docker/nexus/iq/server/DockerNexusIqServerTest.groovy'
+    dockerNexusIqServerTest.containerExpectations()
     validateExpectations([
         new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
         new Expectation('nexus-user', 'grep', '^nexus: /etc/passwd', 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
