@@ -15,6 +15,7 @@
  */
 @Library(['private-pipeline-library', 'jenkins-shared']) _
 import com.sonatype.jenkins.shared.Expectation
+import com.sonatype.docker.nexus.iq.server.DockerNexusIqServerTest
 
 dockerizedBuildPipeline(
   prepare: {
