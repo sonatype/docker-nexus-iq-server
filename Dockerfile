@@ -87,10 +87,9 @@ RUN curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER
 && echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
-&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} \
-&& cd ${IQ_HOME} \
-&& rm -rf ${TEMP} \
-\
+&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME}
+WORKDIR ${IQ_HOME} 
+RUN rm -rf ${TEMP}\
 # Add group and user
 && groupadd -g ${GID} nexus \
 && adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
