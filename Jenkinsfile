@@ -15,7 +15,6 @@
  */
 @Library(['private-pipeline-library', 'jenkins-shared']) _
 import com.sonatype.jenkins.shared.Expectation
-import com.sonatype.docker.nexus.iq.server.DockerNexusIqServerTest
 
 dockerizedBuildPipeline(
   prepare: {
@@ -25,6 +24,7 @@ dockerizedBuildPipeline(
     hadolint(['./Dockerfile'])
   },
   buildAndTest: {
+    def DockerNexusIqServerTest = load 'src/test/com/sonatype/docker/nexus/iq/server/DockerNexusIqServerTest.groovy'
     validateExpectations([
         new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
         new Expectation('nexus-user', 'grep', '^nexus: /etc/passwd', 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
