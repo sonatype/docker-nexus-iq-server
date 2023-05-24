@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import com.sonatype.jenkins.shared.Expectation
+
 def containerExpectations() {
   return [
     new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
