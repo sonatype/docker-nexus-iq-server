@@ -56,15 +56,20 @@ RUN microdnf update -y \
 && microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync which\
 && microdnf clean all
 
-# Create folders
+# Create folders & set permissions
 RUN mkdir -p ${TEMP} \
-&& mkdir -m 0755 -p ${IQ_HOME} \
-&& mkdir -m 0755 -p ${SONATYPE_WORK} \
-&& mkdir -m 0755 -p ${CONFIG_HOME} \
-&& mkdir -m 0755 -p ${LOGS_HOME}
+&& mkdir -p ${IQ_HOME} \
+&& mkdir -p ${SONATYPE_WORK} \
+&& mkdir -p ${CONFIG_HOME} \
+&& mkdir -p ${LOGS_HOME} \
+&& chmod 0755 ${TEMP} \
+&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \ 
+&& chmod 0755 ${CONFIG_HOME} \ 
+&& chmod 0755 ${LOGS_HOME}
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
+# hadolint ignore=DL4006,SC3060
 RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${CONFIG_HOME}/config.yml \
 && chmod 0644 ${CONFIG_HOME}/config.yml
 
@@ -80,10 +85,9 @@ RUN cd ${TEMP} \
 && echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
-&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} \
-&& cd ${IQ_HOME} \
-&& rm -rf ${TEMP} \
-\
+&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} 
+WORKDIR ${IQ_HOME} 
+RUN rm -rf ${TEMP} \
 # Add group and user
 && groupadd -g ${GID} nexus \
 && adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
