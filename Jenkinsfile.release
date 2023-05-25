@@ -28,7 +28,6 @@ properties([
 ])
 
 String imageName = 'sonatype/nexus-iq-server'
-String dockerHubRepository = 'nexus-iq-server'
 String version = ''
 String checksum = ''
 
@@ -77,6 +76,7 @@ dockerizedBuildPipeline(
   },
   onSuccess: {
     githubStatusUpdate('success')
+    notifyChat(currentBuild: currentBuild, env: env, room: 'iq-builds')
   },
   onFailure: {
     githubStatusUpdate('failure')
@@ -102,7 +102,7 @@ void commitAndPushChanges(String version) {
   sonatypeZionGitConfig()
   sshagent(credentials: [sonatypeZionCredentialsId()]) {
     runSafely 'git add .'
-    runSafely "git diff --exit-code --cached || git commit -m 'Update to version ${version}.'"
+    runSafely "git diff --exit-code --cached || git commit -m 'Update IQ version to ${version}.'"
 
     // pull and merge any new commits on main so that the push doesn't fail
    runSafely 'git pull --no-rebase --no-edit origin main'
@@ -128,15 +128,15 @@ void pushImage() {
 
       // add signer - for this you need signers public key and repository keys password
       withCredentials([string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-        runSafely "docker trust signer add sonatype ${organization}/${dockerHubRepository} --key $SONATYPE_PUB"
+        runSafely "docker trust signer add sonatype ${imageName} --key $SONATYPE_PUB"
       }
 
-      runSafely "docker tag ${imageId} ${organization}/${dockerHubRepository}:${env.VERSION}"
-      runSafely "docker tag ${imageId} ${organization}/${dockerHubRepository}:latest"
+      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:${env.VERSION}"
+      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:latest"
 
       withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-        runSafely "docker image push ${organization}/${dockerHubRepository}:${env.VERSION}"
-        runSafely "docker image push ${organization}/${dockerHubRepository}:latest"
+        runSafely "docker image push ${imageName}:${env.VERSION}"
+        runSafely "docker image push ${imageName}:latest"
       }
 
       String response = runSafely("""curl -X POST https://hub.docker.com/v2/users/login/ \
@@ -155,7 +155,7 @@ void pushImage() {
       httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerHubApiToken}"]],
                   acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH',
                   requestBody: "{ \"full_description\": \"${readme}\" }",
-                  url: "https://hub.docker.com/v2/repositories/${organization}/${dockerHubRepository}/"
+                  url: "https://hub.docker.com/v2/repositories/${imageName}/"
     }
   }
 }
