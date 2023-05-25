@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+# hadolint ignore=DL3026
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.8
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.161.0-01
@@ -49,6 +50,7 @@ LABEL name="Nexus IQ Server image" \
 USER root
 
 # For testing
+# hadolint ignore=DL3041
 RUN microdnf update -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-devel \
 && microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync which\

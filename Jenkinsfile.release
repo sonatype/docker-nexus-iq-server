@@ -86,9 +86,11 @@ dockerizedBuildPipeline(
 
 void updateIQServerVersionAndChecksum(String version, String checksum) {
   def dockerFile = readFile(file: "${pwd()}/Dockerfile")
+  def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
   def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
   def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
-
+  dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
+      "\$1${iqVersion.substring(0, iqVersion.indexOf('-'))}\$3")
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${version}")
   dockerFile = dockerFile.replaceAll(shaRegex, "\$1${checksum}")
 
@@ -100,7 +102,7 @@ void commitAndPushChanges(String version) {
   sonatypeZionGitConfig()
   sshagent(credentials: [sonatypeZionCredentialsId()]) {
     runSafely 'git add .'
-    runSafely "git diff --exit-code --cached || git commit -m 'Update to version ${version}'"
+    runSafely "git diff --exit-code --cached || git commit -m 'Update to version ${version}.'"
 
     // pull and merge any new commits on main so that the push doesn't fail
    runSafely 'git pull --no-rebase --no-edit origin main'
