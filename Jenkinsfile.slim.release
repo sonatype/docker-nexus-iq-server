@@ -77,11 +77,9 @@ dockerizedBuildPipeline(
   },
   onSuccess: {
     githubStatusUpdate('success')
-    notifyChat(currentBuild: currentBuild, env: env, room: 'iq-builds')
   },
   onFailure: {
     githubStatusUpdate('failure')
-    notifyChat(currentBuild: currentBuild, env: env, room: 'iq-builds')
   }
 )
 

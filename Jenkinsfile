@@ -17,6 +17,7 @@
 import com.sonatype.jenkins.shared.Expectation
 
 dockerizedBuildPipeline(
+  deployBranch: 'main',
   prepare: {
     githubStatusUpdate('pending')
   },
@@ -36,8 +37,14 @@ dockerizedBuildPipeline(
   },
   onSuccess: {
     githubStatusUpdate('success')
+    if (env.BRANCH_NAME == deployBranch) {
+      notifyChat(currentBuild: currentBuild, env: env, room: 'iq-builds')
+    } 
   },
   onFailure: {
     githubStatusUpdate('failure')
+    if (env.BRANCH_NAME == deployBranch) {
+      notifyChat(currentBuild: currentBuild, env: env, room: 'iq-builds')
+    } 
   }
 )
