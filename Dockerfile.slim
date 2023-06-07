@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+# hadolint ignore=DL3026
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.8
 
 # Build parameters
-ARG IQ_SERVER_VERSION=1.161.0-01
-ARG IQ_SERVER_SHA256=76f4a5a950f0b4975ab3ab6e76dd65650be5e95499b0d528d0e5e193df93e4f6
+ARG IQ_SERVER_VERSION=1.162.0-01
+ARG IQ_SERVER_SHA256=ccd17d4b645bbb9ce3b924115e245db33e1b7732dac78b3940a6e1df9eca39fb
 ARG TEMP="/tmp/work"
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
@@ -30,7 +31,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.161.0" \
+  release="1.162.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
@@ -49,20 +50,26 @@ LABEL name="Nexus IQ Server image" \
 USER root
 
 # For testing
+# hadolint ignore=DL3041
 RUN microdnf update -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-devel \
-&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync \
+&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync which\
 && microdnf clean all
 
-# Create folders
+# Create folders & set permissions
 RUN mkdir -p ${TEMP} \
-&& mkdir -m 0755 -p ${IQ_HOME} \
-&& mkdir -m 0755 -p ${SONATYPE_WORK} \
-&& mkdir -m 0755 -p ${CONFIG_HOME} \
-&& mkdir -m 0755 -p ${LOGS_HOME}
+&& mkdir -p ${IQ_HOME} \
+&& mkdir -p ${SONATYPE_WORK} \
+&& mkdir -p ${CONFIG_HOME} \
+&& mkdir -p ${LOGS_HOME} \
+&& chmod 0755 ${TEMP} \
+&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \ 
+&& chmod 0755 ${CONFIG_HOME} \ 
+&& chmod 0755 ${LOGS_HOME}
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
+# hadolint ignore=DL4006,SC3060
 RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${CONFIG_HOME}/config.yml \
 && chmod 0644 ${CONFIG_HOME}/config.yml
 
@@ -73,15 +80,14 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 && chmod 0755 ${IQ_HOME}/start.sh
 
 # Download the server bundle, verify its checksum, and extract the server jar to the install directory
-RUN cd ${TEMP} \
-&& curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
+WORKDIR ${TEMP}
+RUN curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
 && echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
-&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} \
-&& cd ${IQ_HOME} \
-&& rm -rf ${TEMP} \
-\
+&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} 
+WORKDIR ${IQ_HOME} 
+RUN rm -rf ${TEMP} \
 # Add group and user
 && groupadd -g ${GID} nexus \
 && adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
