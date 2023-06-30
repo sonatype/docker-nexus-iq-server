@@ -104,7 +104,7 @@ This environment variable can be adjusted at runtime:
 docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Doption=value" sonatype/nexus-iq-server
 ```
 
-Further, you can [customize parts of the default config.yml settings by using Java system properties](https://help.sonatype.com/iqserver/configuring/advanced-server-configuration) defined inside the environment variable.
+Further, you can [customize parts of the default config.yml settings by using Java system properties](https://help.sonatype.com/iqserver/configuring/advanced-server-configuration#AdvancedServerConfiguration-ConfigurationviaJavaSystemProperties) defined inside the environment variable.
 
 Example: To customize the logging level that IQ Server will use:
 
