@@ -25,8 +25,7 @@ properties([
 ])
 
 node('ubuntu-zion') {
-  try {
-    stage('Preparation') {
-      echo('TEMPORARILY DISABLED')
+  stage('Preparation') {
+    echo('TEMPORARILY DISABLED')
   }
 }
