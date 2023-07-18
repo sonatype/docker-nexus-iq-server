@@ -68,8 +68,8 @@ dockerizedBuildPipeline(
     pushImage()
   },
   postDeploy: {
+    sonatypeZionGitConfig()
     sshagent(credentials: [sonatypeZionCredentialsId()]) {
-      sonatypeZionGitConfig()
       sh '''git tag ${env.VERSION}
             git push origin ${env.VERSION}'''
     }
@@ -97,14 +97,14 @@ void updateIQServerVersionAndChecksum(String version, String checksum) {
 
 void commitAndPushChanges(String version) {
   runSafely 'git config --global push.default simple'
+  sonatypeZionGitConfig()
   sshagent(credentials: [sonatypeZionCredentialsId()]) {
-    sonatypeZionGitConfig()
     runSafely 'git add .'
     runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version}.'"
 
     // pull and merge any new commits on main so that the push doesn't fail
-   runSafely 'git pull --no-rebase --no-edit origin main'
-   runSafely 'git push origin HEAD:main'
+    runSafely 'git pull --no-rebase --no-edit origin main'
+    runSafely 'git push origin HEAD:main'
   }
 }
 

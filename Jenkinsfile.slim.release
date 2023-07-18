@@ -98,8 +98,8 @@ void updateIQServerVersionAndChecksum(String version, String checksum) {
 
 void commitAndPushChanges(String version) {
   runSafely 'git config --global push.default simple'
+  sonatypeZionGitConfig()
   sshagent(credentials: [sonatypeZionCredentialsId()]) {
-    sonatypeZionGitConfig()
     runSafely 'git add .'
     runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version}.'"
 
