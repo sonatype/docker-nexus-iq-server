@@ -70,8 +70,8 @@ dockerizedBuildPipeline(
   },
   postDeploy: {
     sshagent(credentials: [sonatypeZionCredentialsId()]) {
-      sh '''git config user.email "sonatype-zion@sonatype.com"
-            git tag ${env.VERSION}
+      sonatypeZionGitConfig()
+      sh '''git tag ${env.VERSION}
             git push origin ${env.VERSION}'''
     }
   },
