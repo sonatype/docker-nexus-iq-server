@@ -84,16 +84,16 @@ dockerizedBuildPipeline(
 )
 
 void updateIQServerVersionAndChecksum(String version, String checksum) {
-  def dockerFile = readFile(file: "${pwd()}/Dockerfile.slim ")
+  def dockerFile = readFile(file: "Dockerfile.slim")
   def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
   def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
   def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
   dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
-      "\$1${iqVersion.substring(0, iqVersion.indexOf('-'))}\$3")
+      "\$1${version.substring(0, version.indexOf('-'))}\$3")
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${version}")
   dockerFile = dockerFile.replaceAll(shaRegex, "\$1${checksum}")
 
-  writeFile(file: "${pwd()}/Dockerfile.slim", text: dockerFile)
+  writeFile(file: "Dockerfile.slim", text: dockerFile)
 }
 
 void commitAndPushChanges(String version) {
