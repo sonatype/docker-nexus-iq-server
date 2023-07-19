@@ -63,6 +63,8 @@ RUN ./Configure -des -Dprefix=/usr/local && \
     make && \
     make install
 
+WORKDIR /
+
 # Create folders
 RUN mkdir -p ${TEMP} \
 && mkdir -m 0755 -p ${IQ_HOME} \
