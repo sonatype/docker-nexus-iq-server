@@ -56,6 +56,13 @@ RUN microdnf update -y \
 && microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git \
 && microdnf clean all
 
+RUN microdnf install gcc make wget
+RUN wget https://www.cpan.org/src/5.0/perl-5.38.0.tar.gz && tar xzf perl-5.38.0.tar.gz
+WORKDIR /perl-5.38.0
+RUN ./Configure -des -Dprefix=/usr/local && \
+    make && \
+    make install
+
 # Create folders
 RUN mkdir -p ${TEMP} \
 && mkdir -m 0755 -p ${IQ_HOME} \
