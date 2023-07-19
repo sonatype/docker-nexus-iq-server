@@ -71,8 +71,8 @@ dockerizedBuildPipeline(
   postDeploy: {
     sshagent(credentials: [sonatypeZionCredentialsId()]) {
       sonatypeZionGitConfig()
-      sh '''git tag ${env.VERSION}
-            git push origin ${env.VERSION}'''
+      sh """git tag ${env.VERSION}
+            git push origin ${env.VERSION}"""
     }
   },
   onSuccess: {
