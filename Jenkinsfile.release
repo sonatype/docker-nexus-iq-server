@@ -65,7 +65,7 @@ dockerizedBuildPipeline(
       iqStage: 'release')
   },
   deploy: {
-    pushImage()
+    pushImage(imageName)
   },
   postDeploy: {
     sonatypeZionGitConfig()
@@ -108,7 +108,7 @@ void commitAndPushChanges(String version) {
   }
 }
 
-void pushImage() {
+void pushImage(String imageName) {
   runSafely "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'"
   runSafely "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true"
 
