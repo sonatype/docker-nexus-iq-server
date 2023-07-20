@@ -44,7 +44,7 @@ def pushReadme(String readme, String organization, String dockerHubRepository) {
       customHeaders: [[name: 'cache-control', value: 'no-cache']],
       contentType: 'APPLICATION_JSON',
       requestBody: """{ "username": "${env.DOCKERHUB_API_USERNAME}", "password": "${env.DOCKERHUB_API_PASSWORD}" }"""
-    )).
+    )
 
     def token = readJSON text: response
     def dockerHubApiToken = token.token
