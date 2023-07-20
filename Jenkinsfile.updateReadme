@@ -41,7 +41,7 @@ def pushReadme(String readme, String organization, String dockerHubRepository) {
     def response = httpRequest(
       httpMode: 'POST',
       url: 'https://hub.docker.com/v2/users/login',
-      customHeaders: [[name: 'cache-control, value: 'no-cache']],
+      customHeaders: [[name: 'cache-control', value: 'no-cache']],
       contentType: 'APPLICATION_JSON',
       requestBody: """{ "username": "${env.DOCKERHUB_API_USERNAME}", "password": "${env.DOCKERHUB_API_PASSWORD}" }"""
     )).
