@@ -27,7 +27,7 @@ pipeline {
         echo readme
       }
     }
-    stage('Publish README.md') {
+    stage('Push README.md') {
       when { expression { env.BRANCH_NAME == 'main' } }
       steps {
         pushReadme(readme, 'sonatype', 'nexus-iq-server')
