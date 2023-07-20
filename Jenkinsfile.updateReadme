@@ -5,9 +5,11 @@
  */
 @Library(['private-pipeline-library', 'jenkins-shared']) _
 
-String readme = ''
 pipeline {
   agent { label InsightConstants.AGENT_LABEL }
+  environment {
+    readme = ''
+  }
   options {
     buildDiscarder(logRotator(numToKeepStr: '10'))
   }
