@@ -17,11 +17,7 @@ pipeline {
     stage('Preparation') {
       steps {
         deleteDir()
-        readme = readFile file: 'README.md', encoding: 'UTF-8'
-        readme = readme.replaceAll("(?s)<!--.*?-->", "")
-        readme = readme.replace("\"", "\\\"")
-        readme = readme.replace("\n", "\\n")
-        readme = readme.replace("\\\$", "\\\\\$")
+        readme = readReadme('README.md')
       }
     }
     stage('Echo README.md') {
@@ -36,6 +32,15 @@ pipeline {
       }
     }
   }
+}
+
+def readReadme(String filename) {
+  String readme = readFile file: filename, encoding: 'UTF-8'
+  readme = readme.replaceAll("(?s)<!--.*?-->", "")
+  readme = readme.replace("\"", "\\\"")
+  readme = readme.replace("\n", "\\n")
+  readme = readme.replace("\\\$", "\\\\\$")
+  return readme
 }
 
 def pushReadme(String readme, String organization, String dockerHubRepository) {
