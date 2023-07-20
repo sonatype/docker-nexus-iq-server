@@ -3,51 +3,62 @@
  * Includes the third-party code listed at http://links.sonatype.com/products/nexus/attributions.
  * "Sonatype" is a trademark of Sonatype, Inc.
  */
-@Library(['private-pipeline-library', 'jenkins-shared']) _
-import com.sonatype.jenkins.pipeline.GitHub
-import com.sonatype.jenkins.pipeline.OsTools
+@Library(['private-pipeline-library', 'jenkins-shared', 'iq-pipeline-library']) _
 
-node('ubuntu-zion') {
-  def branch,
-      readme,
-      organization = 'sonatype',
-      dockerHubRepository = 'nexus-iq-server'
-  try {
+pipeline {
+  agent { label InsightConstants.AGENT_LABEL }
+  options { buildDiscarder(logRotator(numToKeepStr: '10')) }
+  stages {
     stage('Preparation') {
-      deleteDir()
-      def checkoutDetails = checkout scm
-      branch = checkoutDetails.GIT_BRANCH == 'origin/master' ? 'master' : checkoutDetails.GIT_BRANCH
-      readme = readFile file: 'README.md', encoding: 'UTF-8'
-      readme = readme.replaceAll("(?s)<!--.*?-->", "")
-      readme = readme.replace("\"", "\\\"")
-      readme = readme.replace("\n", "\\n")
-      readme = readme.replace("\\\$", "\\\\\$")
+      steps {
+        deleteDir()
+      }
     }
-    if (branch == 'master') {
-      stage('Push README.md') {
-        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
-            usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
-          response = OsTools.runSafe(this, """
-            curl -X POST https://hub.docker.com/v2/users/login/ \
-              -H 'cache-control: no-cache' -H 'content-type: application/json' \
-              -d '{ "username": "${env.DOCKERHUB_API_USERNAME}", "password": "${env.DOCKERHUB_API_PASSWORD}" }'
-          """)
-          token = readJSON text: response
-          def dockerHubApiToken = token.token
+    stage('Echo README.md') {
+      steps {
+        echo readReadme('README.md')
+      }
+    }
+    stage('Push README.md') {
+      when { expression { enV.BRANCH_NAME == 'main' }}
+      steps {
+        pushReadme('README.md', 'sonatype', 'nexus-iq-server')
+      }
+    }
+  }
+}
 
-          response = httpRequest customHeaders: [[name: 'authorization', value: "JWT ${dockerHubApiToken}"]],
-              acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PATCH',
-              requestBody: "{ \"full_description\": \"${readme}\" }",
-              url: "https://hub.docker.com/v2/repositories/${organization}/${dockerHubRepository}/"
-        }
-      }
-    }
-    else {
-      stage('Check README.md') {
-        echo readme
-      }
-    }
-  } finally {
-    OsTools.runSafe(this, "docker logout")
+String readReadme(String filename) {
+  String readme = readFile file: 'README.md', encoding: 'UTF-8'
+  readme = readme.replaceAll("(?s)<!--.*?-->", "")
+  readme = readme.replace("\"", "\\\"")
+  readme = readme.replace("\n", "\\n")
+  readme = readme.replace("\\\$", "\\\\\$")
+  return readme
+}
+
+void pushReadme(String filename, String organisation, String dockerHubRepository) {
+  String readme = readReadme(filename)
+
+  withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
+    def response = httpRequest(
+      httpMode: 'POST',
+      url: 'https://hub.docker.com/v2/users/login',
+      customHeaders: [[name: 'cache-control', value: 'no-cache'] ],
+      contentType: 'APPLICATION_JSON',
+      requestBody: """{ "username": "${env.DOCKERHUB_API_USERNAME}", "password": "${env.DOCKERHUB_API_PASSWORD}" }""")
+
+    def token = readJSON text: response.content
+    def dockerHubApiToken = token.token
+
+    response = httpRequest(
+      customHeaders: [[name: 'authorization', value: "JWT ${dockerHubApiToken}"]],
+      acceptType: 'APPLICATION_JSON',
+      contentType: 'APPLICATION_JSON',
+      httpMode: 'PATCH',
+      requestBody: """{ "full_description": "${readme}" }""",
+      url: "https://hub.docker.com/v2/repositories/${organization}/${dockerHubRepository}/")
+
+    sh 'docker logout'
   }
 }
