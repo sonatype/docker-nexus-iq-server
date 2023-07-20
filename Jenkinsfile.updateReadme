@@ -8,7 +8,7 @@
 pipeline {
   agent { label InsightConstants.AGENT_LABEL }
   environment {
-    readme = readReadMe('README.md')
+    readme = readReadme('README.md')
   }
   options {
     buildDiscarder(logRotator(numToKeepStr: '10'))
