@@ -8,18 +8,12 @@
 pipeline {
   agent { label InsightConstants.AGENT_LABEL }
   environment {
-    readme = ''
+    readme = readReadMe('README.md')
   }
   options {
     buildDiscarder(logRotator(numToKeepStr: '10'))
   }
   stages {
-    stage('Preparation') {
-      steps {
-        deleteDir()
-        readme = readReadme('README.md')
-      }
-    }
     stage('Echo README.md') {
       steps {
         echo readme
@@ -35,6 +29,7 @@ pipeline {
 }
 
 def readReadme(String filename) {
+  deleteDir()
   String readme = readFile file: filename, encoding: 'UTF-8'
   readme = readme.replaceAll("(?s)<!--.*?-->", "")
   readme = readme.replace("\"", "\\\"")
