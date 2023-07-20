@@ -9,11 +9,6 @@ pipeline {
   agent { label InsightConstants.AGENT_LABEL }
   options { buildDiscarder(logRotator(numToKeepStr: '10')) }
   stages {
-    stage('Preparation') {
-      steps {
-        deleteDir()
-      }
-    }
     stage('Echo README.md') {
       steps {
         echo readReadme('README.md')
