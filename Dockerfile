@@ -69,6 +69,22 @@ RUN mkdir -p ${TEMP} \
 && chmod 0755 ${CONFIG_HOME} \ 
 && chmod 0755 ${LOGS_HOME}
 
+# Install necessary build dependencies
+RUN microdnf update && \
+    microdnf install -y gcc make openssl-devel
+
+# Download and compile libcurl 8.1.2
+WORKDIR /tmp
+RUN curl -O https://curl.se/download/curl-8.1.2.tar.gz && \
+    tar -xzvf curl-8.1.2.tar.gz && \
+    cd curl-8.1.2 && \
+    ./configure --with-openssl && \
+    make && \
+    make install
+
+# Cleanup unnecessary files
+RUN rm -rf /tmp/curl-8.1.2 /tmp/curl-8.1.2.tar.gz
+
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
 # hadolint ignore=DL4006,SC3060
