@@ -15,8 +15,6 @@
  */
 @Library(['private-pipeline-library', 'jenkins-shared']) _
 
-import com.sonatype.jenkins.shared.Expectation
-
 properties([
   parameters([
     string(
