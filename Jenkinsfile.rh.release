@@ -56,7 +56,7 @@ void commitAndPushChanges(String version) {
   sonatypeZionGitConfig()
   sshagent(credentials: [sonatypeZionCredentialsId()]) {
     runSafely 'git add .'
-    runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version}.'"
+    runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version} for the Red Hat image.'"
 
     // pull and merge any new commits on main so that the push doesn't fail
     runSafely 'git pull --no-rebase --no-edit origin main'
