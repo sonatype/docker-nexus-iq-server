@@ -48,7 +48,7 @@ void updateIQServerVersionAndChecksum(String version, String checksum) {
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${version}")
   dockerFile = dockerFile.replaceAll(shaRegex, "\$1${checksum}")
 
-  writeFile(file: 'Dockerfile.rh', text: dockerFile.rh)
+  writeFile(file: 'Dockerfile.rh', text: dockerFile)
 }
 
 void commitAndPushChanges(String version) {
