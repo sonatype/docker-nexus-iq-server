@@ -27,17 +27,6 @@ properties([
 String version = ''
 String checksum = ''
 
-dockerizedBuildPipeline(
-  deployBranch: 'main',
-  prepare: {
-    githubStatusUpdate('pending')
-    version = getVersionFromBuildName(env.releaseBuild_NAME)
-    checksum = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-bundle.tar.gz.sha256").trim()
-    updateIQServerVersionAndChecksum(version, checksum)
-    commitAndPushChanges(version)
-  }
-)
-
 void updateIQServerVersionAndChecksum(String version, String checksum) {
   def dockerFile = readFile(file: 'Dockerfile.rh')
   def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
@@ -67,6 +56,19 @@ void commitAndPushChanges(String version) {
 node('ubuntu-zion') {
   try {
     stage('Preparation') {
+      try {
+        githubStatusUpdate('pending')
+        version = getVersionFromBuildName(env.releaseBuild_NAME)
+        checksum = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-bundle.tar.gz.sha256").trim()
+        updateIQServerVersionAndChecksum(version, checksum)
+        commitAndPushChanges(version)
+        githubStatusUpdate('success')
+      }
+      catch (Exception e) {
+        githubStatusUpdate('failure')
+        throw e
+      }
+
       deleteDir()
 
       checkout scm
