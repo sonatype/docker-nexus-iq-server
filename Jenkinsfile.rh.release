@@ -27,47 +27,11 @@ properties([
 String version = ''
 String checksum = ''
 
-void updateIQServerVersionAndChecksum(String version, String checksum) {
-  def dockerFile = readFile(file: 'Dockerfile.rh')
-  def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
-  def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
-  def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
-  dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
-      "\$1${version.substring(0, version.indexOf('-'))}\$3")
-  dockerFile = dockerFile.replaceAll(versionRegex, "\$1${version}")
-  dockerFile = dockerFile.replaceAll(shaRegex, "\$1${checksum}")
-
-  writeFile(file: 'Dockerfile.rh', text: dockerFile)
-}
-
-void commitAndPushChanges(String version) {
-  runSafely 'git config --global push.default simple'
-  sonatypeZionGitConfig()
-  sshagent(credentials: [sonatypeZionCredentialsId()]) {
-    runSafely 'git add .'
-    runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version} for the Red Hat image.'"
-
-    // pull and merge any new commits on main so that the push doesn't fail
-    runSafely 'git pull --no-rebase --no-edit origin main'
-    runSafely 'git push origin HEAD:main'
-  }
-}
-
 node('ubuntu-zion') {
   try {
     stage('Preparation') {
-      try {
-        githubStatusUpdate('pending')
-        version = getVersionFromBuildName(env.releaseBuild_NAME)
-        checksum = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-bundle.tar.gz.sha256").trim()
-        updateIQServerVersionAndChecksum(version, checksum)
-        commitAndPushChanges(version)
-        githubStatusUpdate('success')
-      }
-      catch (Exception e) {
-        githubStatusUpdate('failure')
-        throw e
-      }
+      version = getVersionFromBuildName(env.releaseBuild_NAME)
+      checksum = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-bundle.tar.gz.sha256").trim()
 
       deleteDir()
 
@@ -90,7 +54,7 @@ node('ubuntu-zion') {
             credentialsId: 'red-hat-api-token',
             variable: 'API_TOKEN')
       ]) {
-        sh 'PATH="$PATH:." VERSION=$version ./build_and_push_rh_image.sh'
+        sh 'PATH="$PATH:." VERSION=$version CHECKSUM=$checksum ./build_and_push_rh_image.sh'
       }
     }
   } finally {
