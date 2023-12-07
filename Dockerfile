@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+FROM registry.access.redhat.com/ubi8/ubi-micro:latest
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.170.0-01
