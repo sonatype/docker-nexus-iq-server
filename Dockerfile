@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.8
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.9
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.170.0-01
@@ -55,7 +55,7 @@ USER root
 # hadolint ignore=DL3041
 RUN microdnf update -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-headless \
-&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which \
+&& microdnf install -y gzip unzip tar git \
 && microdnf clean all
 
 # Create folders & set permissions
