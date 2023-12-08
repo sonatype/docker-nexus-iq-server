@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM egistry.access.redhat.com/ubi8/ubi-minimal:8.9
+FROM egistry.access.redhat.com/ubi8/ubi-minimal:latest
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.170.0-01
