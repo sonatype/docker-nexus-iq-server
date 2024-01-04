@@ -54,6 +54,7 @@ USER root
 # For testing
 # hadolint ignore=DL3041
 RUN microdnf --setopt=install_weak_deps=0 update -y \
+&& microdnf --setopt=install_weak_deps=0 upgrade -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-headless procps gzip unzip tar shadow-utils findutils util-linux less rsync git which \
 && microdnf clean all
 
