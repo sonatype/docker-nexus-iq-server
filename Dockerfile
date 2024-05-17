@@ -100,6 +100,9 @@ RUN rm -rf ${TEMP} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
 && chown -R nexus:nexus ${LOGS_HOME}
 
+# enabling back support for SHA1 signed certificates
+RUN update-crypto-policies --set DEFAULT:SHA1
+
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
 VOLUME ${LOGS_HOME}
