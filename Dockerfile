@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.3
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.4
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.177.0-01
@@ -65,8 +65,8 @@ RUN mkdir -p ${TEMP} \
 && mkdir -p ${CONFIG_HOME} \
 && mkdir -p ${LOGS_HOME} \
 && chmod 0755 ${TEMP} \
-&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \ 
-&& chmod 0755 ${CONFIG_HOME} \ 
+&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \
+&& chmod 0755 ${CONFIG_HOME} \
 && chmod 0755 ${LOGS_HOME}
 
 # Copy config.yml and set sonatypeWork to the correct value
@@ -88,7 +88,7 @@ RUN curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER
 && sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
 && tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
 && mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME}
-WORKDIR ${IQ_HOME} 
+WORKDIR ${IQ_HOME}
 RUN rm -rf ${TEMP} \
 # Add group and user
 && groupadd -g ${GID} nexus \
