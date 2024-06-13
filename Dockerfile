@@ -64,8 +64,8 @@ RUN mkdir -p ${TEMP} \
 && mkdir -p ${CONFIG_HOME} \
 && mkdir -p ${LOGS_HOME} \
 && chmod 0755 ${TEMP} \
-&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \ 
-&& chmod 0755 ${CONFIG_HOME} \ 
+&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \
+&& chmod 0755 ${CONFIG_HOME} \
 && chmod 0755 ${LOGS_HOME}
 
 # Copy config.yml and set sonatypeWork to the correct value
