@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.4
+FROM registry.access.redhat.com/ubi9/openjdk-17:1.20-2
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.177.0-01
@@ -54,8 +54,7 @@ USER root
 # For testing
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-headless \
-&& microdnf install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which \
 && microdnf clean all
 
 # Create folders & set permissions
@@ -65,8 +64,8 @@ RUN mkdir -p ${TEMP} \
 && mkdir -p ${CONFIG_HOME} \
 && mkdir -p ${LOGS_HOME} \
 && chmod 0755 ${TEMP} \
-&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \ 
-&& chmod 0755 ${CONFIG_HOME} \ 
+&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \
+&& chmod 0755 ${CONFIG_HOME} \
 && chmod 0755 ${LOGS_HOME}
 
 # Copy config.yml and set sonatypeWork to the correct value
