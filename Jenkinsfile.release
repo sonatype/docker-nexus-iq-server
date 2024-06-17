@@ -64,7 +64,7 @@ dockerizedBuildPipeline(
       iqStage: 'release')
   },
   deploy: {
-    pushImage(imageName)
+    pushImage(imageName, version, checksum)
   },
   postDeploy: {
     sonatypeZionGitConfig()
@@ -107,7 +107,7 @@ void commitAndPushChanges(String version) {
   }
 }
 
-void pushImage(String imageName) {
+void pushImage(String imageName, String version, String checksum) {
   runSafely "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'"
   runSafely "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true"
 
@@ -128,12 +128,16 @@ void pushImage(String imageName) {
         runSafely "docker trust signer add sonatype ${imageName} --key $SONATYPE_PUB"
       }
 
-      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:${env.VERSION}"
-      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:latest"
-
+      runSafely "docker buildx create --use"
       withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-        runSafely "docker image push ${imageName}:${env.VERSION}"
-        runSafely "docker image push ${imageName}:latest"
+        runSafely """docker buildx build -f Dockerfile \
+         --platform=linux/amd64,linux/arm64 \
+         --build-arg IQ_SERVER_VERSION="${version}" \
+         --build-arg IQ_SERVER_SHA256="${checksum}" \
+         -- push \
+         -t "${imageName}:${env.VERSION}" \
+         -t "${imageName}:latest" . """
+
       }
 
       String response = runSafely("""curl -X POST https://hub.docker.com/v2/users/login/ \

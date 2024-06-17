@@ -65,7 +65,7 @@ dockerizedBuildPipeline(
       iqStage: 'release')
   },
   deploy: {
-    pushImage(imageName)
+    pushImage(imageName, version, checksum)
   },
   onSuccess: {
     githubStatusUpdate('success')
@@ -96,12 +96,12 @@ void commitAndPushChanges(String version) {
     runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version}.'"
 
     // pull and merge any new commits on main so that the push doesn't fail
-   runSafely 'git pull --no-rebase --no-edit origin main'
-   runSafely 'git push origin HEAD:main'
+    runSafely 'git pull --no-rebase --no-edit origin main'
+    runSafely 'git push origin HEAD:main'
   }
 }
 
-void pushImage(String imageName) {
+void pushImage(String imageName, String version, String checksum) {
   runSafely "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'"
   runSafely "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true"
 
@@ -122,12 +122,16 @@ void pushImage(String imageName) {
         runSafely "docker trust signer add sonatype ${imageName} --key $SONATYPE_PUB"
       }
 
-      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:${env.VERSION}-slim"
-      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:latest-slim"
-
+      runSafely "docker buildx create --use"
       withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-        runSafely "docker image push ${imageName}:${env.VERSION}-slim"
-        runSafely "docker image push ${imageName}:latest-slim"
+        runSafely """docker buildx build -f Dockerfile.slim \
+         --platform=linux/amd64,linux/arm64 \
+         --build-arg IQ_SERVER_VERSION="${version}" \
+         --build-arg IQ_SERVER_SHA256="${checksum}" \
+         -- push \
+         -t "${imageName}:${env.VERSION}-slim" \
+         -t "${imageName}:latest-slim" . """
+
       }
     }
   }
