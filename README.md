@@ -161,6 +161,17 @@ or to let docker assign available ports use:
 To get the assigned port or check if the server is running use:
 
     docker ps --filter "name=nexus-iq-server"
+    
+When **stopping**, be sure to allow sufficient time for the databases to fully shut down.  
+
+```
+docker stop --time=180 <CONTAINER_NAME>
+```
+If running version 118 or earlier, then use the following approach (direct SIGTERM) for stopping the container:
+
+```
+docker exec -ti <CONTAINER_NAME> bash -c 'kill -TERM "$(cat /sonatype-work/lock | cut -d"@" -f1)"'
+```
 
 ## Product License Installation
 
