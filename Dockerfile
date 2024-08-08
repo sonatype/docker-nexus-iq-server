@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/openjdk-17:1.20-2
+FROM registry.access.redhat.com/ubi9/openjdk-17:1.20
 
 # Build parameters
 ARG IQ_SERVER_VERSION=1.180.0-01
