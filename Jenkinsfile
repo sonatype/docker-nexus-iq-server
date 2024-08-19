@@ -49,15 +49,5 @@ dockerizedBuildPipeline(
       iqApplication: 'docker-nexus-iq-server',
       iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
       iqStage: theStage)
-  },
-  onUnstable: {
-    if (env.BRANCH_NAME == deployBranch) {
-      notifyChat(currentBuild: currentBuild, env: env, room: 'iq-builds')
-    } 
-  },
-  onFailure: {
-    if (env.BRANCH_NAME == deployBranch) {
-      notifyChat(currentBuild: currentBuild, env: env, room: 'iq-builds')
-    } 
   }
 )
