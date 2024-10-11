@@ -40,11 +40,15 @@ node('ubuntu-zion') {
       checkout scm
 
       sh 'docker system prune -a -f'
-      sh '''
+      sh """
+        pf_version=`curl -L -H "Accept: application/vnd.github+json" \
+          https://api.github.com/repos/redhat-openshift-ecosystem/openshift-preflight/git/refs/tags \
+          | jq -r '.[-1].ref' | cut -d'/' -f 3` 
+        echo "Donwloading preflight ${pf_version} ..."
         wget -q -O preflight \
-          https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/1.9.9/preflight-linux-amd64
+          https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/${pf_version}/preflight-linux-amd64
         chmod 755 preflight
-      '''
+      """
     }
     stage('Build') {
       withCredentials([
