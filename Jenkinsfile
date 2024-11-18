@@ -29,10 +29,12 @@ void configureBranchJob() {
 }
 
 String deployBranch = 'main'
+String imageName = 'sonatype/nexus-iq-server'
 
 configureBranchJob()
 dockerizedBuildPipeline(
   deployBranch: deployBranch,
+  deployCondition: { return true }, // always run the deploy stage
   prepare: {
     githubStatusUpdate('pending')
   },
@@ -42,6 +44,14 @@ dockerizedBuildPipeline(
   buildAndTest: {
     def expectations = load 'expectations.groovy'
     validateExpectations(expectations.containerExpectations())
+  },
+  deploy: {
+    // Hijacking deploy step to run the docker buildx build to make sure it is working
+    withSonatypeDockerRegistry() {
+      sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
+      sh "docker buildx build --platform linux/amd64,linux/arm64 " +
+          "--tag ${sonatypeDockerRegistryId()}/${imageName}:${env.BUILD_NUMBER} ."
+    }
   },
   vulnerabilityScan: {
     def theStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
@@ -61,3 +71,4 @@ dockerizedBuildPipeline(
     } 
   }
 )
+

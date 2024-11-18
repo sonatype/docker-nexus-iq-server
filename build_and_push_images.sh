@@ -1,0 +1,65 @@
+#!/bin/bash -
+
+# This script expects that docker trust keys have already been loaded
+
+set -o nounset                              # Treat unset variables as an error
+
+# Enable for debugging
+set -x
+
+# This is used by the notary tool for auth
+export NOTARY_AUTH="$(printf "${DOCKERHUB_API_USERNAME}:${DOCKERHUB_API_PASSWORD}" | base64)"
+
+TRUST_DIR="${TRUST_DIR:-${HOME}/.docker/trust/}"
+
+# General args about the build
+REPO="${OCI_REPO:-sonatype/nexus-iq-server}"
+REF="${OCI_REGISTRY:-docker.io}/${REPO}"
+TAGS="$@"
+DOCKERFILE=${DOCKERFILE:-Dockerfile}
+
+ARM64_TAG=arm64-latest
+AMD64_TAG=amd64-latest
+
+echo "Building images"
+docker buildx build --progress=plain --platform=linux/arm64 -f ${DOCKERFILE} --push --provenance=false --tag "${REF}:${ARM64_TAG}" .
+docker buildx build --progress=plain --platform=linux/amd64 -f ${DOCKERFILE} --push --provenance=false --tag "${REF}:${AMD64_TAG}" .
+
+for TAG in $TAGS; do
+  echo "Creating manifest"
+  docker manifest create "${REF}:${TAG}" "${REF}:${ARM64_TAG}" "${REF}:${AMD64_TAG}" --amend
+
+  echo "Inspecting manifest"
+  docker manifest inspect "${REF}:${TAG}"
+
+  echo "Pushing manifest"
+  docker manifest push "${REF}:${TAG}" --purge
+
+  echo "Getting docker token"
+  DOCKER_TOKEN="$(curl -s "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${REPO}:pull" -H "Authorization: Basic ${NOTARY_AUTH}" | jq -r '.token')"
+
+  echo "Parsing content-length and sha256 hash from manifest list response headers"
+  HEADERS=$(curl -I -s -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' https://registry-1.docker.io/v2/${REPO}/manifests/${TAG} -H "Authorization: Bearer ${DOCKER_TOKEN}" -XGET)
+  BYTES_SIZE=$(echo "$HEADERS" | grep -i 'content-length' | awk '{print $2}' | tr -d '\r')
+  SHA_256=$(echo "$HEADERS" | grep -i 'docker-content-digest' | awk '{print $2}' | tr -d '\r' | sed 's/^sha256://')
+
+  echo "Manifest SHA-256: ${SHA_256}"
+  echo "Manifest-inspect BYTES: ${BYTES_SIZE}"
+  echo "Sign ${SHA_256} with the notary"
+
+  echo "Signing the manifest list"
+  # Notes: Through testing, this doesn't work with docker cli unless the roles is "targets". Other online sources had other values
+  echo "${DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE}" | notary -s https://notary.docker.io -d "${TRUST_DIR}" addhash "${REF}" "${TAG}" "${BYTES_SIZE}" --sha256 "${SHA_256}" --roles targets --publish --verbose
+
+  docker trust inspect --pretty "${REF}:${TAG}"
+done
+
+# Delete the temporary tags
+HUB_TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d "{\"username\": \"${DOCKERHUB_API_USERNAME}\", \"password\": \"${DOCKERHUB_API_PASSWORD}\"}" https://hub.docker.com/v2/users/login/ | jq -r .token)
+curl "https://hub.docker.com/v2/repositories/${REPO}/tags/${ARM64_TAG}" -H "Authorization: Bearer ${HUB_TOKEN}" -X DELETE
+curl "https://hub.docker.com/v2/repositories/${REPO}/tags/${AMD64_TAG}" -H "Authorization: Bearer ${HUB_TOKEN}" -X DELETE
+
+
+unset NOTARY_AUTH
+
+echo "Done!"
