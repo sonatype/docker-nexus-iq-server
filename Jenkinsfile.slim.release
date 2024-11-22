@@ -123,6 +123,7 @@ void pushImage(String imageName) {
         go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary@latest
         notary --help
         docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
+        export OCI_REPO="sonatype/nexus-iq-server"
         ./build_and_push_images.sh ${env.VERSION} latest
         """
       }

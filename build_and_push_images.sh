@@ -28,7 +28,7 @@ export NOTARY_AUTH="$(printf "${DOCKERHUB_API_USERNAME}:${DOCKERHUB_API_PASSWORD
 TRUST_DIR="${TRUST_DIR:-${HOME}/.docker/trust/}"
 
 # General args about the build
-REPO="${OCI_REPO:-sonatype/nexus-iq-server}"
+REPO="${OCI_REPO}"
 REF="${OCI_REGISTRY:-docker.io}/${REPO}"
 TAGS="$@"
 DOCKERFILE=${DOCKERFILE:-Dockerfile}
