@@ -29,15 +29,17 @@ properties([
 
 String imageName = 'sonatype/nexus-iq-server'
 String version = ''
-String checksum = ''
+String checksumX86_64 = ''
+String checksumAarch = ''
 
 dockerizedBuildPipeline(
   deployBranch: 'main',
   prepare: {
     githubStatusUpdate('pending')
     version = getVersionFromBuildName(env.releaseBuild_NAME)
-    checksum = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-bundle.tar.gz.sha256").trim()
-    updateIQServerVersionAndChecksum(version, checksum)
+    checksumX86_64 = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-x86_64.tgz.sha256").trim()
+    checksumAarch = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-aarch_64.tgz.sha256").trim()
+    updateIQServerVersionAndChecksum(version, checksumX86_64, checksumAarch)
     commitAndPushChanges(version)
   },
   pathToDockerfile: './Dockerfile.slim',
@@ -47,12 +49,6 @@ dockerizedBuildPipeline(
   lint: {
     hadolint(['./Dockerfile.slim'])
   },
-  postPrepareImage: {
-    dir('build') {
-      runSafely "docker save ${imageName}-slim | gzip > docker-nexus-iq-server-slim-${env.VERSION}.tar.gz"
-    }
-  },
-  archiveArtifacts: 'build/*.tar.gz',
   buildAndTest: {
     currentBuild.displayName = "#${currentBuild.id} ${imageName}-slim-${env.VERSION}"
     def expectations = load 'expectations.groovy'
@@ -75,15 +71,17 @@ dockerizedBuildPipeline(
   }
 )
 
-void updateIQServerVersionAndChecksum(String version, String checksum) {
-  def dockerFile = readFile(file: 'Dockerfile.slim')
+void updateIQServerVersionAndChecksum(String version, String checksumX86_64, String checksumAarch) {
+  def dockerFile = readFile(file: 'Dockerfile')
   def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
   def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
-  def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
+  def shaRegexX64_64 = /(ARG IQ_SERVER_SHA256_AARCH=)([A-Fa-f0-9]{64})/
+  def shaRegexAarch = /(ARG IQ_SERVER_SHA256_X86_64=)([A-Fa-f0-9]{64})/
   dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
       "\$1${version.substring(0, version.indexOf('-'))}\$3")
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${version}")
-  dockerFile = dockerFile.replaceAll(shaRegex, "\$1${checksum}")
+  dockerFile = dockerFile.replaceAll(shaRegexX64_64, "\$1${checksumX86_64}")
+  dockerFile = dockerFile.replaceAll(shaRegexAarch, "\$1${checksumAarch}")
 
   writeFile(file: 'Dockerfile.slim', text: dockerFile)
 }
@@ -96,8 +94,8 @@ void commitAndPushChanges(String version) {
     runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version}.'"
 
     // pull and merge any new commits on main so that the push doesn't fail
-   runSafely 'git pull --no-rebase --no-edit origin main'
-   runSafely 'git push origin HEAD:main'
+    runSafely 'git pull --no-rebase --no-edit origin main'
+    runSafely 'git push origin HEAD:main'
   }
 }
 
@@ -117,17 +115,17 @@ void pushImage(String imageName) {
                    docker trust key load $NEXUS_IQ_SERVER_REPOSITORY_KEY
                    docker trust key load $SONATYPE_KEY"""
 
-      // add signer - for this you need signers public key and repository keys password
       withCredentials([string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-        runSafely "docker trust signer add sonatype ${imageName} --key $SONATYPE_PUB"
-      }
-
-      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:${env.VERSION}-slim"
-      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:latest-slim"
-
-      withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
-        runSafely "docker image push ${imageName}:${env.VERSION}-slim"
-        runSafely "docker image push ${imageName}:latest-slim"
+        sh  """
+        curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
+        export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
+        export GOPATH=${env.WORKSPACE}
+        go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary@latest
+        notary --help
+        docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
+        export OCI_REPO="sonatype/nexus-iq-server"
+        ./build_and_push_images.sh ${env.VERSION} latest
+        """
       }
     }
   }
