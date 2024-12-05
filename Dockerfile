@@ -100,21 +100,6 @@ RUN mkdir -p ${IQ_HOME} \
 && chmod 0755 ${CONFIG_HOME} \
 && chmod 0755 ${LOGS_HOME}
 
-# Copy config.yml
-COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
-RUN chmod 0644 ${CONFIG_HOME}/config.yml
-
-# Copy server assemblies
-COPY --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
-
-# Create start script
-RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
-&& echo "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
-&& echo "wait" >> ${IQ_HOME}/start.sh \
-&& chmod 0755 ${IQ_HOME}/start.sh
-
-WORKDIR ${IQ_HOME}
-
 # Add group and user
 RUN groupadd -g ${GID} nexus \
 && adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
@@ -123,6 +108,21 @@ RUN groupadd -g ${GID} nexus \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
 && chown -R nexus:nexus ${LOGS_HOME}
+    
+# Copy config.yml
+COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
+RUN chmod 0644 ${CONFIG_HOME}/config.yml
+
+# Copy server assemblies
+COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
+
+# Create start script
+RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
+&& echo "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
+&& echo "wait" >> ${IQ_HOME}/start.sh \
+&& chmod 0755 ${IQ_HOME}/start.sh
+
+WORKDIR ${IQ_HOME}
 
 # enabling back support for SHA1 signed certificates
 RUN update-crypto-policies --set DEFAULT:SHA1
