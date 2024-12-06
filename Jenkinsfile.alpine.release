@@ -128,8 +128,8 @@ void pushImage(String imageName) {
         runSafely "docker trust signer add sonatype ${imageName} --key $SONATYPE_PUB"
       }
 
-      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:alpine-${env.VERSION}"
-      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:alpine-latest"
+      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:${env.VERSION}-alpine"
+      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:latest-alpine"
 
       withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
         runSafely "docker image push ${imageName}:${env.VERSION}-alpine"
