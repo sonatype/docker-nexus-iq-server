@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM docker-all.repo.sonatype.com/alpine:latest AS builder
+FROM docker-all.repo.sonatype.com/alpine:3 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.184.0-01
@@ -44,7 +44,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux_musl-* nexus-iq-server
 
 # hadolint ignore=DL3026
-FROM docker-all.repo.sonatype.com/alpine:latest
+FROM docker-all.repo.sonatype.com/alpine:3
 
 ARG IQ_SERVER_VERSION=1.184.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
