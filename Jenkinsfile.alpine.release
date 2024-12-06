@@ -66,13 +66,6 @@ dockerizedBuildPipeline(
     deploy: {
       pushImage(imageName)
     },
-    postDeploy: {
-      sonatypeZionGitConfig()
-      sshagent(credentials: [sonatypeZionCredentialsId()]) {
-        sh """git tag ${env.VERSION}
-            git push origin ${env.VERSION}"""
-      }
-    },
     onSuccess: {
       githubStatusUpdate('success')
     },
