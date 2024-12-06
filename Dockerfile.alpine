@@ -19,7 +19,7 @@ FROM docker-all.repo.sonatype.com/alpine:3 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.184.0-01
-ARG IQ_SERVER_SHA256=fc8a9f7cdf4117e5edf3862a9d7fe65e95a973d0775a37963fc49c7f1d19442d
+ARG IQ_SERVER_SHA256=92698a3b49378bd387b1bcff1ac64e1340c1f241a3eb918b5794a562185a68bd
 ARG SONATYPE_WORK="/sonatype-work"
 
 # hadolint ignore=DL3018
