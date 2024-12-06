@@ -22,7 +22,7 @@ ARG IQ_SERVER_VERSION=1.184.0-01
 ARG IQ_SERVER_SHA256=fc8a9f7cdf4117e5edf3862a9d7fe65e95a973d0775a37963fc49c7f1d19442d
 ARG SONATYPE_WORK="/sonatype-work"
 
-# hadolint ignore=DL3041,DL3040
+# hadolint ignore=DL3018
 RUN mkdir -p ${TEMP} && \
     apk update && \
     apk add --no-cache curl
@@ -78,7 +78,7 @@ LABEL name="Nexus IQ Server image" \
 USER root
 
 # For testing
-# hadolint ignore=DL3041
+# hadolint ignore=DL3018
 RUN apk update \
 && apk add --no-cache procps-ng gzip unzip tar findutils util-linux less rsync git which
 
