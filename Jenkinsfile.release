@@ -116,7 +116,6 @@ void pushImage(String imageName) {
       file(credentialsId: 'sonatype-key', variable: 'SONATYPE_KEY'),
       file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'NEXUS_IQ_SERVER_DCT_GUN_KEY'),
       string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE'),
-      string()
       [ $class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
         usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
 
