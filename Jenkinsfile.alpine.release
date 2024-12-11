@@ -40,6 +40,7 @@ dockerizedBuildPipeline(
       updateIQServerVersionAndChecksum(version, checksum)
       commitAndPushChanges(version)
     },
+    pathToDockerfile: './Dockerfile.alpine',
     setVersion: {
       env['VERSION'] = version.split('-')[0]
     },

@@ -38,6 +38,7 @@ dockerizedBuildPipeline(
   prepare: {
     githubStatusUpdate('pending')
   },
+  pathToDockerfile: "./Dockerfile.alpine",
   lint: {
     hadolint(['./Dockerfile.alpine'])
   },
