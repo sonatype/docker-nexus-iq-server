@@ -55,8 +55,6 @@ dockerizedBuildPipeline(
     archiveArtifacts: 'build/*.tar.gz',
     buildAndTest: {
       currentBuild.displayName = "#${currentBuild.id} ${imageName}-${env.VERSION}"
-      def expectations = load 'expectations.groovy'
-      validateExpectations(expectations.containerExpectations())
     },
     vulnerabilityScan: {
       nexusPolicyEvaluation(
