@@ -111,6 +111,7 @@ void pushImage(String imageName) {
 
   withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1', "TRUST_DIR=${env.WORKSPACE_TMP}/.dockerConfig/trust"]) {
     withCredentials([
+      usernamePassword(credentialsId: 'docker-admin-for-zion-nexus-3', usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD'),
       file(credentialsId: 'nexus-iq-server-repository-key', variable: 'NEXUS_IQ_SERVER_REPOSITORY_KEY'),
       file(credentialsId: 'sonatype-pub', variable: 'SONATYPE_PUB'),
       file(credentialsId: 'sonatype-key', variable: 'SONATYPE_KEY'),
