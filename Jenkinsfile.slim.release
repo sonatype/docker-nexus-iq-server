@@ -103,7 +103,7 @@ void pushImage(String imageName) {
   runSafely "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'"
   runSafely "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true"
 
-  withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1']) {
+  withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1', "TRUST_DIR=${env.WORKSPACE_TMP}/.dockerConfig/trust"]) {
     withCredentials([
       file(credentialsId: 'nexus-iq-server-repository-key', variable: 'NEXUS_IQ_SERVER_REPOSITORY_KEY'),
       file(credentialsId: 'sonatype-pub', variable: 'SONATYPE_PUB'),
@@ -114,21 +114,22 @@ void pushImage(String imageName) {
         usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
 
       runSafely """docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
+                   ls $TRUST_DIR
                    docker trust key load $NEXUS_IQ_SERVER_REPOSITORY_KEY
                    docker trust key load $SONATYPE_KEY
                    docker trust key load $NEXUS_IQ_SERVER_DCT_GUN_KEY"""
-
-      sh  """
-      curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
-      export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
-      export GOPATH=${env.WORKSPACE}
-      go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary@latest
-      notary --help
-      docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
-      export OCI_REPO="sonatype/nexus-iq-server"
-      ./build_and_push_images.sh "${env.VERSION}-slim" "latest-slim"
-      """
-
+      withSonatypeDockerRegistry() {
+        sh """
+        curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
+        export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
+        export GOPATH=${env.WORKSPACE}
+        go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary@latest
+        notary --help
+        docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
+        export OCI_REPO="sonatype/nexus-iq-server"
+        ./build_and_push_images.sh "${env.VERSION}-slim" "latest-slim"
+        """
+      }
     }
   }
 }
