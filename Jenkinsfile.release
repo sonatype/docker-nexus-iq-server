@@ -120,7 +120,7 @@ void pushImage(String imageName) {
       runSafely """docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
                    docker trust key load $NEXUS_IQ_SERVER_REPOSITORY_KEY
                    docker trust key load $SONATYPE_KEY
-                   ls ${env.HOME}/.docker/trust/private/"""
+                   ls ${env.WORKSPACE_TMP}/.docker/trust/private/"""
 
       withCredentials([string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
         sh  """
