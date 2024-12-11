@@ -21,6 +21,7 @@ set -o nounset                              # Treat unset variables as an error
 
 # Enable for debugging
 set -x
+set -e
 
 # This is used by the notary tool for auth
 export NOTARY_AUTH="$(printf "${DOCKERHUB_API_USERNAME}:${DOCKERHUB_API_PASSWORD}" | base64)"

@@ -120,7 +120,6 @@ void pushImage(String imageName) {
         usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
 
       runSafely """docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
-                   docker login --username ${JENKINS_DOCKER_USERNAME} --password ${JENKINS_DOCKER_PASSWORD}
                    docker trust key load $NEXUS_IQ_SERVER_REPOSITORY_KEY
                    docker trust key load $SONATYPE_KEY
                    docker trust key load $NEXUS_IQ_SERVER_DCT_GUN_KEY"""
