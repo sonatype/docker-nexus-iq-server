@@ -42,6 +42,10 @@ dockerizedBuildPipeline(
   lint: {
     hadolint(['./Dockerfile.alpine'])
   },
+  buildAndTest: {
+    def expectations = load 'alpine-expectations.groovy'
+    validateExpectations(expectations.containerExpectations())
+  },
   vulnerabilityScan: {
     def theStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
     nexusPolicyEvaluation(
