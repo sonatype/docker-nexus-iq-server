@@ -1,3 +1,4 @@
+#
 # Copyright (c) 2017-present Sonatype, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,15 +12,41 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/openjdk-17:1.20-2
-
-# Build parameters
-ARG IQ_SERVER_VERSION=1.165.0-01
-ARG IQ_SERVER_SHA256=582376f426406cc3e361fd8eed79e87d62adf0f33395e11c1f7ab31d9df1786d
-ARG IQ_RELEASE="1.165.0"
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5 AS builder
 ARG TEMP="/tmp/work"
+# Build parameters
+ARG IQ_SERVER_VERSION=1.185.0-01
+ARG IQ_SERVER_SHA256=2cec0a481850b86a9ef81361511c33fc6252ac931f3413e133246bdaab8c8332
+ARG SONATYPE_WORK="/sonatype-work"
+
+# hadolint ignore=DL3041,DL3040
+RUN mkdir -p ${TEMP} && \
+    microdnf update -y && \
+    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which crypto-policies crypto-policies-scripts
+
+# Copy config.yml and set sonatypeWork to the correct value
+COPY config.yml ${TEMP}
+
+# hadolint ignore=DL4006,SC3060
+RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${TEMP}/config-edited.yml
+
+# Download the server bundle, verify its checksum, and extract the server jar to the install directory
+WORKDIR ${TEMP}
+
+RUN echo "${IQ_SERVER_SHA256} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256 && \
+ curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz
+
+RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
+    && tar -xvf nexus-iq-server.tar.gz \
+    && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
+
+# hadolint ignore=DL3026
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5
+
+ARG IQ_SERVER_VERSION=1.185.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -53,47 +80,21 @@ USER root
 # For testing
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which\
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which crypto-policies crypto-policies-scripts \
 && microdnf clean all
 
 # Create folders & set permissions
-RUN mkdir -p ${TEMP} \
-&& mkdir -p ${IQ_HOME} \
+RUN mkdir -p ${IQ_HOME} \
 && mkdir -p ${SONATYPE_WORK} \
 && mkdir -p ${CONFIG_HOME} \
 && mkdir -p ${LOGS_HOME} \
-&& chmod 0755 ${TEMP} \
 && chmod 0755 "/opt/sonatype" ${IQ_HOME} \
 && chmod 0755 ${CONFIG_HOME} \
 && chmod 0755 ${LOGS_HOME}
 
-# Copy config.yml and set sonatypeWork to the correct value
-COPY config.yml ${TEMP}
-# hadolint ignore=DL4006,SC3060
-RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${CONFIG_HOME}/config.yml \
-&& chmod 0644 ${CONFIG_HOME}/config.yml
-
-# Create start script
-RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
-&& echo "/usr/bin/java \${JAVA_OPTS} -jar nexus-iq-server-${IQ_SERVER_VERSION}.jar server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
-&& echo "wait" >> ${IQ_HOME}/start.sh \
-&& chmod 0755 ${IQ_HOME}/start.sh
-
-
-# Download the server bundle, verify its checksum, and extract the server jar to the install directory
-WORKDIR ${TEMP} 
-RUN curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz --output nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
-&& echo "${IQ_SERVER_SHA256} nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz" > nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
-&& sha256sum -c nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz.sha256 \
-&& tar -xvf nexus-iq-server-${IQ_SERVER_VERSION}-bundle.tar.gz \
-&& mv nexus-iq-server-${IQ_SERVER_VERSION}.jar ${IQ_HOME} 
-WORKDIR ${IQ_HOME} 
-RUN rm -rf ${TEMP} \
-\
 # Add group and user
-&& groupadd -g ${GID} nexus \
+RUN groupadd -g ${GID} nexus \
 && adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
-\
 # Change owner to nexus user
 && chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
@@ -109,6 +110,21 @@ RUN usermod -a -G root nexus \
 && chmod 0755 /uid_template.sh \
 && bash /uid_template.sh \
 && chmod 0664 /etc/passwd
+
+# Copy config.yml
+COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
+RUN chmod 0644 ${CONFIG_HOME}/config.yml
+
+# Copy server assemblies
+COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
+
+# Create start script
+RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
+&& echo "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
+&& echo "wait" >> ${IQ_HOME}/start.sh \
+&& chmod 0755 ${IQ_HOME}/start.sh
+
+WORKDIR ${IQ_HOME}
 
 # enabling back support for SHA1 signed certificates
 RUN update-crypto-policies --set DEFAULT:SHA1
@@ -127,8 +143,8 @@ HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthch
 # Change to nexus user
 USER nexus
 
-ENV JAVA_OPTS="--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.rsa=ALL-UNNAMED --add-opens=java.base/sun.security.x509=ALL-UNNAMED --add-opens=java.base/sun.security.util=ALL-UNNAMED --add-opens=java.xml/com.sun.org.apache.xerces.internal.jaxp.datatype=ALL-UNNAMED -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs"
-ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker-RedHat
+ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "
+ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 
 WORKDIR ${IQ_HOME}
 
