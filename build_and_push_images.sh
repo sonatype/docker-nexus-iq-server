@@ -64,7 +64,7 @@ for TAG in $TAGS; do
   echo "Sign ${SHA_256} with the notary"
 
   echo "Signing the manifest list"
-  notary -D -s https://notary.docker.io -d "${TRUST_DIR}" addhash "${REF}" "${TAG}" "${BYTES_SIZE}" --sha256 "${SHA_256}" --publish --verbose --roles targets/sonatype --roles targets
+  notary -s https://notary.docker.io -d "${TRUST_DIR}" addhash "${REF}" "${TAG}" "${BYTES_SIZE}" --sha256 "${SHA_256}" --publish --verbose --roles targets/sonatype --roles targets
   docker trust inspect --pretty "${REF}:${TAG}"
 done
 
