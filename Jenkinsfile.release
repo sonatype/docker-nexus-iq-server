@@ -114,8 +114,9 @@ void pushImage(String imageName) {
         file(credentialsId: 'sonatype_docker_root_private_key', variable: 'SONATYPE_DOCKER_ROOT_PRIVATE_KEY'),
         file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'NEXUS_IQ_SERVER_DCT_GUN_KEY'),
         file(credentialsId: 'nexus-iq-server_dct_root_key', variable: 'NEXUS_IQ_SERVER_DCT_ROOT_KEY'),
-        string(credentialsId: 'sonatype_docker_root_pw', variable: 'SONATYPE_DOCKER_ROOT_PW'),
-        string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'NEXUS_IQ_SERVER_DCT_REG_PW'),
+        string(credentialsId: 'sonatype_docker_root_pw', variable: 'NOTARY_DELEGATION_PASSPHRASE'),
+        string(credentialsId: 'sonatype_docker_root_pw', variable: 'NOTARY_ROOT_PASSPHRASE'),
+        string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'NOTARY_TARGETS_PASSPHRASE'),
       [ $class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
         usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
 
@@ -134,7 +135,6 @@ void pushImage(String imageName) {
         notary --help
         docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
         export OCI_REPO="sonatype/nexus-iq-server"
-        export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE="${NEXUS_IQ_SERVER_DCT_REG_PW}"
         ./build_and_push_images.sh testing testinglatest
         """
       }
