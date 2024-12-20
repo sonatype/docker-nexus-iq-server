@@ -126,7 +126,7 @@ void pushImage(String imageName) {
                   cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private
                   ls -lah ${TRUST_DIR}/private"""
       withSonatypeDockerRegistry() {
-        sh """
+        runSafely """
         curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
         export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
         export GOPATH=${env.WORKSPACE}
@@ -135,7 +135,6 @@ void pushImage(String imageName) {
         docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
         export OCI_REPO="sonatype/nexus-iq-server"
         export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE="${NEXUS_IQ_SERVER_DCT_REG_PW}"
-        echo "First char: \${DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE:0:1}"
         ./build_and_push_images.sh testing testinglatest
         """
       }
