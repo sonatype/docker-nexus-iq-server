@@ -120,10 +120,10 @@ void pushImage(String imageName) {
         usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
 
       runSafely """docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
-                  mkdir -p ${TRUST_DIR} || true
-                  cp '${SONATYPE_DOCKER_ROOT_PRIVATE_KEY}' ${TRUST_DIR}
-                  cp '${NEXUS_IQ_SERVER_DCT_GUN_KEY}' ${TRUST_DIR}
-                  cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}
+                  mkdir -p ${TRUST_DIR}/private || true
+                  cp '${SONATYPE_DOCKER_ROOT_PRIVATE_KEY}' ${TRUST_DIR}/private
+                  cp '${NEXUS_IQ_SERVER_DCT_GUN_KEY}' ${TRUST_DIR}/private
+                  cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private
                   ls -lah ${TRUST_DIR}/private"""
       withSonatypeDockerRegistry() {
         sh """
