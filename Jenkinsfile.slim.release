@@ -105,20 +105,22 @@ void pushImage(String imageName) {
 
   withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1', "TRUST_DIR=${env.WORKSPACE_TMP}/.dockerConfig/trust"]) {
     withCredentials([
-      file(credentialsId: 'nexus-iq-server-repository-key', variable: 'NEXUS_IQ_SERVER_REPOSITORY_KEY'),
-      file(credentialsId: 'sonatype-pub', variable: 'SONATYPE_PUB'),
-      file(credentialsId: 'sonatype-key', variable: 'SONATYPE_KEY'),
-      file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'NEXUS_IQ_SERVER_DCT_GUN_KEY'),
-      string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE'),
+        file(credentialsId: 'sonatype_docker_root_private_key', variable: 'SONATYPE_DOCKER_ROOT_PRIVATE_KEY'),
+        file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'NEXUS_IQ_SERVER_DCT_GUN_KEY'),
+        file(credentialsId: 'nexus-iq-server_dct_root_key', variable: 'NEXUS_IQ_SERVER_DCT_ROOT_KEY'),
+        string(credentialsId: 'sonatype_docker_root_pw', variable: 'NOTARY_DELEGATION_PASSPHRASE'),
+        string(credentialsId: 'sonatype_docker_root_pw', variable: 'NOTARY_ROOT_PASSPHRASE'),
+        string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'NOTARY_TARGETS_PASSPHRASE'),
       [ $class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
         usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
 
       runSafely """docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
-                   docker trust key load $NEXUS_IQ_SERVER_REPOSITORY_KEY
-                   docker trust key load $SONATYPE_KEY
-                   docker trust key load $NEXUS_IQ_SERVER_DCT_GUN_KEY"""
+                   mkdir -p ${TRUST_DIR}/private
+                   cp '${SONATYPE_DOCKER_ROOT_PRIVATE_KEY}' ${TRUST_DIR}/private
+                   cp '${NEXUS_IQ_SERVER_DCT_GUN_KEY}' ${TRUST_DIR}/private
+                   cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private"""
       withSonatypeDockerRegistry() {
-        sh """
+        runSafely """
         curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
         export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
         export GOPATH=${env.WORKSPACE}

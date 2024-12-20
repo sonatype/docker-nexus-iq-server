@@ -121,11 +121,10 @@ void pushImage(String imageName) {
         usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
 
       runSafely """docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
-                  mkdir -p ${TRUST_DIR}/private || true
-                  cp '${SONATYPE_DOCKER_ROOT_PRIVATE_KEY}' ${TRUST_DIR}/private
-                  cp '${NEXUS_IQ_SERVER_DCT_GUN_KEY}' ${TRUST_DIR}/private
-                  cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private
-                  ls -lah ${TRUST_DIR}/private"""
+                   mkdir -p ${TRUST_DIR}/private
+                   cp '${SONATYPE_DOCKER_ROOT_PRIVATE_KEY}' ${TRUST_DIR}/private
+                   cp '${NEXUS_IQ_SERVER_DCT_GUN_KEY}' ${TRUST_DIR}/private
+                   cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private"""
       withSonatypeDockerRegistry() {
         runSafely """
         curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
