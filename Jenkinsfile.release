@@ -135,6 +135,7 @@ void pushImage(String imageName) {
         docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
         export OCI_REPO="sonatype/nexus-iq-server"
         export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE="${NEXUS_IQ_SERVER_DCT_REG_PW}"
+        echo "First char: \${DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE:0:1}"
         ./build_and_push_images.sh testing testinglatest
         """
       }

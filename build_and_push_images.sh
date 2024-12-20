@@ -64,8 +64,9 @@ for TAG in $TAGS; do
   echo "Sign ${SHA_256} with the notary"
 
   echo "Signing the manifest list"
+  notary -s https://notary.docker.io -d "${TRUST_DIR}" status "${REF}" "${TAG}"
   # Notes: Through testing, this doesn't work with docker cli unless the roles is "targets". Other online sources had other values
-  echo "${DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE}" | notary -s https://notary.docker.io -d "${TRUST_DIR}" addhash "${REF}" "${TAG}" "${BYTES_SIZE}" --sha256 "${SHA_256}" --roles targets --publish --verbose
+  echo "${DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE}" | notary -s https://notary.docker.io -d "${TRUST_DIR}" addhash "${REF}" "${TAG}" "${BYTES_SIZE}" --sha256 "${SHA_256}" --publish --verbose
 
   docker trust inspect --pretty "${REF}:${TAG}"
 done
