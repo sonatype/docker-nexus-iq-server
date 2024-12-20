@@ -122,7 +122,8 @@ void pushImage(String imageName) {
       runSafely """docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
                    docker trust key load $NEXUS_IQ_SERVER_REPOSITORY_KEY
                    docker trust key load $SONATYPE_KEY
-                   docker trust key load $NEXUS_IQ_SERVER_DCT_GUN_KEY"""
+                   docker trust key load $NEXUS_IQ_SERVER_DCT_GUN_KEY
+                   ls -lah ${TRUST_DIR}/private"""
       withSonatypeDockerRegistry() {
         sh """
         curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
