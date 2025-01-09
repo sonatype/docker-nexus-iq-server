@@ -134,7 +134,7 @@ void pushImage(String imageName) {
         notary --help
         docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
         export OCI_REPO="sonatype/nexus-iq-server"
-        ./build_and_push_images.sh testing testinglatest
+        ./build_and_push_images.sh ${env.VERSION} latest
         """
       }
 
