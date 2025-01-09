@@ -33,7 +33,7 @@ String checksumX86_64 = ''
 String checksumAarch = ''
 
 dockerizedBuildPipeline(
-  deployBranch: 'debug_release',
+  deployBranch: 'main',
   prepare: {
     githubStatusUpdate('pending')
     version = getVersionFromBuildName(env.releaseBuild_NAME)
