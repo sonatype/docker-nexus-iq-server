@@ -47,6 +47,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5
 
 ARG IQ_SERVER_VERSION=1.185.0-01
+ARG IQ_RELEASE
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
