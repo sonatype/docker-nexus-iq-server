@@ -80,7 +80,7 @@ USER root
 # For testing
 # hadolint ignore=DL3018
 RUN apk update \
-&& apk add --no-cache procps-ng gzip unzip tar findutils util-linux less rsync git which
+&& apk add --no-cache procps-ng gzip unzip tar findutils util-linux less rsync git which curl
 
 # Create folders & set permissions
 RUN mkdir -p ${IQ_HOME} \
