@@ -33,7 +33,7 @@ def containerExpectations() {
     new Expectation('data-directory', 'test', '-d /sonatype-work/data | echo $?', '0'),
     new Expectation('config-directory', 'ls', '-la /etc | grep nexus-iq-server | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}\'', 'drwxr-xr-x nexus nexus nexus-iq-server'),
     new Expectation('config-file', 'test', '-f /etc/nexus-iq-server | echo $?', '0'),
-    new Expectation('curl', 'curl --version | echo $?', '0')
+    new Expectation('curl', 'curl', '--version | echo $?', '0')
   ]
 }
 
