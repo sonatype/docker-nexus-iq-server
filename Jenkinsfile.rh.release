@@ -35,7 +35,7 @@ node('ubuntu-zion') {
       env.IQ_SERVER_CHECKSUM = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${env.IQ_SERVER_VERSION}-linux-x86_64.tgz.sha256").trim()
       env.IQ_RELEASE = env.IQ_SERVER_VERSION.split("-")[0]
       env.PF_VERSION = sh( returnStdout: true, script:
-          "curl -L -H 'Accept: application/vnd.github+json' https://api.github.com/repos/redhat-openshift-ecosystem/openshift-preflight/git/refs/tags | jq -r '.[-1].ref' | cut -d'/' -f 3"
+          "curl -s -L -H 'Accept: application/vnd.github+json' https://api.github.com/repos/redhat-openshift-ecosystem/openshift-preflight/git/refs/tags | jq -r '.[].ref' | cut -d'/' -f 3 | sort -V | tail -1"
           ).trim()
 
       deleteDir()
