@@ -37,8 +37,8 @@ dockerizedBuildPipeline(
       githubStatusUpdate('pending')
       version = getVersionFromBuildName(env.releaseBuild_NAME)
       checksum = readBuildArtifact('insight/insight-brain/patch-releases/1.196.1_patch/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux_musl-x86_64.tgz.sha256").trim()
-      updateIQServerVersionAndChecksum(version, checksum)
-      commitAndPushChanges(version)
+      // updateIQServerVersionAndChecksum(version, checksum)
+      // commitAndPushChanges(version)
     },
     pathToDockerfile: './Dockerfile.alpine',
     setVersion: {

@@ -39,8 +39,8 @@ dockerizedBuildPipeline(
     version = getVersionFromBuildName(env.releaseBuild_NAME)
     checksumX86_64 = readBuildArtifact('insight/insight-brain/patch-releases/1.196.1_patch/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-x86_64.tgz.sha256").trim()
     checksumAarch = readBuildArtifact('insight/insight-brain/patch-releases/1.196.1_patch/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-aarch_64.tgz.sha256").trim()
-    updateIQServerVersionAndChecksum(version, checksumX86_64, checksumAarch)
-    commitAndPushChanges(version)
+    // updateIQServerVersionAndChecksum(version, checksumX86_64, checksumAarch)
+    // commitAndPushChanges(version)
   },
   pathToDockerfile: './Dockerfile.slim',
   setVersion: {
