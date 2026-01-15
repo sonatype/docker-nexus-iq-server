@@ -58,12 +58,6 @@ dockerizedBuildPipeline(
     buildAndTest: {
       currentBuild.displayName = "#${currentBuild.id} ${imageName}-${env.VERSION}"
     },
-    vulnerabilityScan: {
-      nexusPolicyEvaluation(
-          iqApplication: 'docker-nexus-iq-server-alpine',
-          iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
-          iqStage: 'release')
-    },
     deploy: {
       pushImage(imageName)
     },

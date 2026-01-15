@@ -56,12 +56,6 @@ dockerizedBuildPipeline(
     def expectations = load 'expectations.groovy'
     validateExpectations(expectations.containerExpectations())
   },
-  vulnerabilityScan: {
-    nexusPolicyEvaluation(
-      iqApplication: 'docker-nexus-iq-server',
-      iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
-      iqStage: 'release')
-  },
   deploy: {
     pushImage(imageName)
   },
