@@ -22,7 +22,7 @@ properties([
     parameters([
         run(name: 'releaseBuild',
             filter: 'SUCCESSFUL',
-            projectName: 'insight/insight-brain/release',
+            projectName: 'insight/insight-brain/patch-releases/1.196.1_patch/release',
             description: 'The latest release of IQ Server to build the docker image')
     ])
 ])
@@ -36,7 +36,7 @@ dockerizedBuildPipeline(
     prepare: {
       githubStatusUpdate('pending')
       version = getVersionFromBuildName(env.releaseBuild_NAME)
-      checksum = readBuildArtifact('insight/insight-brain/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux_musl-x86_64.tgz.sha256").trim()
+      checksum = readBuildArtifact('insight/insight-brain/patch-releases/1.196.1_patch/release', env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux_musl-x86_64.tgz.sha256").trim()
       updateIQServerVersionAndChecksum(version, checksum)
       commitAndPushChanges(version)
     },
