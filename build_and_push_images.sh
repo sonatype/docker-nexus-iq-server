@@ -34,8 +34,8 @@ REF="${OCI_REGISTRY:-docker.io}/${REPO}"
 TAGS="$@"
 DOCKERFILE=${DOCKERFILE:-Dockerfile}
 
-ARM64_TAG=arm64-latest
-AMD64_TAG=amd64-latest
+ARM64_TAG=arm64-1.196.1
+AMD64_TAG=amd64-1.196.1
 
 echo "Building images"
 docker buildx build --progress=plain --platform=linux/arm64 -f ${DOCKERFILE} --push --provenance=false --tag "${REF}:${ARM64_TAG}" .
