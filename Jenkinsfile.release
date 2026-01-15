@@ -44,6 +44,9 @@ dockerizedBuildPipeline(
   },
   setVersion: {
     env['VERSION'] = version.split('-')[0]
+    env['IQ_SERVER_VERSION'] = version
+    env['IQ_SERVER_SHA256_X86_64'] = checksumX86_64
+    env['IQ_SERVER_SHA256_AARCH'] = checksumAarch
   },
   lint: {
     hadolint(['./Dockerfile'])

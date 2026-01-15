@@ -38,8 +38,14 @@ ARM64_TAG=arm64-1.196.1
 AMD64_TAG=amd64-1.196.1
 
 echo "Building images"
-docker buildx build --progress=plain --platform=linux/arm64 -f ${DOCKERFILE} --push --provenance=false --tag "${REF}:${ARM64_TAG}" .
-docker buildx build --progress=plain --platform=linux/amd64 -f ${DOCKERFILE} --push --provenance=false --tag "${REF}:${AMD64_TAG}" .
+docker buildx build --progress=plain --platform=linux/arm64 -f ${DOCKERFILE} \
+  --build-arg IQ_SERVER_VERSION="${IQ_SERVER_VERSION}" \
+  --build-arg IQ_SERVER_SHA256_AARCH="${IQ_SERVER_SHA256_AARCH}" \
+  --push --provenance=false --tag "${REF}:${ARM64_TAG}" .
+docker buildx build --progress=plain --platform=linux/amd64 -f ${DOCKERFILE} \
+  --build-arg IQ_SERVER_VERSION="${IQ_SERVER_VERSION}" \
+  --build-arg IQ_SERVER_SHA256_X86_64="${IQ_SERVER_SHA256_X86_64}" \
+  --push --provenance=false --tag "${REF}:${AMD64_TAG}" .
 
 for TAG in $TAGS; do
   echo "Creating manifest"
