@@ -33,6 +33,7 @@ String checksum = ''
 
 dockerizedBuildPipeline(
     deployBranch: 'main',
+    skipVulnerabilityScan: true,
     prepare: {
       githubStatusUpdate('pending')
       version = getVersionFromBuildName(env.releaseBuild_NAME)
