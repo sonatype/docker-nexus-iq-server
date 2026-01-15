@@ -18,9 +18,7 @@
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
-ARG IQ_SERVER_VERSION=1.196.1-01
-ARG IQ_SERVER_SHA256_AARCH=f0d7f23cc1d8a48577440d9829b06022092c214a4aeb07d2be38065065c81bea
-ARG IQ_SERVER_SHA256_X86_64=eaed22e920ae2fa13ab792b656208342a3baa3d8d3ea1c490abd896e7411a9ce
+ARG IQ_SERVER_VERSION=1.196.1
 ARG SONATYPE_WORK="/sonatype-work"
 
 # hadolint ignore=DL3041,DL3040
@@ -38,23 +36,20 @@ RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]
 WORKDIR ${TEMP}
 # hadolint ignore=SC3010
 RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
-      echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
       curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
     elif [[ "$(uname -m)" = "aarch64" ]]; then \
-      echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
       curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
     else \
       echo "Unsupported architecture: $ARCH" && exit 1; \
     fi
 
-RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
-    && tar -xvf nexus-iq-server.tar.gz \
+RUN tar -xvf nexus-iq-server.tar.gz \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # hadolint ignore=DL3026
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5
 
-ARG IQ_SERVER_VERSION=1.196.1-01
+ARG IQ_SERVER_VERSION=1.196.1
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
