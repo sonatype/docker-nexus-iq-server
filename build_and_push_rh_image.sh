@@ -35,19 +35,16 @@ CERT_PROJECT_ID=5e61602c2f3c1acdd05f61d3
 
 REPOSITORY="quay.io"
 IMAGE_TAG="${REPOSITORY}/redhat-isv-containers/${CERT_PROJECT_ID}:${TAG}"
-IMAGE_LATEST="${REPOSITORY}/redhat-isv-containers/${CERT_PROJECT_ID}:latest"
 
 AUTHFILE="${HOME}/.docker/config.json"
 
 docker build -f "${DOCKERFILE}" --build-arg IQ_SERVER_VERSION="${VERSION}" --build-arg IQ_SERVER_SHA256="${CHECKSUM}" --build-arg IQ_RELEASE="${RELEASE}" -t "${IMAGE_TAG}" .
-docker tag "${IMAGE_TAG}" "${IMAGE_LATEST}"
 
 docker login "${REPOSITORY}" \
        -u "${REGISTRY_LOGIN}" \
        --password "${REGISTRY_PASSWORD}"
 
 docker push "${IMAGE_TAG}"
-docker push "${IMAGE_LATEST}"
 
 preflight check container \
           "${IMAGE_TAG}" \
