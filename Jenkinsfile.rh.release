@@ -66,6 +66,6 @@ node('ubuntu-zion') {
   } finally {
     sh 'docker logout'
     sh 'docker system prune -a -f'
-    sh 'git clean -f && git reset --hard origin/main'
+    sh 'git clean -f && git reset --hard origin/CLM-38159_1.196_patch_release'
   }
 }

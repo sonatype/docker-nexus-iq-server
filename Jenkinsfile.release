@@ -33,7 +33,7 @@ String checksumX86_64 = ''
 String checksumAarch = ''
 
 dockerizedBuildPipeline(
-  deployBranch: 'main',
+  deployBranch: 'CLM-38159_1.196_patch_release',
   skipVulnerabilityScan: true,
   prepare: {
     githubStatusUpdate('pending')
