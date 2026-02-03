@@ -18,8 +18,8 @@
 FROM docker-all.repo.sonatype.com/alpine:3 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
-ARG IQ_SERVER_VERSION=1.199.0-01
-ARG IQ_SERVER_SHA256=c2530be7a01c6b5e8f4970bb45d8be87e88be34a33c8c2978bb4f2919ee4cf74
+ARG IQ_SERVER_VERSION=1.200.0-01
+ARG IQ_SERVER_SHA256=89d39146f9aa53798d07b1cc3adbb26d7e4ffa20921322a95e230c55c007c690
 ARG SONATYPE_WORK="/sonatype-work"
 
 # hadolint ignore=DL3018
@@ -46,7 +46,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
 # hadolint ignore=DL3026
 FROM docker-all.repo.sonatype.com/alpine:3
 
-ARG IQ_SERVER_VERSION=1.199.0-01
+ARG IQ_SERVER_VERSION=1.200.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -59,7 +59,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.199.0" \
+  release="1.200.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
