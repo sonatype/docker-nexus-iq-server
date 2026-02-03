@@ -23,10 +23,10 @@ properties([
     ),
     run(name: 'releaseBuild',
     filter: 'SUCCESSFUL',
-    projectName: 'insight/insight-brain/release',
+    projectName: 'insight/insight-brain/aggregate-release',
     description: 'The latest release of IQ Server to build the docker image'),
     string(name: 'sourceJob',
-        defaultValue: 'insight/insight-brain/release',
+        defaultValue: 'insight/insight-brain/aggregate-release',
         description: 'Job path to read artifacts from')
   ]),
 ])
