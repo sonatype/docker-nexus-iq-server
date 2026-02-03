@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5 AS builder
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.199.0-01
@@ -52,7 +52,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7
 
 ARG IQ_SERVER_VERSION=1.199.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
