@@ -15,26 +15,42 @@
 #
 
 # === Packages stage ===
-# Uses a Wolfi base with apk to install runtime dependencies into an isolated
-# root. This ensures all transitive deps (shared libs, etc.) are captured
-# automatically and stay correct as packages evolve over time.
+# Uses a Wolfi base with apk to:
+# 1. Install runtime dependencies (git, tini) into an isolated root
+# 2. Download and verify the IQ Server binary (needs wget which the dev image lacks)
 # hadolint ignore=DL3026,DL3018
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
+ARG IQ_SERVER_VERSION=1.201.0-02
+ARG IQ_SERVER_SHA256_AARCH=dcaeb10bd6caf4b073ad5453d87e3214f57ed60a25701ee65ba0db695b8fbacd
+ARG IQ_SERVER_SHA256_X86_64=d3e16ee86eac5b0d00792ad2aa27c74faea19cc4083b35eb540b1b48604baa1e
+
+# Install runtime deps into isolated root for later COPY to runtime image
 RUN apk add --no-cache --initdb --root /runtime-deps \
         --keys-dir /etc/apk/keys \
         --repositories-file /etc/apk/repositories \
         tini-static \
         git
 
+# Download the server bundle, verify its checksum, and extract it
+WORKDIR /tmp/download
+RUN if [ "$(uname -m)" = "x86_64" ]; then \
+      echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
+      wget -q -O nexus-iq-server.tar.gz https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz; \
+    elif [ "$(uname -m)" = "aarch64" ]; then \
+      echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
+      wget -q -O nexus-iq-server.tar.gz https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz; \
+    else \
+      echo "Unsupported architecture: $(uname -m)" && exit 1; \
+    fi \
+    && sha256sum -c nexus-iq-server.tar.gz.sha256 \
+    && tar -xvf nexus-iq-server.tar.gz \
+    && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
+
 # === Builder stage ===
-# Uses the dev variant which includes busybox/shell for build operations
+# Uses the JDK dev variant for javac (healthcheck) and sed (config)
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jdk:openjdk-17-dev AS builder
 ARG TEMP="/tmp/work"
-# Build parameters
-ARG IQ_SERVER_VERSION=1.201.0-02
-ARG IQ_SERVER_SHA256_AARCH=dcaeb10bd6caf4b073ad5453d87e3214f57ed60a25701ee65ba0db695b8fbacd
-ARG IQ_SERVER_SHA256_X86_64=d3e16ee86eac5b0d00792ad2aa27c74faea19cc4083b35eb540b1b48604baa1e
 ARG SONATYPE_WORK="/sonatype-work"
 
 RUN mkdir -p ${TEMP}
@@ -46,22 +62,6 @@ COPY config.yml .
 
 # hadolint ignore=SC3060
 RUN sed -ri "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" config.yml
-
-# Download the server bundle, verify its checksum, and extract the server jar to the install directory
-# hadolint ignore=SC3010
-RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
-      echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      wget -q -O nexus-iq-server.tar.gz https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz; \
-    elif [[ "$(uname -m)" = "aarch64" ]]; then \
-      echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      wget -q -O nexus-iq-server.tar.gz https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz; \
-    else \
-      echo "Unsupported architecture: $(uname -m)" && exit 1; \
-    fi
-
-RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
-    && tar -xvf nexus-iq-server.tar.gz \
-    && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # Compile the Java healthcheck class (used instead of curl in the distroless runtime)
 COPY healthcheck.java .
@@ -122,7 +122,7 @@ COPY --from=builder /tmp/work/config.yml ${CONFIG_HOME}/config.yml
 RUN chmod 0644 ${CONFIG_HOME}/config.yml
 
 # Copy server assemblies
-COPY --chown=nonroot:nonroot --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
+COPY --chown=nonroot:nonroot --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
 
 # Copy healthcheck class (precompiled in builder - replaces curl dependency)
 COPY --from=builder /tmp/work/healthcheck.class /opt/sonatype/healthcheck/healthcheck.class
