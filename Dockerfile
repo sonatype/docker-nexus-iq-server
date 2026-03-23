@@ -118,17 +118,17 @@ RUN mkdir -p ${IQ_HOME} \
 && chmod 0755 "/opt/sonatype" ${IQ_HOME} \
 && chmod 0755 ${CONFIG_HOME} \
 && chmod 0755 ${LOGS_HOME} \
-&& chown -R nonroot:nonroot ${IQ_HOME} \
-&& chown -R nonroot:nonroot ${SONATYPE_WORK} \
-&& chown -R nonroot:nonroot ${CONFIG_HOME} \
-&& chown -R nonroot:nonroot ${LOGS_HOME}
+&& chown -R 65532:65532 ${IQ_HOME} \
+&& chown -R 65532:65532 ${SONATYPE_WORK} \
+&& chown -R 65532:65532 ${CONFIG_HOME} \
+&& chown -R 65532:65532 ${LOGS_HOME}
 
 # Copy config.yml
 COPY --from=builder /tmp/work/config.yml ${CONFIG_HOME}/config.yml
 RUN chmod 0644 ${CONFIG_HOME}/config.yml
 
 # Copy server assemblies
-COPY --chown=nonroot:nonroot --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
+COPY --chown=65532:65532 --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
 
 # Copy healthcheck class (precompiled in builder - replaces curl dependency)
 COPY --from=builder /tmp/work/healthcheck.class /opt/sonatype/healthcheck/healthcheck.class
