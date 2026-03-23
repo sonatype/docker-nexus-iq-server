@@ -24,8 +24,9 @@ ARG IQ_SERVER_VERSION=1.201.0-02
 ARG IQ_SERVER_SHA256_AARCH=dcaeb10bd6caf4b073ad5453d87e3214f57ed60a25701ee65ba0db695b8fbacd
 ARG IQ_SERVER_SHA256_X86_64=d3e16ee86eac5b0d00792ad2aa27c74faea19cc4083b35eb540b1b48604baa1e
 
-# Install runtime deps into isolated root for later COPY to runtime image
-RUN apk add --no-cache --initdb --root /runtime-deps \
+# Install wget for downloading, then install runtime deps into isolated root
+RUN apk add --no-cache wget \
+    && apk add --no-cache --initdb --root /runtime-deps \
         --keys-dir /etc/apk/keys \
         --repositories-file /etc/apk/repositories \
         tini-static \
