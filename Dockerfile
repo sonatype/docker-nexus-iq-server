@@ -102,6 +102,9 @@ LABEL name="Nexus IQ Server image" \
   io.openshift.expose-services="8071:8071" \
   io.openshift.tags="Sonatype,Nexus,IQ Server"
 
+# The infosec runtime image defaults to a non-root user; switch to root for setup
+USER root
+
 # Copy runtime dependencies (git, tini) and all their transitive deps from the
 # packages stage
 COPY --from=packages /runtime-deps/ /
