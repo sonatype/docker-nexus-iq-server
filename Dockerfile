@@ -20,7 +20,10 @@
 # automatically and stay correct as packages evolve over time.
 # hadolint ignore=DL3026,DL3018
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
-RUN apk add --no-cache --root /runtime-deps \
+RUN mkdir -p /runtime-deps/etc/apk \
+    && cp -a /etc/apk/keys /runtime-deps/etc/apk/ \
+    && cp /etc/apk/repositories /runtime-deps/etc/apk/ \
+    && apk add --no-cache --root /runtime-deps \
         tini-static \
         git
 
