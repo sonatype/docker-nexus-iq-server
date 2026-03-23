@@ -14,6 +14,16 @@
 # limitations under the License.
 #
 
+# === Packages stage ===
+# Uses a Wolfi base with apk to install runtime dependencies into an isolated
+# root. This ensures all transitive deps (shared libs, etc.) are captured
+# automatically and stay correct as packages evolve over time.
+# hadolint ignore=DL3026,DL3018
+FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
+RUN apk add --no-cache --root /runtime-deps \
+        tini-static \
+        git
+
 # === Builder stage ===
 # Uses the dev variant which includes busybox/shell for build operations
 # hadolint ignore=DL3026
@@ -25,15 +35,7 @@ ARG IQ_SERVER_SHA256_AARCH=dcaeb10bd6caf4b073ad5453d87e3214f57ed60a25701ee65ba0d
 ARG IQ_SERVER_SHA256_X86_64=d3e16ee86eac5b0d00792ad2aa27c74faea19cc4083b35eb540b1b48604baa1e
 ARG SONATYPE_WORK="/sonatype-work"
 
-# Install runtime dependencies into an isolated root so we can copy the
-# complete set of files (binaries, shared libs, config) into the minimal
-# runtime image in one shot. This ensures transitive deps are never missed.
-# - tini-static: init daemon for zombie process reaping
-# - git: required for IQ Server SCM integrations
-# hadolint ignore=DL3018
-RUN apk add --no-cache --root /runtime-deps --keys-dir /etc/apk/keys --repositories-file /etc/apk/repositories \
-        tini-static git \
-    && mkdir -p ${TEMP}
+RUN mkdir -p ${TEMP}
 
 WORKDIR ${TEMP}
 
@@ -96,8 +98,8 @@ LABEL name="Nexus IQ Server image" \
   io.openshift.tags="Sonatype,Nexus,IQ Server"
 
 # Copy runtime dependencies (git, tini) and all their transitive deps from the
-# isolated root built in the builder stage
-COPY --from=builder /runtime-deps/ /
+# packages stage
+COPY --from=packages /runtime-deps/ /
 
 # Create folders & set permissions
 # Using the infosec image's built-in nonroot user (uid/gid 65532)
