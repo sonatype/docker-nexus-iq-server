@@ -63,12 +63,11 @@ dockerizedBuildPipeline(
   onUnstable: {
     if (env.BRANCH_NAME == deployBranch) {
       notifyChat(currentBuild: currentBuild, env: env, room: 'iq-builds')
-    } 
+    }
   },
   onFailure: {
     if (env.BRANCH_NAME == deployBranch) {
       notifyChat(currentBuild: currentBuild, env: env, room: 'iq-builds')
-    } 
+    }
   }
 )
-

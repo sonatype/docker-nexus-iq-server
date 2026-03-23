@@ -14,8 +14,10 @@
 # limitations under the License.
 #
 
+# === Builder stage ===
+# Uses the dev variant which includes busybox/shell for build operations
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS builder
+FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jdk:openjdk-17-dev AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.201.0-02
@@ -23,44 +25,54 @@ ARG IQ_SERVER_SHA256_AARCH=dcaeb10bd6caf4b073ad5453d87e3214f57ed60a25701ee65ba0d
 ARG IQ_SERVER_SHA256_X86_64=d3e16ee86eac5b0d00792ad2aa27c74faea19cc4083b35eb540b1b48604baa1e
 ARG SONATYPE_WORK="/sonatype-work"
 
-# hadolint ignore=DL3041,DL3040
-RUN mkdir -p ${TEMP} && \
-    microdnf update -y && \
-    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which crypto-policies crypto-policies-scripts
+# Install runtime dependencies into an isolated root so we can copy the
+# complete set of files (binaries, shared libs, config) into the minimal
+# runtime image in one shot. This ensures transitive deps are never missed.
+# - tini-static: init daemon for zombie process reaping
+# - git: required for IQ Server SCM integrations
+# hadolint ignore=DL3018
+RUN apk add --no-cache --root /runtime-deps --keys-dir /etc/apk/keys --repositories-file /etc/apk/repositories \
+        tini-static git \
+    && mkdir -p ${TEMP}
+
+WORKDIR ${TEMP}
 
 # Copy config.yml and set sonatypeWork to the correct value
-COPY config.yml ${TEMP}
+COPY config.yml .
 
-# hadolint ignore=DL4006,SC3060
-RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${TEMP}/config-edited.yml
+# hadolint ignore=SC3060
+RUN sed -ri "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" config.yml
 
 # Download the server bundle, verify its checksum, and extract the server jar to the install directory
-WORKDIR ${TEMP}
 # hadolint ignore=SC3010
 RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
       echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
+      wget -q -O nexus-iq-server.tar.gz https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz; \
     elif [[ "$(uname -m)" = "aarch64" ]]; then \
       echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
+      wget -q -O nexus-iq-server.tar.gz https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz; \
     else \
-      echo "Unsupported architecture: $ARCH" && exit 1; \
+      echo "Unsupported architecture: $(uname -m)" && exit 1; \
     fi
 
 RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && tar -xvf nexus-iq-server.tar.gz \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
+# Compile the Java healthcheck class (used instead of curl in the distroless runtime)
+COPY healthcheck.java .
+RUN javac healthcheck.java
+
+# === Runtime stage ===
+# Uses the minimal variant (no package manager)
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
+FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jdk:openjdk-17
 
 ARG IQ_SERVER_VERSION=1.201.0-02
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
-ARG GID=1000
-ARG UID=1000
 ARG TIMEOUT=600
 
 LABEL name="Nexus IQ Server image" \
@@ -83,38 +95,34 @@ LABEL name="Nexus IQ Server image" \
   io.openshift.expose-services="8071:8071" \
   io.openshift.tags="Sonatype,Nexus,IQ Server"
 
-USER root
-
-# For testing
-# hadolint ignore=DL3041
-RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which crypto-policies crypto-policies-scripts \
-&& microdnf clean all
+# Copy runtime dependencies (git, tini) and all their transitive deps from the
+# isolated root built in the builder stage
+COPY --from=builder /runtime-deps/ /
 
 # Create folders & set permissions
+# Using the infosec image's built-in nonroot user (uid/gid 65532)
 RUN mkdir -p ${IQ_HOME} \
 && mkdir -p ${SONATYPE_WORK} \
 && mkdir -p ${CONFIG_HOME} \
 && mkdir -p ${LOGS_HOME} \
 && chmod 0755 "/opt/sonatype" ${IQ_HOME} \
 && chmod 0755 ${CONFIG_HOME} \
-&& chmod 0755 ${LOGS_HOME}
+&& chmod 0755 ${LOGS_HOME} \
+&& chown -R nonroot:nonroot ${IQ_HOME} \
+&& chown -R nonroot:nonroot ${SONATYPE_WORK} \
+&& chown -R nonroot:nonroot ${CONFIG_HOME} \
+&& chown -R nonroot:nonroot ${LOGS_HOME}
 
-# Add group and user
-RUN groupadd -g ${GID} nexus \
-&& adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
-# Change owner to nexus user
-&& chown -R nexus:nexus ${IQ_HOME} \
-&& chown -R nexus:nexus ${SONATYPE_WORK} \
-&& chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME}
-    
 # Copy config.yml
-COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
+COPY --from=builder /tmp/work/config.yml ${CONFIG_HOME}/config.yml
 RUN chmod 0644 ${CONFIG_HOME}/config.yml
 
 # Copy server assemblies
-COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
+COPY --chown=nonroot:nonroot --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
+
+# Copy healthcheck class (precompiled in builder - replaces curl dependency)
+COPY --from=builder /tmp/work/healthcheck.class /opt/sonatype/healthcheck/healthcheck.class
+
 
 # Create start script
 RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
@@ -124,9 +132,6 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 
 WORKDIR ${IQ_HOME}
 
-# enabling back support for SHA1 signed certificates
-RUN update-crypto-policies --set DEFAULT:SHA1
-
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
 VOLUME ${LOGS_HOME}
@@ -135,15 +140,17 @@ VOLUME ${LOGS_HOME}
 EXPOSE 8070
 EXPOSE 8071
 
-# Wire up health check
-HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthcheck || exit 1
+# Wire up health check using precompiled Java class (no curl needed)
+HEALTHCHECK CMD java -cp /opt/sonatype/healthcheck healthcheck || exit 1
 
-# Change to nexus user
-USER nexus
+# Change to nonroot user (uid 65532 - infosec standard)
+USER 65532
 
 ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "
 ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 
 WORKDIR ${IQ_HOME}
 
+# tini as init daemon for zombie process reaping
+ENTRYPOINT ["/sbin/tini-static", "--"]
 CMD [ "sh", "./start.sh" ]
