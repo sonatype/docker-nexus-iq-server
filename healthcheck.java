@@ -24,16 +24,26 @@ class healthcheck {
         String url = appMode
             ? "http://localhost:8070/"
             : "http://localhost:8071/healthcheck";
-        HttpURLConnection conn = (HttpURLConnection)
-            URI.create(url).toURL().openConnection();
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
-        int code = conn.getResponseCode();
-        if (appMode) {
-            try (InputStream in = conn.getInputStream()) {
-                System.out.write(in.readAllBytes());
+        long deadline = System.currentTimeMillis() + 120_000;
+        while (true) {
+            try {
+                HttpURLConnection conn = (HttpURLConnection)
+                    URI.create(url).toURL().openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                int code = conn.getResponseCode();
+                if (appMode && code == 200) {
+                    try (InputStream in = conn.getInputStream()) {
+                        System.out.write(in.readAllBytes());
+                    }
+                }
+                System.exit(code == 200 ? 0 : 1);
+            } catch (Exception e) {
+                if (System.currentTimeMillis() >= deadline) {
+                    throw e;
+                }
+                Thread.sleep(2000);
             }
         }
-        System.exit(code == 200 ? 0 : 1);
     }
 }
