@@ -14,15 +14,26 @@
  * limitations under the License.
  */
 
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 
 class healthcheck {
     public static void main(String[] args) throws Exception {
+        boolean appMode = "--app".equals(args.length > 0 ? args[0] : null);
+        String url = appMode
+            ? "http://localhost:8070/"
+            : "http://localhost:8071/healthcheck";
         HttpURLConnection conn = (HttpURLConnection)
-            URI.create("http://localhost:8071/healthcheck").toURL().openConnection();
+            URI.create(url).toURL().openConnection();
         conn.setConnectTimeout(5000);
         conn.setReadTimeout(5000);
-        System.exit(conn.getResponseCode() == 200 ? 0 : 1);
+        int code = conn.getResponseCode();
+        if (appMode) {
+            try (InputStream in = conn.getInputStream()) {
+                System.out.write(in.readAllBytes());
+            }
+        }
+        System.exit(code == 200 ? 0 : 1);
     }
 }

@@ -24,15 +24,17 @@ ARG IQ_SERVER_VERSION=1.201.0-02
 ARG IQ_SERVER_SHA256_AARCH=dcaeb10bd6caf4b073ad5453d87e3214f57ed60a25701ee65ba0db695b8fbacd
 ARG IQ_SERVER_SHA256_X86_64=d3e16ee86eac5b0d00792ad2aa27c74faea19cc4083b35eb540b1b48604baa1e
 
-# Install wget for downloading, then install runtime deps into isolated root.
-# busybox provides /bin/sh needed for RUN commands and start.sh in the runtime.
+# Install curl for downloading, then install runtime deps into isolated root.
+# Runtime deps rationale:
+# - busybox: provides /bin/sh (runtime image is distroless, needs shell for start.sh)
+# - tini-static: init daemon for zombie process reaping
+# - git: required for IQ Server SCM integrations
 # hadolint ignore=DL3018
-RUN apk add --no-cache wget \
+RUN apk add --no-cache curl \
     && apk add --no-cache --initdb --root /runtime-deps \
         --keys-dir /etc/apk/keys \
         --repositories-file /etc/apk/repositories \
         busybox \
-        curl \
         tini-static \
         git
 
@@ -40,10 +42,10 @@ RUN apk add --no-cache wget \
 WORKDIR /tmp/download
 RUN if [ "$(uname -m)" = "x86_64" ]; then \
       echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      wget -q -O nexus-iq-server.tar.gz https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz; \
+      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
     elif [ "$(uname -m)" = "aarch64" ]; then \
       echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      wget -q -O nexus-iq-server.tar.gz https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz; \
+      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
     else \
       echo "Unsupported architecture: $(uname -m)" && exit 1; \
     fi \
