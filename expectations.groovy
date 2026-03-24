@@ -21,8 +21,8 @@ def containerExpectations() {
     new Expectation('nonroot-group', 'grep', '^nonroot: /etc/group', 'nonroot:x:65532:'),
     new Expectation('nonroot-user', 'grep', '^nonroot: /etc/passwd', 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin'),
     new Expectation('iq-process', 'ps', '-e -o command,user | grep -q ^/usr/bin/java.*nonroot$ | echo $?', '0'),
-    new Expectation('application-port', 'java', '-cp /opt/sonatype/healthcheck healthcheck --app > /dev/null | echo $?', '0'),
-    new Expectation('admin-port', 'java', '-cp /opt/sonatype/healthcheck healthcheck | echo $?', '0'),
+    new Expectation('application-port', 'java', '-cp /opt/sonatype/healthcheck Healthcheck --app > /dev/null | echo $?', '0'),
+    new Expectation('admin-port', 'java', '-cp /opt/sonatype/healthcheck Healthcheck | echo $?', '0'),
     new Expectation('log-directory', 'ls', '-la /var/log | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}\'', 'drwxr-xr-x nonroot nonroot nexus-iq-server'),
     new Expectation('clm-server-log', 'test', '-f /var/log/nexus-iq-server/clm-server-log.log | echo $?', '0'),
     new Expectation('audit-log', 'test', '-f /var/log/nexus-iq-server/audit.log | echo $?', '0'),
@@ -36,7 +36,7 @@ def containerExpectations() {
     new Expectation('config-directory', 'ls', '-la /etc | grep nexus-iq-server | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}\'', 'drwxr-xr-x nonroot nonroot nexus-iq-server'),
     new Expectation('config-file', 'test', '-f /etc/nexus-iq-server | echo $?', '0'),
     new Expectation('tini', 'test', '-x /sbin/tini-static | echo $?', '0'),
-    new Expectation('healthcheck-class', 'test', '-f /opt/sonatype/healthcheck/healthcheck.class | echo $?', '0')
+    new Expectation('healthcheck-class', 'test', '-f /opt/sonatype/healthcheck/Healthcheck.class | echo $?', '0')
   ]
 }
 

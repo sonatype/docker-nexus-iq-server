@@ -71,13 +71,13 @@ COPY config.yml .
 RUN sed -ri "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" config.yml
 
 # Compile the Java healthcheck class (used instead of curl in the distroless runtime)
-COPY healthcheck.java .
-RUN javac healthcheck.java
+COPY Healthcheck.java .
+RUN javac Healthcheck.java
 
 # === Runtime stage ===
 # Uses the minimal variant (no package manager)
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jdk:openjdk-17
+FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jre:openjdk-17
 
 ARG IQ_SERVER_VERSION=1.201.0-02
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -138,7 +138,7 @@ RUN chmod 0644 ${CONFIG_HOME}/config.yml
 COPY --chown=65532:65532 --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
 
 # Copy healthcheck class (precompiled in builder - replaces curl dependency)
-COPY --from=builder /tmp/work/healthcheck.class /opt/sonatype/healthcheck/healthcheck.class
+COPY --from=builder /tmp/work/Healthcheck.class /opt/sonatype/healthcheck/Healthcheck.class
 
 
 # Create start script
@@ -158,7 +158,7 @@ EXPOSE 8070
 EXPOSE 8071
 
 # Wire up health check using precompiled Java class (no curl needed)
-HEALTHCHECK CMD java -cp /opt/sonatype/healthcheck healthcheck || exit 1
+HEALTHCHECK CMD java -cp /opt/sonatype/healthcheck Healthcheck || exit 1
 
 # Change to nonroot user (uid 65532 - infosec standard)
 USER 65532
