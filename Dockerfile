@@ -18,7 +18,7 @@
 # Uses a Wolfi base with apk to:
 # 1. Install runtime dependencies (git, tini) into an isolated root
 # 2. Download and verify the IQ Server binary (needs wget which the dev image lacks)
-# hadolint ignore=DL3026,DL3018
+# hadolint ignore=DL3006,DL3026
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
 ARG IQ_SERVER_VERSION=1.201.0-02
 ARG IQ_SERVER_SHA256_AARCH=dcaeb10bd6caf4b073ad5453d87e3214f57ed60a25701ee65ba0db695b8fbacd
@@ -26,6 +26,7 @@ ARG IQ_SERVER_SHA256_X86_64=d3e16ee86eac5b0d00792ad2aa27c74faea19cc4083b35eb540b
 
 # Install wget for downloading, then install runtime deps into isolated root.
 # busybox provides /bin/sh needed for RUN commands and start.sh in the runtime.
+# hadolint ignore=DL3018
 RUN apk add --no-cache wget \
     && apk add --no-cache --initdb --root /runtime-deps \
         --keys-dir /etc/apk/keys \
@@ -109,8 +110,11 @@ USER root
 # packages stage
 COPY --from=packages /runtime-deps/ /
 
+# Ensure nonroot user/group entries exist for UID/GID resolution
+RUN echo 'nonroot:x:65532:' >> /etc/group \
+&& echo 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin' >> /etc/passwd
+
 # Create folders & set permissions
-# Using the infosec image's built-in nonroot user (uid/gid 65532)
 RUN mkdir -p ${IQ_HOME} \
 && mkdir -p ${SONATYPE_WORK} \
 && mkdir -p ${CONFIG_HOME} \
