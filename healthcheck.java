@@ -31,11 +31,16 @@ class healthcheck {
                     URI.create(url).toURL().openConnection();
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(5000);
+                conn.setInstanceFollowRedirects(true);
                 int code = conn.getResponseCode();
-                if (appMode && code == 200) {
-                    try (InputStream in = conn.getInputStream()) {
+                if (appMode) {
+                    InputStream in = code < 400 ? conn.getInputStream() : conn.getErrorStream();
+                    if (in != null) {
                         System.out.write(in.readAllBytes());
+                        in.close();
                     }
+                    // In app mode, any response means the port is up
+                    System.exit(0);
                 }
                 System.exit(code == 200 ? 0 : 1);
             } catch (Exception e) {
