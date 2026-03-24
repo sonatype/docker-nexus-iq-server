@@ -32,6 +32,7 @@ RUN apk add --no-cache wget \
         --keys-dir /etc/apk/keys \
         --repositories-file /etc/apk/repositories \
         busybox \
+        curl \
         tini-static \
         git
 
