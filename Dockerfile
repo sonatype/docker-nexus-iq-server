@@ -17,12 +17,12 @@
 # === Packages stage ===
 # Uses a Wolfi base with apk to:
 # 1. Install runtime dependencies (git, tini) into an isolated root
-# 2. Download and verify the IQ Server binary (needs wget which the dev image lacks)
+# 2. Download and verify the IQ Server artifacts (needs curl which the dev image lacks)
 # hadolint ignore=DL3006,DL3026
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
 ARG IQ_SERVER_VERSION=1.201.0-02
-ARG IQ_SERVER_SHA256_AARCH=dcaeb10bd6caf4b073ad5453d87e3214f57ed60a25701ee65ba0db695b8fbacd
-ARG IQ_SERVER_SHA256_X86_64=d3e16ee86eac5b0d00792ad2aa27c74faea19cc4083b35eb540b1b48604baa1e
+ARG IQ_SERVER_JAR_SHA256=FIXME
+ARG IQ_SERVER_JVM_OPTIONS_SHA256=FIXME
 
 # Install curl for downloading, then install runtime deps into isolated root.
 # Runtime deps rationale:
@@ -38,37 +38,27 @@ RUN apk add --no-cache curl \
         tini-static \
         git
 
-# Download the server bundle, verify its checksum, and extract it
-WORKDIR /tmp/download
-RUN if [ "$(uname -m)" = "x86_64" ]; then \
-      echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
-    elif [ "$(uname -m)" = "aarch64" ]; then \
-      echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
-    else \
-      echo "Unsupported architecture: $(uname -m)" && exit 1; \
-    fi \
-    && sha256sum -c nexus-iq-server.tar.gz.sha256 \
-    && tar -xvf nexus-iq-server.tar.gz \
-    && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
+# Download the server jar and JVM options file as individual Maven artifacts
+WORKDIR /tmp/download/nexus-iq-server
+RUN curl -L https://sonatype.repo.sonatype.app/repository/maven-private-releases/com/sonatype/insight/brain/insight-brain-service/${IQ_SERVER_VERSION}/insight-brain-service-${IQ_SERVER_VERSION}-server.jar \
+        --output nexus-iq-server.jar \
+    && echo "${IQ_SERVER_JAR_SHA256} nexus-iq-server.jar" | sha256sum -c - \
+    && curl -L https://sonatype.repo.sonatype.app/repository/maven-private-releases/com/sonatype/insight/brain/nexus-iq-server/${IQ_SERVER_VERSION}/nexus-iq-server-${IQ_SERVER_VERSION}-jvm.options \
+        --output jvm.options \
+    && echo "${IQ_SERVER_JVM_OPTIONS_SHA256} jvm.options" | sha256sum -c -
 
 # === Builder stage ===
 # Uses the JDK dev variant for javac (healthcheck) and sed (config)
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jdk:openjdk-17-dev AS builder
 ARG TEMP="/tmp/work"
-ARG SONATYPE_WORK="/sonatype-work"
 
 RUN mkdir -p ${TEMP}
 
 WORKDIR ${TEMP}
 
-# Copy config.yml and set sonatypeWork to the correct value
+# Copy config.yml (already configured for Docker with absolute paths)
 COPY config.yml .
-
-# hadolint ignore=SC3060
-RUN sed -ri "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" config.yml
 
 # Compile the Java healthcheck class (used instead of curl in the distroless runtime)
 COPY Healthcheck.java .
@@ -143,7 +133,7 @@ COPY --from=builder /tmp/work/Healthcheck.class /opt/sonatype/healthcheck/Health
 
 # Create start script
 RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
-&& echo "java @${IQ_HOME}/jvm.options \$JAVA_OPTS -cp '${IQ_HOME}/jars/*' com.sonatype.insight.brain.service.InsightBrainService server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
+&& echo "java @${IQ_HOME}/jvm.options \$JAVA_OPTS -jar ${IQ_HOME}/nexus-iq-server.jar server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
 && echo "wait" >> ${IQ_HOME}/start.sh \
 && chmod 0755 ${IQ_HOME}/start.sh
 
