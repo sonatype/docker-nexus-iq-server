@@ -30,9 +30,12 @@ void configureBranchJob() {
 
 String deployBranch = 'main'
 String imageName = 'sonatype/nexus-iq-server'
+String productionImage = 'iq-server-under-test'
 
 configureBranchJob()
 dockerizedBuildPipeline(
+  buildImageId: 'sonatype.repo.sonatype.app/docker-all/docker:cli',
+  dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock',
   deployBranch: deployBranch,
   deployCondition: { return true }, // always run the deploy stage
   prepare: {
@@ -42,11 +45,26 @@ dockerizedBuildPipeline(
     hadolint(['./Dockerfile'])
   },
   buildAndTest: {
-    def expectations = load 'expectations.groovy'
-    validateExpectations(expectations.containerExpectations())
+    configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
+      sh "DOCKER_BUILDKIT=1 docker build --secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml --tag ${productionImage} ."
+    }
+    def containerName = 'iq-server-test'
+    try {
+      sh "docker run -d --name ${containerName} ${productionImage}"
+      // Wait for server to start (up to 5 minutes)
+      sh """for i in \$(seq 1 60); do
+        docker exec ${containerName} java -cp /opt/sonatype/healthcheck Healthcheck 2>/dev/null && break
+        sleep 5
+      done"""
+      def expectations = load 'expectations.groovy'
+      validateExpectations(expectations.containerExpectations(containerName))
+    } finally {
+      sh "docker logs ${containerName} || true"
+      sh "docker rm -f ${containerName} || true"
+    }
   },
   deploy: {
-    // Hijacking deploy step to run the docker buildx build to make sure it is working
+    // Run a multi-platform buildx build to verify cross-platform compatibility
     withSonatypeDockerRegistry() {
       configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
         sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
@@ -60,7 +78,7 @@ dockerizedBuildPipeline(
     def theStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
     nexusPolicyEvaluation(
       iqApplication: 'docker-nexus-iq-server',
-      iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
+      iqScanPatterns: [[scanPattern: "container:${productionImage}"]],
       iqStage: theStage)
   },
   onUnstable: {

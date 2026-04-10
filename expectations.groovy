@@ -16,27 +16,28 @@
 
 import com.sonatype.jenkins.shared.Expectation
 
-def containerExpectations() {
+def containerExpectations(String containerName = 'iq-server-test') {
+  def c = containerName
   return [
-    new Expectation('nonroot-group', 'grep', '^nonroot: /etc/group', 'nonroot:x:65532:'),
-    new Expectation('nonroot-user', 'grep', '^nonroot: /etc/passwd', 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin'),
-    new Expectation('iq-process', 'ps', '-e -o command,user | grep -q ^/usr/bin/java.*nonroot$ | echo $?', '0'),
-    new Expectation('application-port', 'java', '-cp /opt/sonatype/healthcheck Healthcheck --app > /dev/null | echo $?', '0'),
-    new Expectation('admin-port', 'java', '-cp /opt/sonatype/healthcheck Healthcheck | echo $?', '0'),
-    new Expectation('log-directory', 'ls', '-la /var/log | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}\'', 'drwxr-xr-x nonroot nonroot nexus-iq-server'),
-    new Expectation('clm-server-log', 'test', '-f /var/log/nexus-iq-server/clm-server-log.log | echo $?', '0'),
-    new Expectation('audit-log', 'test', '-f /var/log/nexus-iq-server/audit.log | echo $?', '0'),
-    new Expectation('request-log', 'test', '-f /var/log/nexus-iq-server/request.log | echo $?', '0'),
-    new Expectation('stderr-log', 'test', '-f /var/log/nexus-iq-server/stderr.log | echo $?', '0'),
-    new Expectation('home-directory', 'ls', '-la /opt/sonatype | grep nexus-iq-server | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}\'', 'drwxr-xr-x nonroot nonroot nexus-iq-server'),
-    new Expectation('start-script', 'test', '-f /opt/sonatype/nexus-iq-server/start.sh | echo $?', '0'),
-    new Expectation('start-script-has-java-opts', 'grep', '\'JAVA_OPTS\' /opt/sonatype/nexus-iq-server/start.sh | echo $?', '0'),
-    new Expectation('work-directory', 'ls', '-la / | grep sonatype-work | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}\'', 'drwxr-xr-x nonroot nonroot sonatype-work'),
-    new Expectation('data-directory', 'test', '-d /sonatype-work/data | echo $?', '0'),
-    new Expectation('config-directory', 'ls', '-la /etc | grep nexus-iq-server | awk \'\$9 !~ /^\\.*$/{print \$1,\$3,\$4,\$9}\'', 'drwxr-xr-x nonroot nonroot nexus-iq-server'),
-    new Expectation('config-file', 'test', '-f /etc/nexus-iq-server | echo $?', '0'),
-    new Expectation('tini', 'test', '-x /sbin/tini-static | echo $?', '0'),
-    new Expectation('healthcheck-class', 'test', '-f /opt/sonatype/healthcheck/Healthcheck.class | echo $?', '0')
+    new Expectation('nonroot-group', 'docker', "exec ${c} grep '^nonroot:' /etc/group", 'nonroot:x:65532:'),
+    new Expectation('nonroot-user', 'docker', "exec ${c} grep '^nonroot:' /etc/passwd", 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin'),
+    new Expectation('iq-process', 'docker', "exec ${c} sh -c 'ps -e -o command,user | grep -q ^/usr/bin/java.*nonroot\$ | echo \$?'", '0'),
+    new Expectation('application-port', 'docker', "exec ${c} sh -c 'java -cp /opt/sonatype/healthcheck Healthcheck --app > /dev/null | echo \$?'", '0'),
+    new Expectation('admin-port', 'docker', "exec ${c} sh -c 'java -cp /opt/sonatype/healthcheck Healthcheck | echo \$?'", '0'),
+    new Expectation('log-directory', 'docker', "exec ${c} ls -ld /var/log/nexus-iq-server", 'drwxr-xr-x.*nonroot.*nonroot.*nexus-iq-server'),
+    new Expectation('clm-server-log', 'docker', "exec ${c} test -f /var/log/nexus-iq-server/clm-server-log.log", ''),
+    new Expectation('audit-log', 'docker', "exec ${c} test -f /var/log/nexus-iq-server/audit.log", ''),
+    new Expectation('request-log', 'docker', "exec ${c} test -f /var/log/nexus-iq-server/request.log", ''),
+    new Expectation('stderr-log', 'docker', "exec ${c} test -f /var/log/nexus-iq-server/stderr.log", ''),
+    new Expectation('home-directory', 'docker', "exec ${c} ls -ld /opt/sonatype/nexus-iq-server", 'drwxr-xr-x.*nonroot.*nonroot.*nexus-iq-server'),
+    new Expectation('start-script', 'docker', "exec ${c} test -f /opt/sonatype/nexus-iq-server/start.sh", ''),
+    new Expectation('start-script-has-java-opts', 'docker', "exec ${c} grep JAVA_OPTS /opt/sonatype/nexus-iq-server/start.sh", 'JAVA_OPTS'),
+    new Expectation('work-directory', 'docker', "exec ${c} ls -ld /sonatype-work", 'drwxr-xr-x.*nonroot.*nonroot.*sonatype-work'),
+    new Expectation('data-directory', 'docker', "exec ${c} test -d /sonatype-work/data", ''),
+    new Expectation('config-directory', 'docker', "exec ${c} ls -ld /etc/nexus-iq-server", 'drwxr-xr-x.*nonroot.*nonroot.*nexus-iq-server'),
+    new Expectation('config-file', 'docker', "exec ${c} test -f /etc/nexus-iq-server/config.yml", ''),
+    new Expectation('tini', 'docker', "exec ${c} test -x /sbin/tini-static", ''),
+    new Expectation('healthcheck-class', 'docker', "exec ${c} test -f /opt/sonatype/healthcheck/Healthcheck.class", '')
   ]
 }
 
