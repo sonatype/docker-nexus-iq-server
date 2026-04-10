@@ -48,10 +48,12 @@ dockerizedBuildPipeline(
   deploy: {
     // Hijacking deploy step to run the docker buildx build to make sure it is working
     withSonatypeDockerRegistry() {
-      sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
-      sh "docker buildx build --platform linux/amd64,linux/arm64 " +
-          "--secret id=maven-settings,src=${env.HOME}/.m2/settings.xml " +
-          "--tag ${sonatypeDockerRegistryId()}/${imageName}:${env.BUILD_NUMBER} ."
+      configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
+        sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
+        sh "docker buildx build --platform linux/amd64,linux/arm64 " +
+            "--secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml " +
+            "--tag ${sonatypeDockerRegistryId()}/${imageName}:${env.BUILD_NUMBER} ."
+      }
     }
   },
   vulnerabilityScan: {

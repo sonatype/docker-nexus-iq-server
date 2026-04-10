@@ -121,16 +121,19 @@ void pushImage(String imageName) {
                    cp '${NEXUS_IQ_SERVER_DCT_GUN_KEY}' ${TRUST_DIR}/private
                    cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private"""
       withSonatypeDockerRegistry() {
-        runSafely """
-        curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
-        export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
-        export GOPATH=${env.WORKSPACE}
-        go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary@latest
-        notary --help
-        docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
-        export OCI_REPO="sonatype/nexus-iq-server"
-        ./build_and_push_images.sh ${env.VERSION} latest
-        """
+        configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
+          runSafely """
+          curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
+          export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
+          export GOPATH=${env.WORKSPACE}
+          go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary@latest
+          notary --help
+          docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
+          export OCI_REPO="sonatype/nexus-iq-server"
+          export MAVEN_SETTINGS=${env.WORKSPACE}/.m2/settings.xml
+          ./build_and_push_images.sh ${env.VERSION} latest
+          """
+        }
       }
 
       String response = runSafely("""curl -X POST https://hub.docker.com/v2/users/login/ \
