@@ -20,9 +20,9 @@
 # 2. Download and verify the IQ Server artifacts (needs curl which the dev image lacks)
 # hadolint ignore=DL3006,DL3026
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
-ARG IQ_SERVER_VERSION=1.201.0-02
-ARG IQ_SERVER_JAR_SHA256=FIXME
-ARG IQ_SERVER_JVM_OPTIONS_SHA256=FIXME
+ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
+ARG IQ_SERVER_JAR_SHA256=7d7122c88fe6ef0498135833f0337a00936b31221387b33cf4b6ec32162e75de
+ARG IQ_SERVER_JVM_OPTIONS_SHA256=8b37d062bf60956e7ac78e76863885c75ee0c93bedbe852785f89f30a7c27cf7
 
 # Install curl for downloading, then install runtime deps into isolated root.
 # Runtime deps rationale:
@@ -40,10 +40,10 @@ RUN apk add --no-cache curl \
 
 # Download the server jar and JVM options file as individual Maven artifacts
 WORKDIR /tmp/download/nexus-iq-server
-RUN curl -L https://sonatype.repo.sonatype.app/repository/maven-private-releases/com/sonatype/insight/brain/insight-brain-service/${IQ_SERVER_VERSION}/insight-brain-service-${IQ_SERVER_VERSION}-server.jar \
+RUN curl -L https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/insight-brain-service/${IQ_SERVER_VERSION}/insight-brain-service-${IQ_SERVER_VERSION}-server.jar \
         --output nexus-iq-server.jar \
     && echo "${IQ_SERVER_JAR_SHA256} nexus-iq-server.jar" | sha256sum -c - \
-    && curl -L https://sonatype.repo.sonatype.app/repository/maven-private-releases/com/sonatype/insight/brain/nexus-iq-server/${IQ_SERVER_VERSION}/nexus-iq-server-${IQ_SERVER_VERSION}-jvm.options \
+    && curl -L https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/nexus-iq-server/${IQ_SERVER_VERSION}/nexus-iq-server-${IQ_SERVER_VERSION}-jvm.options \
         --output jvm.options \
     && echo "${IQ_SERVER_JVM_OPTIONS_SHA256} jvm.options" | sha256sum -c -
 
@@ -69,7 +69,7 @@ RUN javac Healthcheck.java
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jre:openjdk-17
 
-ARG IQ_SERVER_VERSION=1.201.0-02
+ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -80,7 +80,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.201.0" \
+  release="1.203.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
