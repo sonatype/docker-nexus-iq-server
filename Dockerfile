@@ -21,7 +21,7 @@
 # hadolint ignore=DL3006,DL3026
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
 ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
-ARG IQ_SERVER_JAR_SHA256=7d7122c88fe6ef0498135833f0337a00936b31221387b33cf4b6ec32162e75de
+ARG IQ_SERVER_JAR_SHA256=a2e85ad67afbdead57f4050bd4ea9e0c9ef3a56ad8cc8063f3a92a8cd6e0eeae
 ARG IQ_SERVER_JVM_OPTIONS_SHA256=8b37d062bf60956e7ac78e76863885c75ee0c93bedbe852785f89f30a7c27cf7
 
 # Install curl for downloading, then install runtime deps into isolated root.
@@ -40,10 +40,11 @@ RUN apk add --no-cache curl \
 
 # Download the server jar and JVM options file as individual Maven artifacts
 WORKDIR /tmp/download/nexus-iq-server
-RUN curl -L https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/insight-brain-service/${IQ_SERVER_VERSION}/insight-brain-service-${IQ_SERVER_VERSION}-server.jar \
+RUN curl -L
+https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/insight-brain-service/${IQ_SERVER_VERSION}/insight-brain-service-1.203.0-20260410.054932-75-server.jar \
         --output nexus-iq-server.jar \
     && echo "${IQ_SERVER_JAR_SHA256} nexus-iq-server.jar" | sha256sum -c - \
-    && curl -L https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/nexus-iq-server/${IQ_SERVER_VERSION}/nexus-iq-server-${IQ_SERVER_VERSION}-jvm.options \
+    && curl -L https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/nexus-iq-server/${IQ_SERVER_VERSION}/nexus-iq-server-1.203.0-20260410.054932-75-jvm.options \
         --output jvm.options \
     && echo "${IQ_SERVER_JVM_OPTIONS_SHA256} jvm.options" | sha256sum -c -
 
