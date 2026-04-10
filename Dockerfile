@@ -27,8 +27,8 @@ ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
 # - busybox: provides /bin/sh (runtime image is distroless, needs shell for start.sh)
 # - tini-static: init daemon for zombie process reaping
 # - git: required for IQ Server SCM integrations
-# hadolint ignore=DL3018
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+# hadolint ignore=DL3018
 RUN apk add --no-cache maven-3.9 openjdk-17-jre \
     && apk add --no-cache --initdb --root /runtime-deps \
         --keys-dir /etc/apk/keys \
