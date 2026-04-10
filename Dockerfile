@@ -22,13 +22,13 @@
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
 ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
 
-# Install Maven + JDK (for artifact download) and runtime deps into isolated root.
+# Install Maven + JRE (for artifact download) and runtime deps into isolated root.
 # Runtime deps rationale:
 # - busybox: provides /bin/sh (runtime image is distroless, needs shell for start.sh)
 # - tini-static: init daemon for zombie process reaping
 # - git: required for IQ Server SCM integrations
 # hadolint ignore=DL3018
-RUN apk add --no-cache maven-3.9 openjdk-17-default-jdk \
+RUN apk add --no-cache maven-3.9 openjdk-17-jre \
     && apk add --no-cache --initdb --root /runtime-deps \
         --keys-dir /etc/apk/keys \
         --repositories-file /etc/apk/repositories \
