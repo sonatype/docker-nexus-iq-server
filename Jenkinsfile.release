@@ -32,17 +32,13 @@ properties([
 
 String imageName = 'sonatype/nexus-iq-server'
 String version = ''
-String checksumX86_64 = ''
-String checksumAarch = ''
 
 dockerizedBuildPipeline(
   deployBranch: 'main',
   prepare: {
     githubStatusUpdate('pending')
     version = getVersionFromBuildName(env.releaseBuild_NAME)
-    checksumX86_64 = readBuildArtifact(params.sourceJob, env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-x86_64.tgz.sha256").trim()
-    checksumAarch = readBuildArtifact(params.sourceJob, env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-aarch_64.tgz.sha256").trim()
-    updateIQServerVersionAndChecksum(version, checksumX86_64, checksumAarch)
+    updateIQServerVersion(version)
     commitAndPushChanges(version)
   },
   setVersion: {
@@ -80,17 +76,13 @@ dockerizedBuildPipeline(
   }
 )
 
-void updateIQServerVersionAndChecksum(String version, String checksumX86_64, String checksumAarch) {
+void updateIQServerVersion(String version) {
   def dockerFile = readFile(file: 'Dockerfile')
   def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
-  def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
-  def shaRegexAarch = /(ARG IQ_SERVER_SHA256_AARCH=)([A-Fa-f0-9]{64})/
-  def shaRegexX64_64 = /(ARG IQ_SERVER_SHA256_X86_64=)([A-Fa-f0-9]{64})/
+  def versionRegex = /(ARG IQ_SERVER_VERSION=)([\w.\-]+)/
   dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
       "\$1${version.substring(0, version.indexOf('-'))}\$3")
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${version}")
-  dockerFile = dockerFile.replaceAll(shaRegexX64_64, "\$1${checksumX86_64}")
-  dockerFile = dockerFile.replaceAll(shaRegexAarch, "\$1${checksumAarch}")
 
   writeFile(file: 'Dockerfile', text: dockerFile)
 }

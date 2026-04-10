@@ -17,20 +17,18 @@
 # === Packages stage ===
 # Uses a Wolfi base with apk to:
 # 1. Install runtime dependencies (git, tini) into an isolated root
-# 2. Download and verify the IQ Server artifacts (needs curl which the dev image lacks)
+# 2. Download the IQ Server artifacts from Maven (needs Maven for auth + SNAPSHOT resolution)
 # hadolint ignore=DL3006,DL3026
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
 ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
-ARG IQ_SERVER_JAR_SHA256=a2e85ad67afbdead57f4050bd4ea9e0c9ef3a56ad8cc8063f3a92a8cd6e0eeae
-ARG IQ_SERVER_JVM_OPTIONS_SHA256=8b37d062bf60956e7ac78e76863885c75ee0c93bedbe852785f89f30a7c27cf7
 
-# Install curl for downloading, then install runtime deps into isolated root.
+# Install Maven + JDK (for artifact download) and runtime deps into isolated root.
 # Runtime deps rationale:
 # - busybox: provides /bin/sh (runtime image is distroless, needs shell for start.sh)
 # - tini-static: init daemon for zombie process reaping
 # - git: required for IQ Server SCM integrations
 # hadolint ignore=DL3018
-RUN apk add --no-cache curl \
+RUN apk add --no-cache maven-3.9 openjdk-17-default-jdk \
     && apk add --no-cache --initdb --root /runtime-deps \
         --keys-dir /etc/apk/keys \
         --repositories-file /etc/apk/repositories \
@@ -38,14 +36,20 @@ RUN apk add --no-cache curl \
         tini-static \
         git
 
-# Download the server jar and JVM options file as individual Maven artifacts
+# Download the server jar and JVM options file as individual Maven artifacts.
+# Uses BuildKit secret mount for settings.xml so credentials never appear in any layer.
+# Maven handles SNAPSHOT version resolution automatically.
 WORKDIR /tmp/download/nexus-iq-server
-RUN curl -L https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/insight-brain-service/${IQ_SERVER_VERSION}/insight-brain-service-1.203.0-20260410.054932-75-server.jar \
-        --output nexus-iq-server.jar \
-    && echo "${IQ_SERVER_JAR_SHA256} nexus-iq-server.jar" | sha256sum -c - \
-    && curl -L https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/nexus-iq-server/${IQ_SERVER_VERSION}/nexus-iq-server-1.203.0-20260410.054932-75-jvm.options \
-        --output jvm.options \
-    && echo "${IQ_SERVER_JVM_OPTIONS_SHA256} jvm.options" | sha256sum -c -
+# hadolint ignore=SC2046
+RUN --mount=type=secret,id=maven-settings,target=/root/.m2/settings.xml \
+    mvn dependency:copy \
+        -Dartifact=com.sonatype.insight.brain:insight-brain-service:${IQ_SERVER_VERSION}:jar:server \
+        -DoutputDirectory=. \
+    && mvn dependency:copy \
+        -Dartifact=com.sonatype.insight.brain:nexus-iq-server:${IQ_SERVER_VERSION}:options:jvm \
+        -DoutputDirectory=. \
+    && mv insight-brain-service-*-server.jar nexus-iq-server.jar \
+    && mv nexus-iq-server-*-jvm.options jvm.options
 
 # === Builder stage ===
 # Uses the JDK dev variant for javac (healthcheck) and sed (config)

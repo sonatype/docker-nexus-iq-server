@@ -38,8 +38,8 @@ ARM64_TAG=arm64-latest
 AMD64_TAG=amd64-latest
 
 echo "Building images"
-docker buildx build --progress=plain --platform=linux/arm64 -f ${DOCKERFILE} --push --provenance=false --tag "${REF}:${ARM64_TAG}" .
-docker buildx build --progress=plain --platform=linux/amd64 -f ${DOCKERFILE} --push --provenance=false --tag "${REF}:${AMD64_TAG}" .
+docker buildx build --progress=plain --platform=linux/arm64 -f ${DOCKERFILE} --secret id=maven-settings,src=$HOME/.m2/settings.xml --push --provenance=false --tag "${REF}:${ARM64_TAG}" .
+docker buildx build --progress=plain --platform=linux/amd64 -f ${DOCKERFILE} --secret id=maven-settings,src=$HOME/.m2/settings.xml --push --provenance=false --tag "${REF}:${AMD64_TAG}" .
 
 for TAG in $TAGS; do
   echo "Creating manifest"

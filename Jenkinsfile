@@ -50,6 +50,7 @@ dockerizedBuildPipeline(
     withSonatypeDockerRegistry() {
       sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
       sh "docker buildx build --platform linux/amd64,linux/arm64 " +
+          "--secret id=maven-settings,src=${env.HOME}/.m2/settings.xml " +
           "--tag ${sonatypeDockerRegistryId()}/${imageName}:${env.BUILD_NUMBER} ."
     }
   },
