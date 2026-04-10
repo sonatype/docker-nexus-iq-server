@@ -40,8 +40,7 @@ RUN apk add --no-cache curl \
 
 # Download the server jar and JVM options file as individual Maven artifacts
 WORKDIR /tmp/download/nexus-iq-server
-RUN curl -L
-https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/insight-brain-service/${IQ_SERVER_VERSION}/insight-brain-service-1.203.0-20260410.054932-75-server.jar \
+RUN curl -L https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/insight-brain-service/${IQ_SERVER_VERSION}/insight-brain-service-1.203.0-20260410.054932-75-server.jar \
         --output nexus-iq-server.jar \
     && echo "${IQ_SERVER_JAR_SHA256} nexus-iq-server.jar" | sha256sum -c - \
     && curl -L https://sonatype.repo.sonatype.app/repository/maven-private/com/sonatype/insight/brain/nexus-iq-server/${IQ_SERVER_VERSION}/nexus-iq-server-1.203.0-20260410.054932-75-jvm.options \
