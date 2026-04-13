@@ -52,8 +52,10 @@ dockerizedBuildPipeline(
   },
   buildAndTest: {
     currentBuild.displayName = "#${currentBuild.id} ${imageName}-${env.VERSION}"
-    configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
-      sh "DOCKER_BUILDKIT=1 docker build --secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml --tag ${productionImage} ."
+    withSonatypeDockerRegistry() {
+      configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
+        sh "DOCKER_BUILDKIT=1 docker build --secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml --tag ${productionImage} ."
+      }
     }
     def containerName = 'iq-server-test'
     try {
