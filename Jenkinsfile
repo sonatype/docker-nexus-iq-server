@@ -46,6 +46,7 @@ dockerizedBuildPipeline(
   },
   buildAndTest: {
     withSonatypeDockerRegistry() {
+      sh 'echo $JENKINS_DOCKER_PASSWORD | docker login -u $JENKINS_DOCKER_USERNAME --password-stdin sonatype.repo.sonatype.app'
       configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
         sh "DOCKER_BUILDKIT=1 docker build --secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml --tag ${productionImage} ."
       }
