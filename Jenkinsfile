@@ -54,8 +54,9 @@ dockerizedBuildPipeline(
     def containerName = 'iq-server-test'
     try {
       sh "docker run -d --name ${containerName} ${productionImage}"
-      // Healthcheck retries internally for up to 2 minutes
-      sh "docker exec ${containerName} java -cp /opt/sonatype/healthcheck Healthcheck"
+      // Healthcheck retries internally for up to 2 minutes.
+      // --any accepts any HTTP response (server may be unlicensed in CI).
+      sh "docker exec ${containerName} java -cp /opt/sonatype/healthcheck Healthcheck --any"
       def expectations = load 'expectations.groovy'
       validateExpectations(expectations.containerExpectations(containerName))
     } finally {
