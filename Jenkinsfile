@@ -35,7 +35,7 @@ String productionImage = 'iq-server-under-test'
 configureBranchJob()
 dockerizedBuildPipeline(
   buildImageId: 'sonatype.repo.sonatype.app/docker-all/docker:latest',
-  dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock',
+  dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock -e HOME=/tmp',
   deployBranch: deployBranch,
   deployCondition: { return true }, // always run the deploy stage
   prepare: {
