@@ -25,7 +25,7 @@ def containerExpectations(String containerName = 'iq-server-test') {
     new Expectation('application-port', 'docker', "exec ${c} sh -c 'localcheck --port 8070 --path / && echo OK'", 'OK'),
     new Expectation('admin-port', 'docker', "exec ${c} sh -c 'localcheck --port 8071 && echo OK'", 'OK'),
     new Expectation('log-directory', 'docker', "exec ${c} ls -ld /var/log/nexus-iq-server", 'drwxr-xr-x.*nonroot.*nonroot.*nexus-iq-server'),
-    new Expectation('clm-server-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/clm-server-log.log && echo OK'", 'OK'),
+    new Expectation('clm-server-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/clm-server.log && echo OK'", 'OK'),
     new Expectation('audit-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/audit.log && echo OK'", 'OK'),
     new Expectation('request-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/request.log && echo OK'", 'OK'),
     new Expectation('stderr-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/stderr.log && echo OK'", 'OK'),
