@@ -40,7 +40,8 @@ public class Healthcheck {
             in.close();
           }
         }
-        System.exit(code == 200 ? 0 : 1);
+        // 200 = healthy, 402 = Payment Required (unlicensed but running)
+        System.exit(code == 200 || code == 402 ? 0 : 1);
       } catch (Exception e) {
         if (System.currentTimeMillis() >= deadline) {
           throw e;

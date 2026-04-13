@@ -54,12 +54,8 @@ dockerizedBuildPipeline(
     def containerName = 'iq-server-test'
     try {
       sh "docker run -d --name ${containerName} ${productionImage}"
-      // Wait for server to start (up to 5 minutes).
-      // Use /ping (always 200) instead of /healthcheck (500 when unlicensed).
-      sh """for i in \$(seq 1 60); do
-        docker exec ${containerName} wget -q -O /dev/null http://localhost:8071/ping 2>/dev/null && break
-        sleep 5
-      done"""
+      // Healthcheck retries internally for up to 2 minutes
+      sh "docker exec ${containerName} java -cp /opt/sonatype/healthcheck Healthcheck"
       def expectations = load 'expectations.groovy'
       validateExpectations(expectations.containerExpectations(containerName))
     } finally {
