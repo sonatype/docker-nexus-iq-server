@@ -22,8 +22,8 @@ def containerExpectations(String containerName = 'iq-server-test') {
     new Expectation('nonroot-group', 'docker', "exec ${c} grep '^nonroot:' /etc/group", 'nonroot:x:65532:'),
     new Expectation('nonroot-user', 'docker', "exec ${c} grep '^nonroot:' /etc/passwd", 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin'),
     new Expectation('iq-process', 'docker', "exec ${c} sh -c 'ps -e -o command,user | grep -q ^/usr/bin/java.*nonroot\$ | echo \$?'", '0'),
-    new Expectation('application-port', 'docker', "exec ${c} sh -c 'java -cp /opt/sonatype/healthcheck Healthcheck --app > /dev/null | echo \$?'", '0'),
-    new Expectation('admin-port', 'docker', "exec ${c} sh -c 'java -cp /opt/sonatype/healthcheck Healthcheck | echo \$?'", '0'),
+    new Expectation('application-port', 'docker', "exec ${c} sh -c 'localcheck --port 8070 --path / && echo OK'", 'OK'),
+    new Expectation('admin-port', 'docker', "exec ${c} sh -c 'localcheck --port 8071 && echo OK'", 'OK'),
     new Expectation('log-directory', 'docker', "exec ${c} ls -ld /var/log/nexus-iq-server", 'drwxr-xr-x.*nonroot.*nonroot.*nexus-iq-server'),
     new Expectation('clm-server-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/clm-server-log.log && echo OK'", 'OK'),
     new Expectation('audit-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/audit.log && echo OK'", 'OK'),
@@ -37,7 +37,7 @@ def containerExpectations(String containerName = 'iq-server-test') {
     new Expectation('config-directory', 'docker', "exec ${c} ls -ld /etc/nexus-iq-server", 'drwxr-xr-x.*nonroot.*nonroot.*nexus-iq-server'),
     new Expectation('config-file', 'docker', "exec ${c} sh -c 'test -f /etc/nexus-iq-server/config.yml && echo OK'", 'OK'),
     new Expectation('tini', 'docker', "exec ${c} sh -c 'test -x /sbin/tini-static && echo OK'", 'OK'),
-    new Expectation('healthcheck-class', 'docker', "exec ${c} sh -c 'test -f /opt/sonatype/healthcheck/Healthcheck.class && echo OK'", 'OK')
+    new Expectation('localcheck', 'docker', "exec ${c} sh -c 'which localcheck && echo OK'", 'OK')
   ]
 }
 

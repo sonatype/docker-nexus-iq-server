@@ -52,23 +52,6 @@ RUN --mount=type=secret,id=maven-settings,target=/root/.m2/settings.xml \
     && mv insight-brain-service-*-server.jar nexus-iq-server.jar \
     && mv nexus-iq-server-*-jvm.options jvm.options
 
-# === Builder stage ===
-# Uses the JDK dev variant for javac (healthcheck) and sed (config)
-# hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jdk:openjdk-17-dev AS builder
-ARG TEMP="/tmp/work"
-
-RUN mkdir -p ${TEMP}
-
-WORKDIR ${TEMP}
-
-# Copy config.yml (already configured for Docker with absolute paths)
-COPY config.yml .
-
-# Compile the Java healthcheck class (used instead of curl in the distroless runtime)
-COPY Healthcheck.java .
-RUN javac Healthcheck.java
-
 # === Runtime stage ===
 # Uses the minimal variant (no package manager)
 # hadolint ignore=DL3026
@@ -125,16 +108,12 @@ RUN mkdir -p ${IQ_HOME} \
 && chown -R 65532:65532 ${CONFIG_HOME} \
 && chown -R 65532:65532 ${LOGS_HOME}
 
-# Copy config.yml
-COPY --from=builder /tmp/work/config.yml ${CONFIG_HOME}/config.yml
+# Copy config.yml (already configured for Docker with absolute paths)
+COPY config.yml ${CONFIG_HOME}/config.yml
 RUN chmod 0644 ${CONFIG_HOME}/config.yml
 
 # Copy server assemblies
 COPY --chown=65532:65532 --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
-
-# Copy healthcheck class (precompiled in builder - replaces curl dependency)
-COPY --from=builder /tmp/work/Healthcheck.class /opt/sonatype/healthcheck/Healthcheck.class
-
 
 # Create start script
 RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
@@ -152,8 +131,8 @@ VOLUME ${LOGS_HOME}
 EXPOSE 8070
 EXPOSE 8071
 
-# Wire up health check using precompiled Java class (no curl needed)
-HEALTHCHECK CMD java -cp /opt/sonatype/healthcheck Healthcheck || exit 1
+# Wire up health check using localcheck (built into infosec base images)
+HEALTHCHECK CMD localcheck --port 8071 || exit 1
 
 # Change to nonroot user (uid 65532 - infosec standard)
 USER 65532

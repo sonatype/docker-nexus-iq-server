@@ -40,10 +40,7 @@ public class Healthcheck {
             in.close();
           }
         }
-        // 200 = healthy, 402 = Payment Required (unlicensed but running)
-        // --any flag: accept any HTTP response (server is reachable) for CI readiness checks
-        boolean anyMode = java.util.Arrays.asList(args).contains("--any");
-        System.exit((code == 200 || code == 402 || anyMode) ? 0 : 1);
+        System.exit(code == 200 ? 0 : 1);
       } catch (Exception e) {
         if (System.currentTimeMillis() >= deadline) {
           throw e;
