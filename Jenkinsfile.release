@@ -61,11 +61,13 @@ dockerizedBuildPipeline(
     def containerName = 'iq-server-test'
     try {
       sh "docker run -d --name ${containerName} ${productionImage}"
-      // localcheck hits /ping (always 200 when admin port is ready)
+      // localcheck hits /ping (always 200 when admin port is ready).
+      // Extra sleep lets the server finish writing log files before expectations run.
       sh """for i in \$(seq 1 60); do
         docker exec ${containerName} localcheck --port 8071 2>/dev/null && break
         sleep 5
-      done"""
+      done
+      sleep 10"""
       def expectations = load 'expectations.groovy'
       validateExpectations(expectations.containerExpectations(containerName))
     } finally {
