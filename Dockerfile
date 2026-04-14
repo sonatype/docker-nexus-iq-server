@@ -20,7 +20,7 @@
 # 2. Download the IQ Server artifacts from Maven (needs Maven for auth + SNAPSHOT resolution)
 # hadolint ignore=DL3006,DL3026
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
-ARG IQ_SERVER_VERSION=1.201.0-02
+ARG IQ_SERVER_VERSION=1.202.0-01
 
 # Install Maven + JRE (for artifact download) and runtime deps into isolated root.
 # Runtime deps rationale:
@@ -57,7 +57,7 @@ RUN --mount=type=secret,id=maven-settings,target=/root/.m2/settings.xml \
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jre:openjdk-17
 
-ARG IQ_SERVER_VERSION=1.201.0-02
+ARG IQ_SERVER_VERSION=1.202.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -68,7 +68,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.201.0" \
+  release="1.202.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
