@@ -83,7 +83,7 @@ dockerizedBuildPipeline(
 
 void updateIQServerVersionAndChecksum(String version, String checksumX86_64, String checksumAarch) {
   def dockerFile = readFile(file: 'Dockerfile')
-  def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)("\\)/
+  def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
   def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
   def shaRegexAarch = /(ARG IQ_SERVER_SHA256_AARCH=)([A-Fa-f0-9]{64})/
   def shaRegexX64_64 = /(ARG IQ_SERVER_SHA256_X86_64=)([A-Fa-f0-9]{64})/
