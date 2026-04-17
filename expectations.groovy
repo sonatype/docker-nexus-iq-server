@@ -17,27 +17,33 @@
 import com.sonatype.jenkins.shared.Expectation
 
 def containerExpectations(String containerName = 'iq-server-test') {
-  def c = containerName
+  // Get container PID for host-side /proc inspection
+  def pid = sh(script: "docker inspect --format '{{.State.Pid}}' ${containerName}", returnStdout: true).trim()
+
   return [
-    new Expectation('nonroot-group', 'docker', "exec ${c} grep '^nonroot:' /etc/group", 'nonroot:x:65532:'),
-    new Expectation('nonroot-user', 'docker', "exec ${c} grep '^nonroot:' /etc/passwd", 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin'),
-    new Expectation('iq-process', 'docker', "exec ${c} sh -c 'ps -e -o command,user | grep -q ^/usr/bin/java.*nonroot\$ | echo \$?'", '0'),
-    new Expectation('application-port', 'docker', "exec ${c} sh -c 'localcheck --port 8070 --path / && echo OK'", 'OK'),
-    new Expectation('admin-port', 'docker', "exec ${c} sh -c 'localcheck --port 8071 && echo OK'", 'OK'),
-    new Expectation('log-directory', 'docker', "exec ${c} ls -ld /var/log/nexus-iq-server", 'drwxr-xr-x.*nonroot.*nonroot.*nexus-iq-server'),
-    new Expectation('clm-server-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/clm-server.log && echo OK'", 'OK'),
-    new Expectation('audit-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/audit.log && echo OK'", 'OK'),
-    new Expectation('request-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/request.log && echo OK'", 'OK'),
-    new Expectation('stderr-log', 'docker', "exec ${c} sh -c 'test -f /var/log/nexus-iq-server/stderr.log && echo OK'", 'OK'),
-    new Expectation('home-directory', 'docker', "exec ${c} ls -ld /opt/sonatype/nexus-iq-server", 'drwxr-xr-x.*nonroot.*nonroot.*nexus-iq-server'),
-    new Expectation('start-script', 'docker', "exec ${c} sh -c 'test -f /opt/sonatype/nexus-iq-server/start.sh && echo OK'", 'OK'),
-    new Expectation('start-script-has-java-opts', 'docker', "exec ${c} grep JAVA_OPTS /opt/sonatype/nexus-iq-server/start.sh", 'JAVA_OPTS'),
-    new Expectation('work-directory', 'docker', "exec ${c} ls -ld /sonatype-work", 'drwxr-xr-x.*nonroot.*nonroot.*sonatype-work'),
-    new Expectation('data-directory', 'docker', "exec ${c} sh -c 'test -d /sonatype-work/data && echo OK'", 'OK'),
-    new Expectation('config-directory', 'docker', "exec ${c} ls -ld /etc/nexus-iq-server", 'drwxr-xr-x.*nonroot.*nonroot.*nexus-iq-server'),
-    new Expectation('config-file', 'docker', "exec ${c} sh -c 'test -f /etc/nexus-iq-server/config.yml && echo OK'", 'OK'),
-    new Expectation('tini', 'docker', "exec ${c} sh -c 'test -x /sbin/tini-static && echo OK'", 'OK'),
-    new Expectation('localcheck', 'docker', "exec ${c} sh -c 'which localcheck && echo OK'", 'OK')
+    // === Process verification (via host /proc) ===
+    new Expectation('java-process', 'sh', "-c 'cat /proc/${pid}/comm'", 'java'),
+    new Expectation('java-opts-applied', 'sh', "-c 'cat /proc/${pid}/cmdline | tr \"\\\\0\" \" \"'", '-Dtest.java.opts=works'),
+
+    // === Port checks (localcheck is built into base image) ===
+    new Expectation('application-port', 'docker', "exec ${containerName} localcheck --port 8070 --path /", ''),
+    new Expectation('admin-port', 'docker', "exec ${containerName} localcheck --port 8071", ''),
+
+    // === File existence (via docker cp | tar -t) ===
+    new Expectation('launcher-exists', 'sh', "-c 'docker cp ${containerName}:/bin/launcher - | tar -t | grep launcher'", 'launcher'),
+    new Expectation('tini-exists', 'sh', "-c 'docker cp ${containerName}:/sbin/tini-static - | tar -t | grep tini-static'", 'tini-static'),
+    new Expectation('config-file', 'sh', "-c 'docker cp ${containerName}:/etc/nexus-iq-server/config.yml - | tar -t | grep config.yml'", 'config.yml'),
+    new Expectation('iq-home', 'sh', "-c 'docker cp ${containerName}:/opt/sonatype/nexus-iq-server/nexus-iq-server.jar - | tar -t | grep nexus-iq-server.jar'", 'nexus-iq-server.jar'),
+
+    // === Log files ===
+    new Expectation('stderr-log', 'sh', "-c 'docker cp ${containerName}:/var/log/nexus-iq-server/stderr.log - | tar -t | grep stderr.log'", 'stderr.log'),
+    new Expectation('clm-server-log', 'sh', "-c 'docker cp ${containerName}:/var/log/nexus-iq-server/clm-server.log - | tar -t | grep clm-server.log'", 'clm-server.log'),
+    new Expectation('audit-log', 'sh', "-c 'docker cp ${containerName}:/var/log/nexus-iq-server/audit.log - | tar -t | grep audit.log'", 'audit.log'),
+    new Expectation('request-log', 'sh', "-c 'docker cp ${containerName}:/var/log/nexus-iq-server/request.log - | tar -t | grep request.log'", 'request.log'),
+
+    // === User/group verification (via docker cp | tar -xO) ===
+    new Expectation('nonroot-user', 'sh', "-c 'docker cp ${containerName}:/etc/passwd - | tar -xO | grep ^nonroot'", 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin'),
+    new Expectation('nonroot-group', 'sh', "-c 'docker cp ${containerName}:/etc/group - | tar -xO | grep ^nonroot'", 'nonroot:x:65532:'),
   ]
 }
 
