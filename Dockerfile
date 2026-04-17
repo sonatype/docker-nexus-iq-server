@@ -24,18 +24,21 @@ ARG IQ_SERVER_VERSION=1.202.0-01
 
 # Install Maven + JRE (for artifact download) and runtime deps into isolated root.
 # Runtime deps rationale:
-# - busybox: provides /bin/sh (runtime image is distroless, needs shell for start.sh)
-# - tini-static: init daemon for zombie process reaping
+# - tini-static: init daemon for zombie process reaping and signal forwarding
 # - git: required for IQ Server SCM integrations
+# - gcc: compile the launcher.c (build-time only, not copied to runtime)
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 # hadolint ignore=DL3018
-RUN apk add --no-cache maven-3.9 openjdk-17-jre \
+RUN apk add --no-cache maven-3.9 openjdk-17-jre gcc \
     && apk add --no-cache --initdb --root /runtime-deps \
         --keys-dir /etc/apk/keys \
         --repositories-file /etc/apk/repositories \
-        busybox \
         tini-static \
         git
+
+# Copy and compile the launcher
+COPY launcher.c /tmp/launcher.c
+RUN gcc -o /runtime-deps/bin/launcher /tmp/launcher.c
 
 # Download the server jar and JVM options file as individual Maven artifacts.
 # Uses BuildKit secret mount for settings.xml so credentials never appear in any layer.
@@ -115,12 +118,6 @@ RUN chmod 0644 ${CONFIG_HOME}/config.yml
 # Copy server assemblies
 COPY --chown=65532:65532 --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
 
-# Create start script
-RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
-&& echo "java @${IQ_HOME}/jvm.options \$JAVA_OPTS -jar ${IQ_HOME}/nexus-iq-server.jar server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
-&& echo "wait" >> ${IQ_HOME}/start.sh \
-&& chmod 0755 ${IQ_HOME}/start.sh
-
 WORKDIR ${IQ_HOME}
 
 # This is where we will store persistent data
@@ -142,6 +139,6 @@ ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 
 WORKDIR ${IQ_HOME}
 
-# tini as init daemon for zombie process reaping
+# tini as init daemon for zombie process reaping and signal forwarding
 ENTRYPOINT ["/sbin/tini-static", "--"]
-CMD [ "sh", "./start.sh" ]
+CMD ["/bin/launcher"]
