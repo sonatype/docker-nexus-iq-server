@@ -18,6 +18,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 #define MAX_ARGS 128
 
@@ -38,9 +39,10 @@ int main(void) {
     args[arg_count++] = "@/opt/sonatype/nexus-iq-server/jvm.options";
 
     // Parse JAVA_OPTS - simple whitespace splitting (matches unquoted $JAVA_OPTS in bash)
+    char *opts_copy = NULL;
     char *java_opts = getenv("JAVA_OPTS");
     if (java_opts != NULL && java_opts[0] != '\0') {
-        char *opts_copy = strdup(java_opts);
+        opts_copy = strdup(java_opts);
         if (opts_copy != NULL) {
             char *token = strtok(opts_copy, " \t\n");
             while (token != NULL && arg_count < MAX_ARGS - 5) {
@@ -61,5 +63,7 @@ int main(void) {
     execvp("java", args);
 
     // If we get here, exec failed
+    perror("execvp failed");
+    free(opts_copy);
     return 1;
 }
