@@ -39,7 +39,8 @@ The Docker image has been migrated from Red Hat UBI 9 Minimal to Sonatype's info
 - **Base image:** Wolfi-based distroless image (`sonatype-infosec/jdk:openjdk-17`) instead of UBI 9 Minimal
 - **User:** The container now runs as `nonroot` (UID 65532) instead of `nexus` (UID 1000)
 - **Init daemon:** `tini` is used as the init process for proper zombie process reaping
-- **Health check:** Uses a precompiled Java class instead of `curl`
+- **Health check:** Uses `localcheck` (built into base image) instead of `curl`
+- **No shell:** The runtime image no longer contains a shell (`/bin/sh`). Use `docker cp` or ephemeral debug containers for troubleshooting.
 - **Removed variants:** The `-slim` and `-alpine` image tags are no longer published
 
 If you use this image with persistent data volumes, you will need to update file ownership for each volume:
