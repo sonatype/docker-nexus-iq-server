@@ -60,7 +60,7 @@ dockerizedBuildPipeline(
     }
     def containerName = 'iq-server-test'
     try {
-      sh "docker run -d --name ${containerName} ${productionImage}"
+      sh "docker run -d --name ${containerName} -e JAVA_OPTS='-Dtest.java.opts=works' ${productionImage}"
       // localcheck hits /ping (always 200 when admin port is ready).
       // Extra sleep lets the server finish writing log files before expectations run.
       sh """for i in \$(seq 1 60); do
