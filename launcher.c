@@ -22,6 +22,13 @@
 
 #define MAX_ARGS 128
 
+/*
+ * This launcher exists because the distroless runtime image has no shell.
+ * It replaces the previous shell-based start.sh and handles:
+ *   1. Redirecting stderr to /var/log/nexus-iq-server/stderr.log
+ *   2. Parsing and injecting JAVA_OPTS environment variable
+ * Uses execvp() to replace itself with the JVM, preserving PID for signal handling.
+ */
 int main(void) {
     char *args[MAX_ARGS];
     int arg_count = 0;
