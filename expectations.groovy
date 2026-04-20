@@ -17,15 +17,13 @@
 import com.sonatype.jenkins.shared.Expectation
 
 def containerExpectations(String containerName = 'iq-server-test') {
-  // docker inspect returns tini's PID (the container entrypoint). The actual java
-  // process is tini's child, so walk one level down to get the pid to inspect.
-  def tiniPid = sh(script: "docker inspect --format '{{.State.Pid}}' ${containerName}", returnStdout: true).trim()
-  def pid = sh(script: "ps -o pid= --ppid ${tiniPid} | head -1", returnStdout: true).trim()
-
   return [
-    // === Process verification (via host /proc) ===
-    new Expectation('java-process', 'sh', "-c 'cat /proc/${pid}/comm'", 'java'),
-    new Expectation('java-opts-applied', 'sh', "-c 'cat /proc/${pid}/cmdline | tr \"\\0\" \" \"'", '-Dtest.java.opts=works'),
+    // === Process verification ===
+    // docker top reads container processes via the docker daemon, so it works
+    // even when the Jenkins agent runs in its own PID namespace and can't see
+    // host PIDs directly.
+    new Expectation('java-process', 'sh', "-c 'docker top ${containerName} | grep -wq java && echo java'", 'java'),
+    new Expectation('java-opts-applied', 'sh', "-c 'docker top ${containerName} | grep -o -- -Dtest.java.opts=works'", '-Dtest.java.opts=works'),
 
     // === Port checks (localcheck is built into base image) ===
     // Use host sh to chain && echo OK because localcheck succeeds silently and
