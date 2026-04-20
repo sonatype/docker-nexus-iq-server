@@ -77,6 +77,6 @@ int main(void) {
   execvp("java", args);
 
   // If we get here, exec failed
-  perror("execvp failed");
+  perror("Could not start JVM for Nexus IQ Server");
   return 1;
 }
