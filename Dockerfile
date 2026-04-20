@@ -46,9 +46,9 @@ RUN apk add --no-cache maven-3.9 openjdk-17-jre gcc \
 
 # Copy and compile the launcher with build-time paths
 COPY launcher.c /tmp/launcher.c
-RUN gcc -DIQ_HOME=${IQ_HOME} \
-         -DCONFIG_HOME=${CONFIG_HOME} \
-         -DLOGS_HOME=${LOGS_HOME} \
+RUN gcc -DIQ_HOME=\"${IQ_HOME}\" \
+         -DCONFIG_HOME=\"${CONFIG_HOME}\" \
+         -DLOGS_HOME=\"${LOGS_HOME}\" \
          -o /runtime-deps/bin/launcher /tmp/launcher.c
 
 # Create user/group entries in runtime root.
