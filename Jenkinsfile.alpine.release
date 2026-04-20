@@ -26,7 +26,8 @@ properties([
             description: 'The latest release of IQ Server to build the docker image'),
         string(name: 'sourceJob',
             defaultValue: 'insight/insight-brain/aggregate-release',
-            description: 'Job path to read artifacts from')
+            description: 'Job path to read artifacts from'),
+        booleanParam(name: 'skipMarkAsLatest', defaultValue: false, description: 'Skip: Tag as latest')
     ])
 ])
 
@@ -66,7 +67,7 @@ dockerizedBuildPipeline(
           iqStage: 'release')
     },
     deploy: {
-      pushImage(imageName)
+      pushImage(imageName, !params.skipMarkAsLatest)
     },
     onSuccess: {
       githubStatusUpdate('success')
@@ -102,7 +103,7 @@ void commitAndPushChanges(String version) {
   }
 }
 
-void pushImage(String imageName) {
+void pushImage(String imageName, boolean markAsLatest) {
   runSafely "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'"
   runSafely "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true"
 
@@ -124,11 +125,15 @@ void pushImage(String imageName) {
       }
 
       runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:${env.VERSION}-alpine"
-      runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:latest-alpine"
+      if (markAsLatest) {
+        runSafely "docker tag ${env.DOCKER_IMAGE_ID} ${imageName}:latest-alpine"
+      }
 
       withCredentials([string(credentialsId: 'sonatype-password', variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
         runSafely "docker image push ${imageName}:${env.VERSION}-alpine"
-        runSafely "docker image push ${imageName}:latest-alpine"
+        if (markAsLatest) {
+          runSafely "docker image push ${imageName}:latest-alpine"
+        }
       }
 
       String response = runSafely("""curl -X POST https://hub.docker.com/v2/users/login/ \
