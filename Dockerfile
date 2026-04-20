@@ -18,9 +18,17 @@
 # Uses a Wolfi base with apk to:
 # 1. Install runtime dependencies (git, tini) into an isolated root
 # 2. Download the IQ Server artifacts from Maven (needs Maven for auth + SNAPSHOT resolution)
+# 3. Create users, groups, and directory structure for the runtime image
 # hadolint ignore=DL3006,DL3026
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
+
 ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
+ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
+ARG SONATYPE_WORK="/sonatype-work"
+ARG CONFIG_HOME="/etc/nexus-iq-server"
+ARG LOGS_HOME="/var/log/nexus-iq-server"
+ARG GID=1000
+ARG UID=1000
 
 # Install Maven + JRE (for artifact download) and runtime deps into isolated root.
 # Runtime deps rationale:
@@ -36,9 +44,30 @@ RUN apk add --no-cache maven-3.9 openjdk-17-jre gcc \
         tini-static \
         git
 
-# Copy and compile the launcher
+# Copy and compile the launcher with build-time paths
 COPY launcher.c /tmp/launcher.c
-RUN gcc -o /runtime-deps/bin/launcher /tmp/launcher.c
+RUN gcc -DIQ_HOME=\"${IQ_HOME}\" \
+         -DCONFIG_HOME=\"${CONFIG_HOME}\" \
+         -DLOGS_HOME=\"${LOGS_HOME}\" \
+         -o /runtime-deps/bin/launcher /tmp/launcher.c
+
+# Create user/group entries in runtime root.
+# Include root user (UID 0) for system compatibility, plus nexus user.
+RUN mkdir -p /runtime-deps/etc \
+    && echo "root:x:0:0:root:/root:/bin/sh" > /runtime-deps/etc/passwd \
+    && echo "nexus:x:${UID}:${GID}:Nexus IQ user:${IQ_HOME}:/bin/false" >> /runtime-deps/etc/passwd \
+    && echo "root:x:0:" > /runtime-deps/etc/group \
+    && echo "nexus:x:${GID}:" >> /runtime-deps/etc/group
+
+# Create directory structure with proper ownership in runtime root
+RUN mkdir -p /runtime-deps/opt/sonatype/nexus-iq-server \
+    && mkdir -p /runtime-deps/sonatype-work \
+    && mkdir -p /runtime-deps/etc/nexus-iq-server \
+    && mkdir -p /runtime-deps/var/log/nexus-iq-server \
+    && chown -R ${UID}:${GID} /runtime-deps/opt/sonatype/nexus-iq-server \
+    && chown -R ${UID}:${GID} /runtime-deps/sonatype-work \
+    && chown -R ${UID}:${GID} /runtime-deps/etc/nexus-iq-server \
+    && chown -R ${UID}:${GID} /runtime-deps/var/log/nexus-iq-server
 
 # Download the server jar and JVM options file as individual Maven artifacts.
 # Uses BuildKit secret mount for settings.xml so credentials never appear in any layer.
@@ -55,8 +84,17 @@ RUN --mount=type=secret,id=maven-settings,target=/root/.m2/settings.xml \
     && mv insight-brain-service-*-server.jar nexus-iq-server.jar \
     && mv nexus-iq-server-*-jvm.options jvm.options
 
+# Copy downloaded server files into runtime root with correct ownership
+RUN cp -r /tmp/download/nexus-iq-server/* /runtime-deps/opt/sonatype/nexus-iq-server/ \
+    && chown -R ${UID}:${GID} /runtime-deps/opt/sonatype/nexus-iq-server
+
+# Copy config.yml into runtime root with correct permissions
+COPY config.yml /runtime-deps/etc/nexus-iq-server/config.yml
+RUN chown ${UID}:${GID} /runtime-deps/etc/nexus-iq-server/config.yml \
+    && chmod 0644 /runtime-deps/etc/nexus-iq-server/config.yml
+
 # === Runtime stage ===
-# Uses the minimal variant (no package manager)
+# Uses the minimal variant (no package manager, no shell)
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jre:openjdk-17
 
@@ -65,8 +103,6 @@ ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
-ARG GID=1000
-ARG UID=1000
 ARG TIMEOUT=600
 
 LABEL name="Nexus IQ Server image" \
@@ -89,36 +125,16 @@ LABEL name="Nexus IQ Server image" \
   io.openshift.expose-services="8071:8071" \
   io.openshift.tags="Sonatype,Nexus,IQ Server"
 
-# The infosec runtime image defaults to a non-root user; switch to root for setup
-USER root
-
-# Copy runtime dependencies (git, tini) and all their transitive deps from the
-# packages stage
+# Copy the entire runtime filesystem from packages stage:
+# - /etc/passwd and /etc/group (nexus user/group)
+# - /bin/launcher
+# - /sbin/tini-static
+# - /opt/sonatype/nexus-iq-server (with server jar and jvm.options)
+# - /etc/nexus-iq-server/config.yml
+# - /var/log/nexus-iq-server directory
+# - /sonatype-work directory
+# - git and its dependencies
 COPY --from=packages /runtime-deps/ /
-
-# Add group and user
-RUN addgroup -g ${GID} nexus \
-    && adduser -u ${UID} -h ${IQ_HOME} -g "Nexus IQ user" -G nexus -s /bin/false -D nexus
-
-# Create folders & set permissions
-RUN mkdir -p ${IQ_HOME} \
-&& mkdir -p ${SONATYPE_WORK} \
-&& mkdir -p ${CONFIG_HOME} \
-&& mkdir -p ${LOGS_HOME} \
-&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \
-&& chmod 0755 ${CONFIG_HOME} \
-&& chmod 0755 ${LOGS_HOME} \
-&& chown -R nexus:nexus ${IQ_HOME} \
-&& chown -R nexus:nexus ${SONATYPE_WORK} \
-&& chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME}
-
-# Copy config.yml (already configured for Docker with absolute paths)
-COPY config.yml ${CONFIG_HOME}/config.yml
-RUN chmod 0644 ${CONFIG_HOME}/config.yml
-
-# Copy server assemblies
-COPY --chown=nexus:nexus --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
 
 WORKDIR ${IQ_HOME}
 
@@ -131,15 +147,13 @@ EXPOSE 8070
 EXPOSE 8071
 
 # Wire up health check using localcheck (built into infosec base images)
-HEALTHCHECK CMD localcheck --port 8071 || exit 1
+HEALTHCHECK CMD ["localcheck", "--port", "8071"]
 
-# Change to nexus user
+# Change to nexus user (created in packages stage)
 USER nexus
 
 ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "
 ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
-
-WORKDIR ${IQ_HOME}
 
 # tini as init daemon for zombie process reaping and signal forwarding
 ENTRYPOINT ["/sbin/tini-static", "--"]

@@ -22,10 +22,25 @@
 
 #define MAX_ARGS 128
 
+/* Build-time paths (passed via -D flags to gcc) */
+#ifndef IQ_HOME
+#define IQ_HOME "/opt/sonatype/nexus-iq-server"
+#endif
+#ifndef CONFIG_HOME
+#define CONFIG_HOME "/etc/nexus-iq-server"
+#endif
+#ifndef LOGS_HOME
+#define LOGS_HOME "/var/log/nexus-iq-server"
+#endif
+
+/* Stringify macro for path concatenation */
+#define STR(s) #s
+#define XSTR(s) STR(s)
+
 /*
  * This launcher exists because the distroless runtime image has no shell.
  * It replaces the previous shell-based start.sh and handles:
- *   1. Redirecting stderr to /var/log/nexus-iq-server/stderr.log
+ *   1. Redirecting stderr to LOGS_HOME/stderr.log
  *   2. Parsing and injecting JAVA_OPTS environment variable
  *
  * Uses execvp() to replace itself with the JVM, preserving PID for signal handling.
@@ -36,8 +51,7 @@ int main(void) {
   int arg_count = 0;
 
   // Redirect stderr to log file
-  int stderr_fd = open("/var/log/nexus-iq-server/stderr.log",
-                       O_WRONLY | O_CREAT | O_APPEND, 0644);
+  int stderr_fd = open(XSTR(LOGS_HOME) "/stderr.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
   if (stderr_fd >= 0) {
     dup2(stderr_fd, STDERR_FILENO);
     close(stderr_fd);
@@ -45,7 +59,7 @@ int main(void) {
 
   // Build argument list
   args[arg_count++] = "java";
-  args[arg_count++] = "@/opt/sonatype/nexus-iq-server/jvm.options";
+  args[arg_count++] = "@" XSTR(IQ_HOME) "/jvm.options";
 
   // Parse JAVA_OPTS - simple whitespace splitting (matches unquoted $JAVA_OPTS in bash)
   char *opts_copy = NULL;
@@ -68,9 +82,9 @@ int main(void) {
 
   // Add remaining arguments
   args[arg_count++] = "-jar";
-  args[arg_count++] = "/opt/sonatype/nexus-iq-server/nexus-iq-server.jar";
+  args[arg_count++] = XSTR(IQ_HOME) "/nexus-iq-server.jar";
   args[arg_count++] = "server";
-  args[arg_count++] = "/etc/nexus-iq-server/config.yml";
+  args[arg_count++] = XSTR(CONFIG_HOME) "/config.yml";
   args[arg_count] = NULL;
 
   // Exec - replace this process with java
