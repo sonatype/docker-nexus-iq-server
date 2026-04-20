@@ -17,8 +17,10 @@
 import com.sonatype.jenkins.shared.Expectation
 
 def containerExpectations(String containerName = 'iq-server-test') {
-  // Get container PID for host-side /proc inspection
-  def pid = sh(script: "docker inspect --format '{{.State.Pid}}' ${containerName}", returnStdout: true).trim()
+  // docker inspect returns tini's PID (the container entrypoint). The actual java
+  // process is tini's child, so walk one level down to get the pid to inspect.
+  def tiniPid = sh(script: "docker inspect --format '{{.State.Pid}}' ${containerName}", returnStdout: true).trim()
+  def pid = sh(script: "ps -o pid= --ppid ${tiniPid} | head -1", returnStdout: true).trim()
 
   return [
     // === Process verification (via host /proc) ===
@@ -26,8 +28,10 @@ def containerExpectations(String containerName = 'iq-server-test') {
     new Expectation('java-opts-applied', 'sh', "-c 'cat /proc/${pid}/cmdline | tr \"\\0\" \" \"'", '-Dtest.java.opts=works'),
 
     // === Port checks (localcheck is built into base image) ===
-    new Expectation('application-port', 'docker', "exec ${containerName} localcheck --port 8070 --path /", ''),
-    new Expectation('admin-port', 'docker', "exec ${containerName} localcheck --port 8071", ''),
+    // Use host sh to chain && echo OK because localcheck succeeds silently and
+    // the Expectation class requires a non-empty expectedOutput.
+    new Expectation('application-port', 'sh', "-c 'docker exec ${containerName} localcheck --port 8070 --path / && echo OK'", 'OK'),
+    new Expectation('admin-port', 'sh', "-c 'docker exec ${containerName} localcheck --port 8071 && echo OK'", 'OK'),
 
     // === File existence (via docker cp | tar -t) ===
     new Expectation('launcher-exists', 'sh', "-c 'docker cp ${containerName}:/bin/launcher - | tar -t | grep launcher'", 'launcher'),

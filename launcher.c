@@ -72,8 +72,6 @@ int main(void) {
         token = strtok(NULL, " \t\n");
       }
     }
-
-    free(opts_copy);
   }
 
   // Add remaining arguments
@@ -83,10 +81,14 @@ int main(void) {
   args[arg_count++] = CONFIG_HOME "/config.yml";
   args[arg_count] = NULL;
 
-  // Exec - replace this process with java
+  // Exec - replace this process with java.
+  // opts_copy must stay allocated until exec: args[] entries from strtok() point
+  // into its buffer, so freeing earlier would leave execvp reading freed memory.
+  // On success execvp never returns; on failure we fall through and free below.
   execvp("java", args);
 
   // If we get here, exec failed
   perror("Could not start JVM for Nexus IQ Server");
+  free(opts_copy);
   return 1;
 }
