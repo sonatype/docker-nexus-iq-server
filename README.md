@@ -40,8 +40,42 @@ The Docker image has been migrated from Red Hat UBI 9 Minimal to Sonatype's info
 - **User:** The container now runs as `nonroot` (UID 65532) instead of `nexus` (UID 1000)
 - **Init daemon:** `tini` is used as the init process for proper zombie process reaping
 - **Health check:** Uses `localcheck` (built into base image) instead of `curl`
-- **No shell:** The runtime image no longer contains a shell (`/bin/sh`). Use `docker cp` or ephemeral debug containers for troubleshooting.
+- **No shell or standard utilities:** The runtime image is distroless — there is no `/bin/sh`, `bash`, `cat`, `ls`, `grep`, `ps`, etc. See [Debugging Without a Shell](#debugging-without-a-shell) below for the practical implications.
+- **JVM stderr location:** Because the launcher runs the JVM directly (no wrapper shell), it redirects `stderr` to `/var/log/nexus-iq-server/stderr.log` inside the container so that errors are still captured. `docker logs` will not show `stderr`; only the Dropwizard/Logback `stdout` appender does.
 - **Removed variants:** The `-slim` and `-alpine` image tags are no longer published
+
+#### Debugging Without a Shell
+
+`docker exec -it <container> bash` (or `sh`) no longer works. Use these alternatives:
+
+- **Read a file from the container:**
+  ```
+  docker cp nexus-iq-server:/var/log/nexus-iq-server/clm-server.log ./clm-server.log
+  ```
+  To stream a file or directory as a tar archive to stdout, use `-` as the destination:
+  ```
+  docker cp nexus-iq-server:/etc/nexus-iq-server/config.yml - | tar -xO
+  ```
+- **List running processes:**
+  ```
+  docker top nexus-iq-server
+  ```
+- **Retrieve JVM stderr:**
+  ```
+  docker cp nexus-iq-server:/var/log/nexus-iq-server/stderr.log -
+  ```
+  (or mount `/var/log/nexus-iq-server` as a volume so the file is accessible from the host)
+- **Run arbitrary commands against the running container's filesystem, processes, and network:** attach an ephemeral debug container that shares namespaces with the target. For example:
+  ```
+  docker run --rm -it \
+    --pid=container:nexus-iq-server \
+    --network=container:nexus-iq-server \
+    --volumes-from nexus-iq-server \
+    alpine sh
+  ```
+  This provides full shell access without modifying the hardened image.
+
+Scripts and automation that previously used `docker exec <container> sh -c '...'` against this image must be rewritten to use one of the approaches above.
 
 If you use this image with persistent data volumes, you will need to update file ownership for each volume:
 ```
