@@ -53,9 +53,10 @@ RUN gcc -DIQ_HOME=\"${IQ_HOME}\" \
 
 # Create user/group entries in runtime root.
 # Include root user (UID 0) for system compatibility, plus nexus user.
+# Use nologin as shell since the runtime image has no shell anyway.
 RUN mkdir -p /runtime-deps/etc \
-    && echo "root:x:0:0:root:/root:/bin/sh" > /runtime-deps/etc/passwd \
-    && echo "nexus:x:${UID}:${GID}:Nexus IQ user:${IQ_HOME}:/bin/false" >> /runtime-deps/etc/passwd \
+    && echo "root:x:0:0:root:/root:/usr/sbin/nologin" > /runtime-deps/etc/passwd \
+    && echo "nexus:x:${UID}:${GID}:Nexus IQ user:${IQ_HOME}:/usr/sbin/nologin" >> /runtime-deps/etc/passwd \
     && echo "root:x:0:" > /runtime-deps/etc/group \
     && echo "nexus:x:${GID}:" >> /runtime-deps/etc/group
 
