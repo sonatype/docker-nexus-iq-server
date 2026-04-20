@@ -52,7 +52,9 @@ int main(void) {
     char *java_opts = getenv("JAVA_OPTS");
     if (java_opts != NULL && java_opts[0] != '\0') {
         opts_copy = strdup(java_opts);
-        if (opts_copy != NULL) {
+        if (opts_copy == NULL) {
+            fprintf(stderr, "Warning: failed to allocate memory for JAVA_OPTS, ignoring: %s\n", java_opts);
+        } else {
             char *token = strtok(opts_copy, " \t\n");
             while (token != NULL && arg_count < MAX_ARGS - 5) {
                 args[arg_count++] = token;
