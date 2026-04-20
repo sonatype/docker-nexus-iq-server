@@ -62,6 +62,8 @@ ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
+ARG GID=1000
+ARG UID=1000
 ARG TIMEOUT=600
 
 LABEL name="Nexus IQ Server image" \
@@ -91,9 +93,9 @@ USER root
 # packages stage
 COPY --from=packages /runtime-deps/ /
 
-# Ensure nonroot user/group entries exist for UID/GID resolution
-RUN echo 'nonroot:x:65532:' >> /etc/group \
-&& echo 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin' >> /etc/passwd
+# Add group and user
+RUN groupadd -g ${GID} nexus \
+    && adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus
 
 # Create folders & set permissions
 RUN mkdir -p ${IQ_HOME} \
@@ -103,17 +105,17 @@ RUN mkdir -p ${IQ_HOME} \
 && chmod 0755 "/opt/sonatype" ${IQ_HOME} \
 && chmod 0755 ${CONFIG_HOME} \
 && chmod 0755 ${LOGS_HOME} \
-&& chown -R 65532:65532 ${IQ_HOME} \
-&& chown -R 65532:65532 ${SONATYPE_WORK} \
-&& chown -R 65532:65532 ${CONFIG_HOME} \
-&& chown -R 65532:65532 ${LOGS_HOME}
+&& chown -R nexus:nexus ${IQ_HOME} \
+&& chown -R nexus:nexus ${SONATYPE_WORK} \
+&& chown -R nexus:nexus ${CONFIG_HOME} \
+&& chown -R nexus:nexus ${LOGS_HOME}
 
 # Copy config.yml (already configured for Docker with absolute paths)
 COPY config.yml ${CONFIG_HOME}/config.yml
 RUN chmod 0644 ${CONFIG_HOME}/config.yml
 
 # Copy server assemblies
-COPY --chown=65532:65532 --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
+COPY --chown=nexus:nexus --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
 
 # Create start script
 RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
@@ -134,8 +136,8 @@ EXPOSE 8071
 # Wire up health check using localcheck (built into infosec base images)
 HEALTHCHECK CMD localcheck --port 8071 || exit 1
 
-# Change to nonroot user (uid 65532 - infosec standard)
-USER 65532
+# Change to nexus user
+USER nexus
 
 ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "
 ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
