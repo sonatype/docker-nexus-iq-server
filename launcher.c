@@ -27,7 +27,9 @@
  * It replaces the previous shell-based start.sh and handles:
  *   1. Redirecting stderr to /var/log/nexus-iq-server/stderr.log
  *   2. Parsing and injecting JAVA_OPTS environment variable
+ *
  * Uses execvp() to replace itself with the JVM, preserving PID for signal handling.
+ * Note that Java itself has no equivalent of execvp, which is why this is written in C.
  */
 int main(void) {
     char *args[MAX_ARGS];
