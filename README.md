@@ -37,16 +37,10 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Sonatype Infosec Hardened B
 The Docker image has been migrated from Red Hat UBI 9 Minimal to Sonatype's infosec hardened base image built on Chainguard Wolfi. Key changes:
 
 - **Base image:** Wolfi-based distroless image (`sonatype-infosec/jdk:openjdk-17`) instead of UBI 9 Minimal
-- **User:** The container now runs as `nonroot` (UID 65532) instead of `nexus` (UID 1000)
+- **User:** The container runs as `nexus` (UID 1000)
 - **Init daemon:** `tini` is used as the init process for proper zombie process reaping
 - **Health check:** Uses a precompiled Java class instead of `curl`
 - **Removed variants:** The `-slim` and `-alpine` image tags are no longer published
-
-If you use this image with persistent data volumes, you will need to update file ownership for each volume:
-```
-docker run -it -u=0 -v sonatype-work:/sonatype-work sonatype/nexus-iq-server chown -R 65532:65532 /sonatype-work
-docker run -it -u=0 -v sonatype-logs:/var/log/nexus-iq-server sonatype/nexus-iq-server chown -R 65532:65532 /var/log/nexus-iq-server
-```
 
 ### Upgrading from Version 177 or Earlier to Version 178 or Later
 Version 1.178.0 of the Docker image changed the base image from [Red Hat UBI (Universal Base Image) Minimal](https://catalog.redhat.com/software/containers/ubi8-minimal/5c64772edd19c77a158ea216) to [OpenJDK 17 runtime image on UBI9](https://catalog.redhat.com/software/containers/ubi9/openjdk-17-runtime/61ee7d45384a3eb331996bee). As part of this, the image will run with Java 17 instead of Java 8.
