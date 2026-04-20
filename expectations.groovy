@@ -23,7 +23,7 @@ def containerExpectations(String containerName = 'iq-server-test') {
   return [
     // === Process verification (via host /proc) ===
     new Expectation('java-process', 'sh', "-c 'cat /proc/${pid}/comm'", 'java'),
-    new Expectation('java-opts-applied', 'sh', "-c 'cat /proc/${pid}/cmdline | tr \"\\\\0\" \" \"'", '-Dtest.java.opts=works'),
+    new Expectation('java-opts-applied', 'sh', "-c 'cat /proc/${pid}/cmdline | tr \"\\0\" \" \"'", '-Dtest.java.opts=works'),
 
     // === Port checks (localcheck is built into base image) ===
     new Expectation('application-port', 'docker', "exec ${containerName} localcheck --port 8070 --path /", ''),
@@ -42,8 +42,8 @@ def containerExpectations(String containerName = 'iq-server-test') {
     new Expectation('request-log', 'sh', "-c 'docker cp ${containerName}:/var/log/nexus-iq-server/request.log - | tar -t | grep request.log'", 'request.log'),
 
     // === User/group verification (via docker cp | tar -xO) ===
-    new Expectation('nonroot-user', 'sh', "-c 'docker cp ${containerName}:/etc/passwd - | tar -xO | grep ^nonroot'", 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin'),
-    new Expectation('nonroot-group', 'sh', "-c 'docker cp ${containerName}:/etc/group - | tar -xO | grep ^nonroot'", 'nonroot:x:65532:'),
+    new Expectation('nexus-user', 'sh', "-c 'docker cp ${containerName}:/etc/passwd - | tar -xO | grep ^nexus'", 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
+    new Expectation('nexus-group', 'sh', "-c 'docker cp ${containerName}:/etc/group - | tar -xO | grep ^nexus'", 'nexus:x:1000:'),
   ]
 }
 

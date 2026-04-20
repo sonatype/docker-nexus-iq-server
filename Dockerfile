@@ -20,7 +20,7 @@
 # 2. Download the IQ Server artifacts from Maven (needs Maven for auth + SNAPSHOT resolution)
 # hadolint ignore=DL3006,DL3026
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
-ARG IQ_SERVER_VERSION=1.202.0-01
+ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
 
 # Install Maven + JRE (for artifact download) and runtime deps into isolated root.
 # Runtime deps rationale:
@@ -60,18 +60,20 @@ RUN --mount=type=secret,id=maven-settings,target=/root/.m2/settings.xml \
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jre:openjdk-17
 
-ARG IQ_SERVER_VERSION=1.202.0-01
+ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
+ARG GID=1000
+ARG UID=1000
 ARG TIMEOUT=600
 
 LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.202.0" \
+  release="1.203.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
@@ -94,9 +96,9 @@ USER root
 # packages stage
 COPY --from=packages /runtime-deps/ /
 
-# Ensure nonroot user/group entries exist for UID/GID resolution
-RUN echo 'nonroot:x:65532:' >> /etc/group \
-&& echo 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin' >> /etc/passwd
+# Add group and user
+RUN addgroup -g ${GID} nexus \
+    && adduser -u ${UID} -h ${IQ_HOME} -g "Nexus IQ user" -G nexus -s /bin/false -D nexus
 
 # Create folders & set permissions
 RUN mkdir -p ${IQ_HOME} \
@@ -106,17 +108,17 @@ RUN mkdir -p ${IQ_HOME} \
 && chmod 0755 "/opt/sonatype" ${IQ_HOME} \
 && chmod 0755 ${CONFIG_HOME} \
 && chmod 0755 ${LOGS_HOME} \
-&& chown -R 65532:65532 ${IQ_HOME} \
-&& chown -R 65532:65532 ${SONATYPE_WORK} \
-&& chown -R 65532:65532 ${CONFIG_HOME} \
-&& chown -R 65532:65532 ${LOGS_HOME}
+&& chown -R nexus:nexus ${IQ_HOME} \
+&& chown -R nexus:nexus ${SONATYPE_WORK} \
+&& chown -R nexus:nexus ${CONFIG_HOME} \
+&& chown -R nexus:nexus ${LOGS_HOME}
 
 # Copy config.yml (already configured for Docker with absolute paths)
 COPY config.yml ${CONFIG_HOME}/config.yml
 RUN chmod 0644 ${CONFIG_HOME}/config.yml
 
 # Copy server assemblies
-COPY --chown=65532:65532 --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
+COPY --chown=nexus:nexus --from=packages /tmp/download/nexus-iq-server ${IQ_HOME}
 
 WORKDIR ${IQ_HOME}
 
@@ -131,8 +133,8 @@ EXPOSE 8071
 # Wire up health check using localcheck (built into infosec base images)
 HEALTHCHECK CMD localcheck --port 8071 || exit 1
 
-# Change to nonroot user (uid 65532 - infosec standard)
-USER 65532
+# Change to nexus user
+USER nexus
 
 ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "
 ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
