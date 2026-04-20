@@ -94,8 +94,8 @@ USER root
 COPY --from=packages /runtime-deps/ /
 
 # Add group and user
-RUN groupadd -g ${GID} nexus \
-    && adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus
+RUN addgroup -g ${GID} nexus \
+    && adduser -u ${UID} -h ${IQ_HOME} -g "Nexus IQ user" -G nexus -s /bin/false -D nexus
 
 # Create folders & set permissions
 RUN mkdir -p ${IQ_HOME} \
