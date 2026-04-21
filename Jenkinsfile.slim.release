@@ -54,7 +54,7 @@ dockerizedBuildPipeline(
   },
   buildAndTest: {
     currentBuild.displayName = "#${currentBuild.id} ${imageName}-slim-${env.VERSION}"
-    def expectations = load 'expectations.groovy'
+    def expectations = load 'redhat-expectations.groovy'
     validateExpectations(expectations.containerExpectations())
   },
   vulnerabilityScan: {
