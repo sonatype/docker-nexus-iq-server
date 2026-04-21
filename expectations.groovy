@@ -44,7 +44,7 @@ def containerExpectations(String containerName = 'iq-server-test') {
     new Expectation('request-log', 'sh', "-c 'docker cp ${containerName}:/var/log/nexus-iq-server/request.log - | tar -t | grep request.log'", 'request.log'),
 
     // === User/group verification (via docker cp | tar -xO) ===
-    new Expectation('nexus-user', 'sh', "-c 'docker cp ${containerName}:/etc/passwd - | tar -xO | grep ^nexus'", 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
+    new Expectation('nexus-user', 'sh', "-c 'docker cp ${containerName}:/etc/passwd - | tar -xO | grep ^nexus'", 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/usr/sbin/nologin'),
     new Expectation('nexus-group', 'sh', "-c 'docker cp ${containerName}:/etc/group - | tar -xO | grep ^nexus'", 'nexus:x:1000:'),
   ]
 }
