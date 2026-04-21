@@ -43,7 +43,7 @@ dockerizedBuildPipeline(
     hadolint(['./Dockerfile.slim'])
   },
   buildAndTest: {
-    def expectations = load 'expectations.groovy'
+    def expectations = load 'redhat-expectations.groovy'
     validateExpectations(expectations.containerExpectations())
   },
   deploy: {

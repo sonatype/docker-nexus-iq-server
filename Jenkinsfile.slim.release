@@ -26,7 +26,8 @@ properties([
         description: 'The latest release of IQ Server to build the docker image'),
     string(name: 'sourceJob',
         defaultValue: 'insight/insight-brain/aggregate-release',
-        description: 'Job path to read artifacts from')
+        description: 'Job path to read artifacts from'),
+    booleanParam(name: 'skipMarkAsLatest', defaultValue: false, description: 'Skip: Tag as latest')
   ])
 ])
 
@@ -54,7 +55,7 @@ dockerizedBuildPipeline(
   },
   buildAndTest: {
     currentBuild.displayName = "#${currentBuild.id} ${imageName}-slim-${env.VERSION}"
-    def expectations = load 'expectations.groovy'
+    def expectations = load 'redhat-expectations.groovy'
     validateExpectations(expectations.containerExpectations())
   },
   vulnerabilityScan: {
@@ -64,7 +65,7 @@ dockerizedBuildPipeline(
       iqStage: 'release')
   },
   deploy: {
-    pushImage(imageName)
+    pushImage(imageName, !params.skipMarkAsLatest)
   },
   onSuccess: {
     githubStatusUpdate('success')
@@ -102,7 +103,7 @@ void commitAndPushChanges(String version) {
   }
 }
 
-void pushImage(String imageName) {
+void pushImage(String imageName, boolean markAsLatest) {
   runSafely "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'"
   runSafely "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true"
 
@@ -123,6 +124,10 @@ void pushImage(String imageName) {
                    cp '${NEXUS_IQ_SERVER_DCT_GUN_KEY}' ${TRUST_DIR}/private
                    cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private"""
       withSonatypeDockerRegistry() {
+        def tags = ["${env.VERSION}-slim"]
+        if (markAsLatest) {
+          tags << "latest-slim"
+        }
         runSafely """
         curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
         export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
@@ -132,7 +137,7 @@ void pushImage(String imageName) {
         docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
         export OCI_REPO="sonatype/nexus-iq-server"
         export DOCKERFILE="Dockerfile.slim"
-        ./build_and_push_images.sh "${env.VERSION}-slim" "latest-slim"
+        ./build_and_push_images.sh ${tags.join(' ')}
         """
       }
     }
