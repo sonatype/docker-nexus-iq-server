@@ -44,7 +44,7 @@ dockerizedBuildPipeline(
     checksumX86_64 = readBuildArtifact(params.sourceJob, env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-x86_64.tgz.sha256").trim()
     checksumAarch = readBuildArtifact(params.sourceJob, env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-aarch_64.tgz.sha256").trim()
     updateIQServerVersionAndChecksum(version, checksumX86_64, checksumAarch)
-    commitAndPushChanges(version)
+    commitAndPushChanges(version, params.skipMarkAsLatest)
   },
   pathToDockerfile: './Dockerfile.slim',
   setVersion: {
@@ -90,7 +90,13 @@ void updateIQServerVersionAndChecksum(String version, String checksumX86_64, Str
   writeFile(file: 'Dockerfile.slim', text: dockerFile)
 }
 
-void commitAndPushChanges(String version) {
+void commitAndPushChanges(String version, boolean skipMarkAsLatest) {
+  if (skipMarkAsLatest) {
+    // Skip committing and pushing changes for patch/hotfix releases of older versions
+    // The main branch should always reflect the latest released version
+    echo "Skipping git commit and push because skipMarkAsLatest=true (patch/hotfix release)"
+    return
+  }
   runSafely 'git config --global push.default simple'
   sonatypeZionGitConfig()
   sshagent(credentials: [sonatypeZionCredentialsId()]) {

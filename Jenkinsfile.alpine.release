@@ -42,7 +42,7 @@ dockerizedBuildPipeline(
       version = getVersionFromBuildName(env.releaseBuild_NAME)
       checksum = readBuildArtifact(params.sourceJob, env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux_musl-x86_64.tgz.sha256").trim()
       updateIQServerVersionAndChecksum(version, checksum)
-      commitAndPushChanges(version)
+      commitAndPushChanges(version, params.skipMarkAsLatest)
     },
     pathToDockerfile: './Dockerfile.alpine',
     setVersion: {
@@ -90,7 +90,13 @@ void updateIQServerVersionAndChecksum(String version, String checksum) {
   writeFile(file: 'Dockerfile.alpine', text: dockerFile)
 }
 
-void commitAndPushChanges(String version) {
+void commitAndPushChanges(String version, boolean skipMarkAsLatest) {
+  if (skipMarkAsLatest) {
+    // Skip committing and pushing changes for patch/hotfix releases of older versions
+    // The main branch should always reflect the latest released version
+    echo "Skipping git commit and push because skipMarkAsLatest=true (patch/hotfix release)"
+    return
+  }
   runSafely 'git config --global push.default simple'
   sonatypeZionGitConfig()
   sshagent(credentials: [sonatypeZionCredentialsId()]) {
