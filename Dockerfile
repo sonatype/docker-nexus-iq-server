@@ -42,7 +42,7 @@ RUN apk add --no-cache maven-3.9 openjdk-17-jre gcc \
         --keys-dir /etc/apk/keys \
         --repositories-file /etc/apk/repositories \
         tini-static \
-        git
+        git-bootstrap
 
 # Copy and compile the launcher with build-time paths
 COPY launcher.c /tmp/launcher.c
