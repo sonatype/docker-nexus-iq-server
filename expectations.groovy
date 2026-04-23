@@ -31,6 +31,9 @@ def containerExpectations(String containerName = 'iq-server-test') {
     new Expectation('application-port', 'sh', "-c 'docker exec ${containerName} localcheck --port 8070 --path / && echo OK'", 'OK'),
     new Expectation('admin-port', 'sh', "-c 'docker exec ${containerName} localcheck --port 8071 && echo OK'", 'OK'),
 
+    // === Git executable verification ===
+    new Expectation('git-exists', 'sh', "-c 'docker exec ${containerName} git --version'", 'git version'),
+
     // === File existence (via docker cp | tar -t) ===
     new Expectation('launcher-exists', 'sh', "-c 'docker cp ${containerName}:/bin/launcher - | tar -t | grep launcher'", 'launcher'),
     new Expectation('tini-exists', 'sh', "-c 'docker cp ${containerName}:/sbin/tini-static - | tar -t | grep tini-static'", 'tini-static'),
