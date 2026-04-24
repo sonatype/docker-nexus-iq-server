@@ -84,7 +84,8 @@ dockerizedBuildPipeline(
     nexusPolicyEvaluation(
       iqApplication: 'docker-nexus-iq-server',
       iqScanPatterns: [[scanPattern: "container:${productionImage}"]],
-      iqStage: theStage)
+      iqStage: theStage,
+      containerScannerMode: 'sonatype')
   },
   onUnstable: {
     if (env.BRANCH_NAME == deployBranch) {
