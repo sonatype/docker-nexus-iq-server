@@ -41,10 +41,12 @@ dockerizedBuildPipeline(
       sh 'echo $JENKINS_DOCKER_PASSWORD | docker login -u $JENKINS_DOCKER_USERNAME --password-stdin sonatype.repo.sonatype.app'
       configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
         sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
-        sh "docker buildx build --platform linux/amd64,linux/arm64 " +
+        // Build single platform for testing, cache for multi-platform deploy
+        sh "docker buildx build --platform linux/amd64 " +
             "--cache-to type=local,dest=${env.WORKSPACE}/.buildx-cache " +
-            "--output type=docker,name=${productionImage} " +
-            "--secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml ."
+            "--load " +
+            "--secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml " +
+            "--tag ${productionImage} ."
       }
     }
     def containerName = 'iq-server-test'
