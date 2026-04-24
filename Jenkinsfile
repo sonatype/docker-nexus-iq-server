@@ -30,6 +30,8 @@ dockerizedBuildPipeline(
   deployCondition: { return true }, // always run the deploy stage
   prepare: {
     githubStatusUpdate('pending')
+    // Pull alpine image for Container Security OS package scanning
+    sh 'docker pull alpine:latest'
   },
   lint: {
     hadolint(['./Dockerfile'])
