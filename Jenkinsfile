@@ -81,12 +81,10 @@ dockerizedBuildPipeline(
   },
   vulnerabilityScan: {
     def theStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
-    withEnv(['NEXUS_CONTAINER_SCANNER_MODE=sonatype']) {
-      nexusPolicyEvaluation(
-        iqApplication: 'docker-nexus-iq-server',
-        iqScanPatterns: [[scanPattern: "container:${productionImage}"]],
-        iqStage: theStage)
-    }
+    nexusPolicyEvaluation(
+      iqApplication: 'docker-nexus-iq-server',
+      iqScanPatterns: [[scanPattern: "container:${productionImage}"]],
+      iqStage: theStage)
   },
   onUnstable: {
     if (env.BRANCH_NAME == deployBranch) {
