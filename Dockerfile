@@ -22,7 +22,7 @@
 # hadolint ignore=DL3006,DL3026
 FROM sonatype.repo.sonatype.app/docker-all/chainguard/wolfi-base AS packages
 
-ARG IQ_SERVER_VERSION=1.202.1-01
+ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -99,7 +99,7 @@ RUN chown ${UID}:${GID} /runtime-deps/etc/nexus-iq-server/config.yml \
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/sonatype-infosec/jre:openjdk-17
 
-ARG IQ_SERVER_VERSION=1.202.1-01
+ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -110,7 +110,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.202.1" \
+  release="1.203.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
