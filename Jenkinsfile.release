@@ -1,17 +1,7 @@
 /*
- * Copyright (c) 2017-present Sonatype, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright (c) 2011-present Sonatype, Inc. All rights reserved.
+ * Includes the third-party code listed at http://links.sonatype.com/products/clm/attributions.
+ * "Sonatype" is a trademark of Sonatype, Inc.
  */
 
 @Library(['private-pipeline-library', 'jenkins-shared']) _
@@ -42,8 +32,10 @@ dockerizedBuildPipeline(
   prepare: {
     githubStatusUpdate('pending')
     version = getVersionFromBuildName(env.releaseBuild_NAME)
-    updateIQServerVersion(version)
-    commitAndPushChanges(version)
+    checksumX86_64 = readBuildArtifact(params.sourceJob, env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-x86_64.tgz.sha256").trim()
+    checksumAarch = readBuildArtifact(params.sourceJob, env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-aarch_64.tgz.sha256").trim()
+    updateIQServerVersionAndChecksum(version, checksumX86_64, checksumAarch)
+    commitAndPushChanges(version, params.skipMarkAsLatest)
   },
   setVersion: {
     env['VERSION'] = version.split('-')[0]
@@ -111,7 +103,13 @@ void updateIQServerVersion(String version) {
   writeFile(file: 'Dockerfile', text: dockerFile)
 }
 
-void commitAndPushChanges(String version) {
+void commitAndPushChanges(String version, boolean skipMarkAsLatest) {
+  if (skipMarkAsLatest) {
+    // Skip committing and pushing changes for patch/hotfix releases of older versions
+    // The main branch should always reflect the latest released version
+    echo "Skipping git commit and push because skipMarkAsLatest=true (patch/hotfix release)"
+    return
+  }
   runSafely 'git config --global push.default simple'
   sonatypeZionGitConfig()
   sshagent(credentials: [sonatypeZionCredentialsId()]) {
