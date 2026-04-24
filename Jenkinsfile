@@ -70,6 +70,7 @@ dockerizedBuildPipeline(
     // Push the cached multi-platform build to the registry
     withSonatypeDockerRegistry() {
       configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
+        sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
         sh "docker buildx build --platform linux/amd64,linux/arm64 " +
             "--cache-from type=local,src=${env.WORKSPACE}/.buildx-cache " +
             "--secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml " +
