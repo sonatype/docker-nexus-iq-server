@@ -38,7 +38,11 @@ dockerizedBuildPipeline(
     withSonatypeDockerRegistry() {
       sh 'echo $JENKINS_DOCKER_PASSWORD | docker login -u $JENKINS_DOCKER_USERNAME --password-stdin sonatype.repo.sonatype.app'
       configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
-        sh "DOCKER_BUILDKIT=1 docker build --secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml --tag ${productionImage} ."
+        sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
+        sh "docker buildx build --platform linux/amd64,linux/arm64 " +
+            "--cache-to type=local,dest=${env.WORKSPACE}/.buildx-cache " +
+            "--output type=docker,name=${productionImage} " +
+            "--secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml ."
       }
     }
     def containerName = 'iq-server-test'
@@ -59,13 +63,14 @@ dockerizedBuildPipeline(
     }
   },
   deploy: {
-    // Run a multi-platform buildx build to verify cross-platform compatibility
+    // Push the cached multi-platform build to the registry
     withSonatypeDockerRegistry() {
       configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
-        sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
         sh "docker buildx build --platform linux/amd64,linux/arm64 " +
+            "--cache-from type=local,src=${env.WORKSPACE}/.buildx-cache " +
             "--secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml " +
-            "--tag ${sonatypeDockerRegistryId()}/${imageName}:${env.BUILD_NUMBER} ."
+            "--tag ${sonatypeDockerRegistryId()}/${imageName}:${env.BUILD_NUMBER} " +
+            "--push ."
       }
     }
   },
