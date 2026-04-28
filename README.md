@@ -43,8 +43,6 @@ Other key changes from the Red Hat UBI-based image:
 - **Launcher:** A compiled C binary replaces the previous shell script wrapper
 - **Init daemon:** `tini-static` replaces the previous shell-based entrypoint for proper zombie process reaping and signal forwarding
 - **Health check:** Uses `localcheck` instead of `curl` (which is no longer present)
-- **Alpine tags:** Both `VERSION` and `VERSION-alpine` tags are published (they point to the same image)
-
 See [Debugging Without a Shell](#debugging-without-a-shell) below for how to inspect the container without shell access.
 
 #### Debugging Without a Shell

@@ -154,10 +154,9 @@ void pushImage(String imageName, boolean markAsLatest) {
                    cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private"""
       withSonatypeDockerRegistry() {
         configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
-          def tags = ["${env.VERSION}", "${env.VERSION}-alpine"]
+          def tags = ["${env.VERSION}"]
           if (markAsLatest) {
             tags << "latest"
-            tags << "latest-alpine"
           }
           runSafely """
           curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
