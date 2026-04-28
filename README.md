@@ -17,7 +17,7 @@
 -->
 # Sonatype Nexus IQ Server Docker: sonatype/nexus-iq-server
 
-A Dockerfile for Sonatype Nexus IQ Server, based on [Sonatype Infosec Hardened Base Images](https://sonatype.repo.sonatype.app) (Chainguard Wolfi).
+A Dockerfile for Sonatype Nexus IQ Server, based on Alpine Linux.
 
 * [Migration](#migration)
 * [Runtime Server Configuation](#runtime-server-configuration)
@@ -32,17 +32,20 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Sonatype Infosec Hardened B
 
 ## Migration
 
-### Upgrading to Infosec Hardened Base Image (Current)
+### Upgrading to Scratch-Based Image (Current)
 
-The Docker image has been migrated from Red Hat UBI 9 Minimal to Sonatype's infosec hardened base image built on Chainguard Wolfi. Key changes:
+The Docker image has been migrated from Red Hat UBI 9 Minimal to a `FROM scratch` image. The runtime image contains **no shell, no package manager, and no standard Unix utilities** (`sh`, `bash`, `curl`, `cat`, `ls`, `grep`, `ps`, etc. are all absent). If you build images based on this one, be aware that you cannot install packages or run shell commands inside the container.
 
-- **Base image:** Wolfi-based distroless image (`sonatype-infosec/jdk:openjdk-17`) instead of UBI 9 Minimal
-- **User:** The container runs as `nexus` (UID 1000)
-- **Init daemon:** `tini` is used as the init process for proper zombie process reaping
-- **Health check:** Uses `localcheck` (built into base image) instead of `curl`
-- **No shell or standard utilities:** The runtime image is distroless — there is no `/bin/sh`, `bash`, `cat`, `ls`, `grep`, `ps`, etc. See [Debugging Without a Shell](#debugging-without-a-shell) below for the practical implications.
-- **JVM stderr location:** Because the launcher runs the JVM directly (no wrapper shell), it redirects `stderr` to `/var/log/nexus-iq-server/stderr.log` inside the container so that errors are still captured. `docker logs` will not show `stderr`; only the Dropwizard/Logback `stdout` appender does.
-- **Removed variants:** The `-slim` and `-alpine` image tags are no longer published
+The packages that are present (JVM, git, tini, and their dependencies) are Alpine/musl-based. The image supports both amd64 and arm64 architectures.
+
+Other key changes from the Red Hat UBI-based image:
+
+- **Launcher:** A compiled C binary replaces the previous shell script wrapper
+- **Init daemon:** `tini-static` replaces the previous shell-based entrypoint for proper zombie process reaping and signal forwarding
+- **Health check:** Uses `localcheck` instead of `curl` (which is no longer present)
+- **Alpine tags:** Both `VERSION` and `VERSION-alpine` tags are published (they point to the same image)
+
+See [Debugging Without a Shell](#debugging-without-a-shell) below for how to inspect the container without shell access.
 
 #### Debugging Without a Shell
 
@@ -237,8 +240,6 @@ To build a docker image from the Dockerfile you can use this command:
 The following optional variables can be used when building the image:
 
 - IQ_SERVER_VERSION: Version of Nexus IQ Server
-- IQ_SERVER_SHA256_X86_64: Check hash for x86_64 archive
-- IQ_SERVER_SHA256_AARCH: Check hash for aarch64 archive
 - SONATYPE_WORK: Path to Nexus IQ Server working directory where variable data is stored
 - LOGS_HOME: Path to Nexus IQ Server directory where logs are stored
 
