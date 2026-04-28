@@ -45,9 +45,9 @@ RUN apk add --no-cache --initdb --root /runtime-deps \
         libgcc
 
 # Remove busybox/shell from runtime: these packages are only needed for apk post-install
-# scripts which have already run above. Create a dummy "shell-none" package that provides
-# /bin/sh to satisfy the dependency, and replaces busybox-binsh. When apk installs it,
-# busybox-binsh is replaced and busybox + ssl_client are removed as orphans.
+# scripts which have already run above. Create a dummy "shell-none" package that "provides"
+# /bin/sh to satisfy the dependency and replace busybox-binsh, but doesn't actually contain any files.
+# When apk installs it, busybox-binsh is replaced and busybox + ssl_client are removed as orphans.
 RUN mkdir -p /tmp/empty-root \
     && apk mkpkg \
         --info 'name:shell-none' \
