@@ -44,15 +44,25 @@ RUN apk add --no-cache --initdb --root /runtime-deps \
         openjdk17-jre-headless \
         libgcc
 
-# Strip packages only needed during apk install scripts:
-# - busybox, busybox-binsh, ssl_client: shell (pulled in by java-common/ca-certificates /bin/sh dep)
-# - git-init-template: auto-installed with git, just sample hook scripts (not needed at runtime)
-RUN for pkg in busybox busybox-binsh ssl_client git-init-template; do \
-        apk info --root /runtime-deps -L $pkg 2>/dev/null \
-            | tail -n +2 \
-            | while read f; do [ -n "$f" ] && rm -f "/runtime-deps/$f"; done; \
-        sed -i "/^P:${pkg}$/,/^$/d" /runtime-deps/lib/apk/db/installed; \
-    done
+# Remove busybox/shell from runtime: these packages are only needed for apk post-install
+# scripts which have already run above. Create a dummy "shell-none" package that provides
+# /bin/sh to satisfy the dependency, and replaces busybox-binsh. When apk installs it,
+# busybox-binsh is replaced and busybox + ssl_client are removed as orphans.
+RUN mkdir -p /tmp/empty-root \
+    && apk mkpkg \
+        --info 'name:shell-none' \
+        --info 'version:1.0.0' \
+        --info 'arch:noarch' \
+        --info 'description:Dummy package satisfying /bin/sh without installing a shell' \
+        --info 'provides:/bin/sh cmd:sh=1.0.0' \
+        --info 'replaces:busybox-binsh' \
+        --files /tmp/empty-root \
+        --output /tmp/shell-none.apk \
+    && apk add --no-cache --root /runtime-deps \
+        --keys-dir /etc/apk/keys \
+        --repositories-file /etc/apk/repositories \
+        --allow-untrusted --force-non-repository \
+        /tmp/shell-none.apk
 
 # Copy and compile the launcher with build-time paths.
 # Output to /runtime-deps/usr/bin/ because Alpine's /bin is a symlink to /usr/bin.
@@ -84,12 +94,11 @@ RUN mkdir -p /runtime-deps/opt/sonatype/nexus-iq-server \
     && mkdir -p /runtime-deps/etc/nexus-iq-server \
     && mkdir -p /runtime-deps/var/log/nexus-iq-server \
     && mkdir -p /runtime-deps/tmp \
+    && chmod 1777 /runtime-deps/tmp \
     && chown -R ${UID}:${GID} /runtime-deps/opt/sonatype/nexus-iq-server \
     && chown -R ${UID}:${GID} /runtime-deps/sonatype-work \
     && chown -R ${UID}:${GID} /runtime-deps/etc/nexus-iq-server \
-    && chown -R ${UID}:${GID} /runtime-deps/var/log/nexus-iq-server \
-    && chown -R ${UID}:${GID} /runtime-deps/tmp \
-    && chmod 1777 /runtime-deps/tmp
+    && chown -R ${UID}:${GID} /runtime-deps/var/log/nexus-iq-server
 
 # Download the server jar and JVM options file as individual Maven artifacts.
 # Uses BuildKit secret mount for settings.xml so credentials never appear in any layer.
