@@ -25,7 +25,7 @@ def containerExpectations(String containerName = 'iq-server-test') {
     new Expectation('git-exists', 'sh', "-c 'docker exec ${containerName} git --version'", 'git version'),
 
     // === File existence (via docker cp | tar -t) ===
-    new Expectation('launcher-exists', 'sh', "-c 'docker cp ${containerName}:/bin/launcher - | tar -t | grep launcher'", 'launcher'),
+    new Expectation('launcher-exists', 'sh', "-c 'docker cp ${containerName}:/usr/bin/launcher - | tar -t | grep launcher'", 'launcher'),
     new Expectation('tini-exists', 'sh', "-c 'docker cp ${containerName}:/sbin/tini-static - | tar -t | grep tini-static'", 'tini-static'),
     new Expectation('config-file', 'sh', "-c 'docker cp ${containerName}:/etc/nexus-iq-server/config.yml - | tar -t | grep config.yml'", 'config.yml'),
     new Expectation('iq-home', 'sh', "-c 'docker cp ${containerName}:/opt/sonatype/nexus-iq-server/nexus-iq-server.jar - | tar -t | grep nexus-iq-server.jar'", 'nexus-iq-server.jar'),

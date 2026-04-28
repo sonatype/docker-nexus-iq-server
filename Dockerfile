@@ -11,7 +11,7 @@
 # 3. Download the IQ Server artifacts from Maven (needs Maven for auth + SNAPSHOT resolution)
 # 4. Create users, groups, and directory structure for the runtime image
 # hadolint ignore=DL3006,DL3026
-FROM alpine:3 AS packages
+FROM sonatype.repo.sonatype.app/docker-all/library/alpine:3 AS packages
 
 ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
