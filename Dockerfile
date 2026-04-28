@@ -14,60 +14,143 @@
 # limitations under the License.
 #
 
-# hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS builder
-ARG TEMP="/tmp/work"
-# Build parameters
-ARG IQ_SERVER_VERSION=1.202.1-01
-ARG IQ_SERVER_SHA256_AARCH=f45baed630e6c14717711b95a4865637f1fe8b1041da71d1585938928dffcea0
-ARG IQ_SERVER_SHA256_X86_64=e03505b3767416664210b6f4bc07265988b86f5280443ed0e5a96730397138ca
-ARG SONATYPE_WORK="/sonatype-work"
+# === Packages stage ===
+# Uses Alpine to:
+# 1. Install runtime dependencies (git, tini, JRE) into an isolated root
+# 2. Compile launcher.c and localcheck
+# 3. Download the IQ Server artifacts from Maven (needs Maven for auth + SNAPSHOT resolution)
+# 4. Create users, groups, and directory structure for the runtime image
+# hadolint ignore=DL3006,DL3026
+FROM sonatype.repo.sonatype.app/docker-all/library/alpine:3 AS packages
 
-# hadolint ignore=DL3041,DL3040
-RUN mkdir -p ${TEMP} && \
-    microdnf update -y && \
-    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which crypto-policies crypto-policies-scripts
-
-# Copy config.yml and set sonatypeWork to the correct value
-COPY config.yml ${TEMP}
-
-# hadolint ignore=DL4006,SC3060
-RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${TEMP}/config-edited.yml
-
-# Download the server bundle, verify its checksum, and extract the server jar to the install directory
-WORKDIR ${TEMP}
-# hadolint ignore=SC3010
-RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
-      echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
-    elif [[ "$(uname -m)" = "aarch64" ]]; then \
-      echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
-    else \
-      echo "Unsupported architecture: $ARCH" && exit 1; \
-    fi
-
-RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
-    && tar -xvf nexus-iq-server.tar.gz \
-    && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
-
-# hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
-
-ARG IQ_SERVER_VERSION=1.202.1-01
+ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
 ARG LOGS_HOME="/var/log/nexus-iq-server"
 ARG GID=1000
 ARG UID=1000
+
+# Build tools (not copied to runtime):
+# - maven + openjdk17: artifact download
+# - gcc + musl-dev: compile launcher.c (Alpine needs musl-dev for headers)
+# - cargo: compile localcheck from submodule
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+# hadolint ignore=DL3018
+RUN apk add --no-cache maven openjdk17 gcc musl-dev cargo
+
+# Install runtime deps into isolated root.
+# Runtime deps rationale:
+# - tini-static: init daemon for zombie process reaping and signal forwarding
+# - git: required for IQ Server SCM integrations
+# - openjdk17-jre-headless: JVM (musl-native, available for amd64 + arm64)
+# - libgcc: required by localcheck (Rust unwinding)
+# hadolint ignore=DL3018
+RUN apk add --no-cache --initdb --root /runtime-deps \
+        --keys-dir /etc/apk/keys \
+        --repositories-file /etc/apk/repositories \
+        tini-static \
+        git \
+        openjdk17-jre-headless \
+        libgcc
+
+# Remove busybox/shell from runtime: these packages are only needed for apk post-install
+# scripts which have already run above. Create a dummy "shell-none" package that "provides"
+# /bin/sh to satisfy the dependency and replace busybox-binsh, but doesn't actually contain any files.
+# When apk installs it, busybox-binsh is replaced and busybox + ssl_client are removed as orphans.
+RUN mkdir -p /tmp/empty-root \
+    && apk mkpkg \
+        --info 'name:shell-none' \
+        --info 'version:1.0.0' \
+        --info 'arch:noarch' \
+        --info 'description:Dummy package satisfying /bin/sh without installing a shell' \
+        --info 'provides:/bin/sh cmd:sh=1.0.0' \
+        --info 'replaces:busybox-binsh' \
+        --files /tmp/empty-root \
+        --output /tmp/shell-none.apk \
+    && apk add --no-cache --root /runtime-deps \
+        --keys-dir /etc/apk/keys \
+        --repositories-file /etc/apk/repositories \
+        --allow-untrusted --force-non-repository \
+        /tmp/shell-none.apk
+
+# Copy and compile the launcher with build-time paths.
+# Output to /runtime-deps/usr/bin/ because Alpine's /bin is a symlink to /usr/bin.
+COPY launcher.c /tmp/launcher.c
+RUN gcc -DIQ_HOME=\"${IQ_HOME}\" \
+         -DCONFIG_HOME=\"${CONFIG_HOME}\" \
+         -DLOGS_HOME=\"${LOGS_HOME}\" \
+         -o /runtime-deps/usr/bin/launcher /tmp/launcher.c
+
+# Compile localcheck from submodule for healthcheck.
+# Localcheck is only deployed as a Wolfi package, which we can't use,
+# so we compile it ourselves. Dynamic linking is fine (musl is in runtime).
+COPY localcheck/ /tmp/localcheck/
+RUN cd /tmp/localcheck && cargo build --release \
+    && cp target/release/localcheck /runtime-deps/usr/bin/localcheck
+
+# Create user/group entries in runtime root.
+# Include root user (UID 0) for system compatibility, plus nexus user.
+# Use nologin as shell since the runtime image has no shell anyway.
+RUN mkdir -p /runtime-deps/etc \
+    && echo "root:x:0:0:root:/root:/usr/sbin/nologin" > /runtime-deps/etc/passwd \
+    && echo "nexus:x:${UID}:${GID}:Nexus IQ user:${IQ_HOME}:/usr/sbin/nologin" >> /runtime-deps/etc/passwd \
+    && echo "root:x:0:" > /runtime-deps/etc/group \
+    && echo "nexus:x:${GID}:" >> /runtime-deps/etc/group
+
+# Create directory structure with proper ownership in runtime root
+RUN mkdir -p /runtime-deps/opt/sonatype/nexus-iq-server \
+    && mkdir -p /runtime-deps/sonatype-work \
+    && mkdir -p /runtime-deps/etc/nexus-iq-server \
+    && mkdir -p /runtime-deps/var/log/nexus-iq-server \
+    && mkdir -p /runtime-deps/tmp \
+    && chmod 1777 /runtime-deps/tmp \
+    && chown -R ${UID}:${GID} /runtime-deps/opt/sonatype/nexus-iq-server \
+    && chown -R ${UID}:${GID} /runtime-deps/sonatype-work \
+    && chown -R ${UID}:${GID} /runtime-deps/etc/nexus-iq-server \
+    && chown -R ${UID}:${GID} /runtime-deps/var/log/nexus-iq-server
+
+# Download the server jar and JVM options file as individual Maven artifacts.
+# Uses BuildKit secret mount for settings.xml so credentials never appear in any layer.
+# Maven handles SNAPSHOT version resolution automatically.
+WORKDIR /tmp/download/nexus-iq-server
+# hadolint ignore=SC2046
+RUN --mount=type=secret,id=maven-settings,target=/root/.m2/settings.xml \
+    mvn dependency:copy \
+        -Dartifact=com.sonatype.insight.brain:insight-brain-service:${IQ_SERVER_VERSION}:jar:server \
+        -DoutputDirectory=. \
+    && mvn dependency:copy \
+        -Dartifact=com.sonatype.insight.brain:nexus-iq-server:${IQ_SERVER_VERSION}:options:jvm \
+        -DoutputDirectory=. \
+    && mv insight-brain-service-*-server.jar nexus-iq-server.jar \
+    && mv nexus-iq-server-*-jvm.options jvm.options
+
+# Copy downloaded server files into runtime root with correct ownership
+RUN cp -r /tmp/download/nexus-iq-server/* /runtime-deps/opt/sonatype/nexus-iq-server/ \
+    && chown -R ${UID}:${GID} /runtime-deps/opt/sonatype/nexus-iq-server
+
+# Copy config.yml into runtime root with correct permissions
+COPY config.yml /runtime-deps/etc/nexus-iq-server/config.yml
+RUN chown ${UID}:${GID} /runtime-deps/etc/nexus-iq-server/config.yml \
+    && chmod 0644 /runtime-deps/etc/nexus-iq-server/config.yml
+
+# === Runtime stage ===
+# FROM scratch: no shell, no package manager, no busybox.
+# The isolated root becomes the entire filesystem.
+FROM scratch
+
+ARG IQ_SERVER_VERSION=1.203.0-SNAPSHOT
+ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
+ARG SONATYPE_WORK="/sonatype-work"
+ARG CONFIG_HOME="/etc/nexus-iq-server"
+ARG LOGS_HOME="/var/log/nexus-iq-server"
 ARG TIMEOUT=600
 
 LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.202.1" \
+  release="1.203.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
@@ -83,49 +166,23 @@ LABEL name="Nexus IQ Server image" \
   io.openshift.expose-services="8071:8071" \
   io.openshift.tags="Sonatype,Nexus,IQ Server"
 
-USER root
+# Copy the entire runtime filesystem from packages stage:
+# - /etc/passwd and /etc/group (nexus user/group)
+# - /usr/bin/launcher
+# - /usr/bin/localcheck
+# - /sbin/tini-static
+# - /usr/lib/jvm/java-17-openjdk (JVM)
+# - /opt/sonatype/nexus-iq-server (with server jar and jvm.options)
+# - /etc/nexus-iq-server/config.yml
+# - /var/log/nexus-iq-server directory
+# - /sonatype-work directory
+# - git and its dependencies
+# - musl libc and other runtime libs
+COPY --from=packages /runtime-deps/ /
 
-# For testing
-# hadolint ignore=DL3041
-RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which crypto-policies crypto-policies-scripts \
-&& microdnf clean all
-
-# Create folders & set permissions
-RUN mkdir -p ${IQ_HOME} \
-&& mkdir -p ${SONATYPE_WORK} \
-&& mkdir -p ${CONFIG_HOME} \
-&& mkdir -p ${LOGS_HOME} \
-&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \
-&& chmod 0755 ${CONFIG_HOME} \
-&& chmod 0755 ${LOGS_HOME}
-
-# Add group and user
-RUN groupadd -g ${GID} nexus \
-&& adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
-# Change owner to nexus user
-&& chown -R nexus:nexus ${IQ_HOME} \
-&& chown -R nexus:nexus ${SONATYPE_WORK} \
-&& chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME}
-    
-# Copy config.yml
-COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
-RUN chmod 0644 ${CONFIG_HOME}/config.yml
-
-# Copy server assemblies
-COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
-
-# Create start script
-RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
-&& echo "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
-&& echo "wait" >> ${IQ_HOME}/start.sh \
-&& chmod 0755 ${IQ_HOME}/start.sh
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 
 WORKDIR ${IQ_HOME}
-
-# enabling back support for SHA1 signed certificates
-RUN update-crypto-policies --set DEFAULT:SHA1
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
@@ -135,15 +192,15 @@ VOLUME ${LOGS_HOME}
 EXPOSE 8070
 EXPOSE 8071
 
-# Wire up health check
-HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthcheck || exit 1
+# Wire up health check using localcheck (compiled in packages stage)
+HEALTHCHECK CMD ["localcheck", "--port", "8071"]
 
-# Change to nexus user
+# Change to nexus user (created in packages stage)
 USER nexus
 
 ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "
 ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 
-WORKDIR ${IQ_HOME}
-
-CMD [ "sh", "./start.sh" ]
+# tini as init daemon for zombie process reaping and signal forwarding
+ENTRYPOINT ["/sbin/tini-static", "--"]
+CMD ["/usr/bin/launcher"]

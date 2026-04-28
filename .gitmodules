@@ -1,0 +1,3 @@
+[submodule "localcheck"]
+	path = localcheck
+	url = git@github.com:sonatype/localcheck.git

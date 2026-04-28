@@ -17,7 +17,7 @@
 -->
 # Sonatype Nexus IQ Server Docker: sonatype/nexus-iq-server
 
-A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Image](https://www.redhat.com/en/blog/introducing-red-hat-universal-base-image).
+A Dockerfile for Sonatype Nexus IQ Server, based on Alpine Linux.
 
 * [Migration](#migration)
 * [Runtime Server Configuation](#runtime-server-configuration)
@@ -26,12 +26,57 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
 * [Product License Installation](#product-license-installation)
 * [Building the Nexus IQ Server image](#building-the-nexus-iq-server-image)
   * [Customizing the Default Built config.yml](#customizing-the-default-built-configyml)
-* [Extending the Nexus IQ Server Image](#extending-the-nexus-iq-server-image)
 * [Testing the Dockerfile](#testing-the-dockerfile)
 * [Red Hat Certified Image](#red-hat-certified-image)
 * [Project License](#project-license)
 
 ## Migration
+
+### Upgrading to Scratch-Based Image (Current)
+
+The Docker image has been migrated from Red Hat UBI 9 Minimal to a `FROM scratch` image. The runtime image contains **no shell, no package manager, and no standard Unix utilities** (`sh`, `bash`, `curl`, `cat`, `ls`, `grep`, `ps`, etc. are all absent). If you build images based on this one, be aware that you cannot install packages or run shell commands inside the container.
+
+The packages that are present (JVM, git, tini, and their dependencies) are Alpine/musl-based. The image supports both amd64 and arm64 architectures.
+
+Other key changes from the Red Hat UBI-based image:
+
+- **Launcher:** A compiled C binary replaces the previous shell script wrapper
+- **Init daemon:** `tini-static` replaces the previous shell-based entrypoint for proper zombie process reaping and signal forwarding
+- **Health check:** Uses `localcheck` instead of `curl` (which is no longer present)
+See [Debugging Without a Shell](#debugging-without-a-shell) below for how to inspect the container without shell access.
+
+#### Debugging Without a Shell
+
+`docker exec -it <container> bash` (or `sh`) no longer works. Use these alternatives:
+
+- **Read a file from the container:**
+  ```
+  docker cp nexus-iq-server:/var/log/nexus-iq-server/clm-server.log ./clm-server.log
+  ```
+  To stream a file or directory as a tar archive to stdout, use `-` as the destination:
+  ```
+  docker cp nexus-iq-server:/etc/nexus-iq-server/config.yml - | tar -xO
+  ```
+- **List running processes:**
+  ```
+  docker top nexus-iq-server
+  ```
+- **Retrieve JVM stderr:**
+  ```
+  docker cp nexus-iq-server:/var/log/nexus-iq-server/stderr.log -
+  ```
+  (or mount `/var/log/nexus-iq-server` as a volume so the file is accessible from the host)
+- **Run arbitrary commands against the running container's filesystem, processes, and network:** attach an ephemeral debug container that shares namespaces with the target. For example:
+  ```
+  docker run --rm -it \
+    --pid=container:nexus-iq-server \
+    --network=container:nexus-iq-server \
+    --volumes-from nexus-iq-server \
+    alpine sh
+  ```
+  This provides full shell access without modifying the hardened image.
+
+Scripts and automation that previously used `docker exec <container> sh -c '...'` against this image must be rewritten to use one of the approaches above.
 
 ### Upgrading from Version 177 or Earlier to Version 178 or Later
 Version 1.178.0 of the Docker image changed the base image from [Red Hat UBI (Universal Base Image) Minimal](https://catalog.redhat.com/software/containers/ubi8-minimal/5c64772edd19c77a158ea216) to [OpenJDK 17 runtime image on UBI9](https://catalog.redhat.com/software/containers/ubi9/openjdk-17-runtime/61ee7d45384a3eb331996bee). As part of this, the image will run with Java 17 instead of Java 8.
@@ -193,26 +238,14 @@ To build a docker image from the Dockerfile you can use this command:
 The following optional variables can be used when building the image:
 
 - IQ_SERVER_VERSION: Version of Nexus IQ Server
-- IQ_SERVER_SHA256: Check hash matches the downloaded IQ Server archive or else fail build. Required if `IQ_SERVER_VERSION` is provided.
 - SONATYPE_WORK: Path to Nexus IQ Server working directory where variable data is stored
 - LOGS_HOME: Path to Nexus IQ Server directory where logs are stored
-- GID: GID of the user group used when running the image
-- UID: UID of the user used when running the image
 
 ### Customizing the Default config.yml
 
 The `config.yml` file can be used to customize the Nexus IQ Server configuration.
 See [IQ Server Configuration](https://help.sonatype.com/iqserver/configuring) for more details as to what values
 are supported.
-
-## Extending the Nexus IQ Server Image
-
-If you would like to use this image as the basis for another image that adds additional packages,
-take note that different versions of the image provide different package managers:
-
-* Version 125 and newer provide `microdnf` as package manager.
-* Version 101 and newer provide `dnf` as package manager.
-* Version 100 and older provide `yum` as package manager.
 
 ## Testing the Dockerfile
 
@@ -221,14 +254,6 @@ We are using `rspec` as test framework. `serverspec` provides a docker backend (
  (e.g. yum, apt,...).
 
     rspec [--backtrace] spec/Dockerfile_spec.rb
-    
-## Alternative Slim Docker Image
-
-The default Dockerfile includes:
-* `git` for enhanced SCM Integrations
-
-If you want an image without the extra tooling already installed, use the slim tag of the image:
-`sonatype/nexus-iq-server:<version>-slim`, which can also be `sonatype/nexus-iq-server:latest-slim`.
 
 ## Red Hat Certified Image
 

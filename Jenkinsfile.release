@@ -33,10 +33,11 @@ properties([
 
 String imageName = 'sonatype/nexus-iq-server'
 String version = ''
-String checksumX86_64 = ''
-String checksumAarch = ''
+String productionImage = 'iq-server-under-test'
 
 dockerizedBuildPipeline(
+  buildImageId: 'sonatype.repo.sonatype.app/docker-all/docker:latest',
+  dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock -u root:root',
   deployBranch: 'main',
   prepare: {
     githubStatusUpdate('pending')
@@ -54,13 +55,33 @@ dockerizedBuildPipeline(
   },
   buildAndTest: {
     currentBuild.displayName = "#${currentBuild.id} ${imageName}-${env.VERSION}"
-    def expectations = load 'expectations.groovy'
-    validateExpectations(expectations.containerExpectations())
+    withSonatypeDockerRegistry() {
+      sh 'echo $JENKINS_DOCKER_PASSWORD | docker login -u $JENKINS_DOCKER_USERNAME --password-stdin sonatype.repo.sonatype.app'
+      configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
+        sh "DOCKER_BUILDKIT=1 docker build --secret id=maven-settings,src=${env.WORKSPACE}/.m2/settings.xml --tag ${productionImage} ."
+      }
+    }
+    def containerName = 'iq-server-test'
+    try {
+      sh "docker run -d --name ${containerName} -e JAVA_OPTS='-Dtest.java.opts=works' ${productionImage}"
+      // localcheck hits /ping (always 200 when admin port is ready).
+      // Extra sleep lets the server finish writing log files before expectations run.
+      sh """for i in \$(seq 1 60); do
+        docker exec ${containerName} localcheck --port 8071 2>/dev/null && break
+        sleep 5
+      done
+      sleep 10"""
+      def expectations = load 'expectations.groovy'
+      validateExpectations(expectations.containerExpectations(containerName))
+    } finally {
+      sh "docker logs ${containerName} || true"
+      sh "docker rm -f ${containerName} || true"
+    }
   },
   vulnerabilityScan: {
     nexusPolicyEvaluation(
       iqApplication: 'docker-nexus-iq-server',
-      iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
+      iqScanPatterns: [[scanPattern: "container:${productionImage}"]],
       iqStage: 'release')
   },
   deploy: {
@@ -81,17 +102,13 @@ dockerizedBuildPipeline(
   }
 )
 
-void updateIQServerVersionAndChecksum(String version, String checksumX86_64, String checksumAarch) {
+void updateIQServerVersion(String version) {
   def dockerFile = readFile(file: 'Dockerfile')
   def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
-  def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
-  def shaRegexAarch = /(ARG IQ_SERVER_SHA256_AARCH=)([A-Fa-f0-9]{64})/
-  def shaRegexX64_64 = /(ARG IQ_SERVER_SHA256_X86_64=)([A-Fa-f0-9]{64})/
+  def versionRegex = /(ARG IQ_SERVER_VERSION=)([\w.\-]+)/
   dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
       "\$1${version.substring(0, version.indexOf('-'))}\$3")
   dockerFile = dockerFile.replaceAll(versionRegex, "\$1${version}")
-  dockerFile = dockerFile.replaceAll(shaRegexX64_64, "\$1${checksumX86_64}")
-  dockerFile = dockerFile.replaceAll(shaRegexAarch, "\$1${checksumAarch}")
 
   writeFile(file: 'Dockerfile', text: dockerFile)
 }
@@ -136,20 +153,23 @@ void pushImage(String imageName, boolean markAsLatest) {
                    cp '${NEXUS_IQ_SERVER_DCT_GUN_KEY}' ${TRUST_DIR}/private
                    cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private"""
       withSonatypeDockerRegistry() {
-        def tags = ["${env.VERSION}"]
-        if (markAsLatest) {
-          tags << "latest"
+        configFileProvider([configFile(fileId: 'private-settings.xml', targetLocation: "${env.WORKSPACE}/.m2/settings.xml")]) {
+          def tags = ["${env.VERSION}"]
+          if (markAsLatest) {
+            tags << "latest"
+          }
+          runSafely """
+          curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
+          export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
+          export GOPATH=${env.WORKSPACE}
+          go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary@latest
+          notary --help
+          docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
+          export OCI_REPO="sonatype/nexus-iq-server"
+          export MAVEN_SETTINGS=${env.WORKSPACE}/.m2/settings.xml
+          ./build_and_push_images.sh ${tags.join(' ')}
+          """
         }
-        runSafely """
-        curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
-        export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
-        export GOPATH=${env.WORKSPACE}
-        go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary@latest
-        notary --help
-        docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
-        export OCI_REPO="sonatype/nexus-iq-server"
-        ./build_and_push_images.sh ${tags.join(' ')}
-        """
       }
 
       String response = runSafely("""curl -X POST https://hub.docker.com/v2/users/login/ \
