@@ -127,6 +127,14 @@ WORKDIR ${IQ_HOME}
 # enabling back support for SHA1 signed certificates
 RUN update-crypto-policies --set DEFAULT:SHA1
 
+# Remove packages not needed at runtime to reduce vulnerability surface
+# - crypto-policies-scripts + python3 stack: only needed for update-crypto-policies above
+# - microdnf + libdnf + glib2 + json-glib + libpeas + gobject-introspection: package manager not needed at runtime
+# - gawk: transitive dep of krb5-libs, never invoked
+# hadolint ignore=DL3059
+RUN microdnf remove -y crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
+&& rpm -e --nodeps microdnf libdnf json-glib libpeas gobject-introspection glib2 gawk
+
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
 VOLUME ${LOGS_HOME}
