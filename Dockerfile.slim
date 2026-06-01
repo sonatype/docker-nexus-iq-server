@@ -26,7 +26,7 @@ ARG SONATYPE_WORK="/sonatype-work"
 # hadolint ignore=DL3041,DL3040
 RUN mkdir -p ${TEMP} && \
     microdnf update -y && \
-    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which crypto-policies crypto-policies-scripts
+    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git-core openssh-clients which crypto-policies crypto-policies-scripts
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
@@ -88,7 +88,7 @@ USER root
 # For testing
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git which crypto-policies crypto-policies-scripts \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git-core openssh-clients which crypto-policies crypto-policies-scripts \
 && microdnf clean all
 
 # Create folders & set permissions
