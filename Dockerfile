@@ -124,8 +124,10 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 
 WORKDIR ${IQ_HOME}
 
-# enabling support for SHA1 signed certificates via LEGACY crypto policy
-RUN update-crypto-policies --set LEGACY
+# Re-enable SHA1 certificate support (removed from RHEL 10 default modules).
+# Required for Azure PostgreSQL connections using SHA1-signed certificates.
+COPY SHA1.pmod /usr/share/crypto-policies/policies/modules/
+RUN update-crypto-policies --set DEFAULT:SHA1
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
