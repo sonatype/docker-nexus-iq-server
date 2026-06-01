@@ -124,8 +124,8 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 
 WORKDIR ${IQ_HOME}
 
-# enabling back support for SHA1 signed certificates
-RUN update-crypto-policies --set DEFAULT:SHA1
+# enabling support for SHA1 signed certificates via LEGACY crypto policy
+RUN update-crypto-policies --set LEGACY
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
