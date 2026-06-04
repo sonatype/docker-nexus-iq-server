@@ -20,7 +20,7 @@ def containerExpectations() {
   return [
     new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
     new Expectation('nexus-user', 'grep', '^nexus: /etc/passwd', 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
-    new Expectation('iq-process', 'ps', '-e -o command,user | grep -q ^/usr/bin/java.*nexus$ | echo $?', '0'),
+    new Expectation('iq-process', 'test', '-d /proc/1 -a "$(cat /proc/1/comm)" = java | echo $?', '0'),
     new Expectation('application-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8070/ | echo $?', '0'),
     new Expectation('admin-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8071/ | echo $?', '0'),
     new Expectation('log-directory', 'stat', '-c \'%A %U %G\' /var/log/nexus-iq-server', 'drwxr-xr-x nexus nexus'),

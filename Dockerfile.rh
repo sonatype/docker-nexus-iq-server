@@ -25,7 +25,7 @@ ARG SONATYPE_WORK="/sonatype-work"
 # hadolint ignore=DL3041,DL3040
 RUN mkdir -p ${TEMP} && \
     microdnf update -y && \
-    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip tar shadow-utils findutils util-linux less rsync git-core openssh-clients which crypto-policies crypto-policies-scripts
+    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip tar shadow-utils findutils less rsync git-core openssh-clients which crypto-policies crypto-policies-scripts
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
@@ -81,7 +81,7 @@ USER root
 # For testing
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y procps gzip unzip shadow-utils findutils util-linux less rsync git-core openssh-clients which crypto-policies crypto-policies-scripts \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts \
 && microdnf clean all
 
 # Create folders & set permissions
@@ -131,12 +131,28 @@ WORKDIR ${IQ_HOME}
 RUN update-crypto-policies --set DEFAULT:SHA1
 
 # Remove packages not needed at runtime to reduce vulnerability surface
+# microdnf remove handles dependency resolution for the bulk of removals:
+# - Package management stack: microdnf, libdnf, librepo, librhsm, libsolv, libmodulemd
+# - Package management deps: gobject-introspection, libpeas, json-glib, glib2, gpgme, gnupg2
 # - crypto-policies-scripts + python3 stack: only needed for update-crypto-policies above
-# - microdnf + libdnf + glib2 + json-glib + libpeas + gobject-introspection: package manager not needed at runtime
-# - gawk: transitive dep of krb5-libs (install scriptlet only), never invoked at runtime
+# - gnutls: TLS handled by openssl; nothing at runtime links against libgnutls (verified via ldd)
+# - libxml2, sqlite-libs, libarchive, libusbx, rpm, rpm-libs: no runtime consumers
+#
+# rpm -e --nodeps required only for packages with RPM-level deps that aren't actual runtime links:
+# - gawk: krb5-libs has a scriptlet-only dep on it
+# - systemd-libs: libfido2 depends on libudev (from systemd-libs) but both are unused at runtime
+# - p11-kit, p11-kit-trust, libtasn1: only used at build time by update-ca-trust; at runtime
+#   OpenSSL reads the PEM bundle directly without loading these (verified via LD_DEBUG)
+# - libfido2: openssh-clients declares dep but ssh binary doesn't link against it (ssh-sk-helper does)
 # hadolint ignore=DL3059
-RUN microdnf remove -y crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
-&& rpm -e --nodeps microdnf libdnf json-glib libpeas gobject-introspection glib2 gawk
+RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
+&& microdnf remove -y \
+    crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
+    microdnf libdnf librepo librhsm libsolv libmodulemd \
+    gobject-introspection libpeas json-glib glib2 \
+    gpgme gnupg2 libarchive libusbx \
+    gnutls libxml2 sqlite-libs \
+    rpm rpm-libs
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
