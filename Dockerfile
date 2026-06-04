@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS builder
+FROM registry.access.redhat.com/ubi10/ubi-minimal:10.2 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.204.0-01
@@ -52,7 +52,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
+FROM registry.access.redhat.com/ubi10/ubi-minimal:10.2
 
 ARG IQ_SERVER_VERSION=1.204.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -124,7 +124,9 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 
 WORKDIR ${IQ_HOME}
 
-# enabling back support for SHA1 signed certificates
+# Re-enable SHA1 certificate support (removed from RHEL 10 default modules).
+# Required for Azure PostgreSQL connections using SHA1-signed certificates.
+COPY SHA1.pmod /usr/share/crypto-policies/policies/modules/
 RUN update-crypto-policies --set DEFAULT:SHA1
 
 # Remove packages not needed at runtime to reduce vulnerability surface
