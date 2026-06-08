@@ -18,9 +18,9 @@
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
-ARG IQ_SERVER_VERSION=1.204.0-01
-ARG IQ_SERVER_SHA256_AARCH=3e37e2886b4d39754a88bb7e913f84a5e2d4632479ac2fcb42d8b7a73542634a
-ARG IQ_SERVER_SHA256_X86_64=e97c32a9ff1b9464ac603dce0c28e199277b37dc996103a8c864b720cd753e7e
+ARG IQ_SERVER_VERSION=1.204.1-01
+ARG IQ_SERVER_SHA256_AARCH=5bf62b3ead3e528d9b4da248f1c377becb2f75aa2a4746f7d7700d01aa42e143
+ARG IQ_SERVER_SHA256_X86_64=944208e87e0cbe9e29350b93715dfd9c5083b5afd629bfdf0db7d64354b53c28
 ARG SONATYPE_WORK="/sonatype-work"
 
 # hadolint ignore=DL3041,DL3040
@@ -54,7 +54,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
 # hadolint ignore=DL3026
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
 
-ARG IQ_SERVER_VERSION=1.204.0-01
+ARG IQ_SERVER_VERSION=1.204.1-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -67,7 +67,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.204.0" \
+  release="1.204.1" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
