@@ -88,7 +88,7 @@ USER root
 # For testing
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts \
 && microdnf clean all
 
 # Create folders & set permissions
@@ -143,6 +143,7 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 # - libfido2: openssh-clients declares dep but ssh binary doesn't link against it (ssh-sk-helper does)
 # hadolint ignore=DL3059
 RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
+    pam libpwquality \
 && microdnf remove -y \
     crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
     microdnf libdnf librepo librhsm libsolv libmodulemd \
