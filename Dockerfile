@@ -134,6 +134,19 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 # - crypto-policies-scripts + python3 stack: only needed for update-crypto-policies above
 # - gnutls: TLS handled by openssl; nothing at runtime links against libgnutls (verified via ldd)
 # - libxml2, sqlite-libs, libarchive, libusbx, rpm, rpm-libs: no runtime consumers
+# - shadow-utils + libsemanage: shadow-utils' user-management binaries (useradd/userdel/usermod)
+#   were only used at BUILD time to create the nexus user (line ~105 above). The image runs
+#   as that user and never re-invokes them. libsemanage is shadow-utils' SELinux helper.
+#   Listing them in microdnf's removal alongside bzip2-libs is what allows microdnf's
+#   depsolver to remove bzip2-libs cleanly (libsemanage was the only declared requirer).
+# - bzip2-libs: no runtime binary in the image links libbz2 once shadow-utils and libsemanage
+#   are also removed (verified via ldd survey across /usr/bin, /usr/sbin, /usr/libexec,
+#   /usr/lib64, and the JRE bundle).
+# - xz-libs (liblzma): no runtime binary links liblzma once microdnf is gone (microdnf used
+#   it for compressed-package-metadata reads during its own removal step). Verified via ldd.
+# - openldap (libldap): no runtime binary links libldap. Image runs no LDAP server. The
+#   original cascade-dep concern (libarchive -> libxml2) is moot because those are already
+#   in the microdnf removal list.
 #
 # rpm -e --nodeps required only for packages with RPM-level deps that aren't actual runtime links:
 # - gawk: krb5-libs has a scriptlet-only dep on it
@@ -155,6 +168,7 @@ RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
     gobject-introspection libpeas json-glib glib2 \
     gpgme gnupg2 libarchive libusbx \
     gnutls libxml2 sqlite-libs \
+    shadow-utils libsemanage bzip2-libs xz-libs openldap \
     rpm rpm-libs
 
 # This is where we will store persistent data
