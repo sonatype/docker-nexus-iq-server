@@ -81,7 +81,7 @@ USER root
 # For testing
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts \
 && microdnf clean all
 
 # Create folders & set permissions
@@ -137,6 +137,19 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 # - crypto-policies-scripts + python3 stack: only needed for update-crypto-policies above
 # - gnutls: TLS handled by openssl; nothing at runtime links against libgnutls (verified via ldd)
 # - libxml2, sqlite-libs, libarchive, libusbx, rpm, rpm-libs: no runtime consumers
+# - shadow-utils + libsemanage: shadow-utils' user-management binaries (useradd/userdel/usermod)
+#   were only used at BUILD time to create the nexus user (line ~105 above). The image runs
+#   as that user and never re-invokes them. libsemanage is shadow-utils' SELinux helper.
+#   Listing them in microdnf's removal alongside bzip2-libs is what allows microdnf's
+#   depsolver to remove bzip2-libs cleanly (libsemanage was the only declared requirer).
+# - bzip2-libs: no runtime binary in the image links libbz2 once shadow-utils and libsemanage
+#   are also removed (verified via ldd survey across /usr/bin, /usr/sbin, /usr/libexec,
+#   /usr/lib64, and the JRE bundle).
+# - xz-libs (liblzma): no runtime binary links liblzma once microdnf is gone (microdnf used
+#   it for compressed-package-metadata reads during its own removal step). Verified via ldd.
+# - openldap (libldap): no runtime binary links libldap. Image runs no LDAP server. The
+#   original cascade-dep concern (libarchive -> libxml2) is moot because those are already
+#   in the microdnf removal list.
 #
 # rpm -e --nodeps required only for packages with RPM-level deps that aren't actual runtime links:
 # - gawk: krb5-libs has a scriptlet-only dep on it
@@ -144,14 +157,21 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 # - p11-kit, p11-kit-trust, libtasn1: only used at build time by update-ca-trust; at runtime
 #   OpenSSL reads the PEM bundle directly without loading these (verified via LD_DEBUG)
 # - libfido2: openssh-clients declares dep but ssh binary doesn't link against it (ssh-sk-helper does)
+# - expat: only linked by /usr/libexec/git-core/git-http-push (legacy "dumb HTTP" git push,
+#   WebDAV-based) and by /usr/bin/xmlwf (expat's own XML well-formedness checker).
+#   Modern git over HTTPS uses git-remote-https -> git-remote-http, which does NOT link
+#   libexpat (verified via ldd in the baseline image). No code path in IQ Server uses
+#   dumb-HTTP git push, and the JRE parses XML with Xerces, not libexpat.
 # hadolint ignore=DL3059
 RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
+    pam libpwquality expat \
 && microdnf remove -y \
     crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
     microdnf libdnf librepo librhsm libsolv libmodulemd \
     gobject-introspection libpeas json-glib glib2 \
     gpgme gnupg2 libarchive libusbx \
     gnutls libxml2 sqlite-libs \
+    shadow-utils libsemanage bzip2-libs xz-libs openldap \
     rpm rpm-libs
 
 # This is where we will store persistent data
