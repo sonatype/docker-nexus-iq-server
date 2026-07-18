@@ -147,6 +147,11 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 # - openldap (libldap): no runtime binary links libldap. Image runs no LDAP server. The
 #   original cascade-dep concern (libarchive -> libxml2) is moot because those are already
 #   in the microdnf removal list.
+# - libgcrypt: no runtime binary in the image links libgcrypt (verified via readelf -d
+#   across all 951 ELF files in the built image: 0 NEEDED entries for libgcrypt.so). Java
+#   uses BouncyCastle FIPS via JSSE for all cryptographic operations, not libgcrypt.
+#   Present only as a transitive install-time dep of packages that are themselves removed
+#   later in this block (systemd-libs pulls it in; systemd-libs is in the rpm -e list above).
 #
 # rpm -e --nodeps required only for packages with RPM-level deps that aren't actual runtime links:
 # - gawk: krb5-libs has a scriptlet-only dep on it
@@ -169,6 +174,7 @@ RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
     gpgme gnupg2 libarchive libusbx \
     gnutls libxml2 sqlite-libs \
     shadow-utils libsemanage bzip2-libs xz-libs openldap \
+    libgcrypt \
     rpm rpm-libs
 
 # This is where we will store persistent data
