@@ -152,6 +152,9 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 #   uses BouncyCastle FIPS via JSSE for all cryptographic operations, not libgcrypt.
 #   Present only as a transitive install-time dep of packages that are themselves removed
 #   later in this block (systemd-libs pulls it in; systemd-libs is in the rpm -e list above).
+# - cracklib, cracklib-dicts, gzip: transitively pulled in by pam. pam is removed via the
+#   rpm -e --nodeps step above, which leaves cracklib and gzip as orphans. Nothing at runtime
+#   invokes gzip (verified: no reference in start.sh or the IQ Server bundle).
 #
 # rpm -e --nodeps required only for packages with RPM-level deps that aren't actual runtime links:
 # - gawk: krb5-libs has a scriptlet-only dep on it
@@ -164,6 +167,15 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 #   Modern git over HTTPS uses git-remote-https -> git-remote-http, which does NOT link
 #   libexpat (verified via ldd in the baseline image). No code path in IQ Server uses
 #   dumb-HTTP git push, and the JRE parses XML with Xerces, not libexpat.
+# - util-linux, util-linux-core, libblkid, libmount, libsmartcols, libuuid, libfdisk: no
+#   runtime binary in the image links libblkid/libmount/libsmartcols/libuuid/libfdisk (0 NEEDED
+#   entries across all ELFs, verified via readelf). openssh declares an RPM file-dep on
+#   /sbin/nologin (owned by util-linux); --nodeps breaks that declared dep and we substitute
+#   a symlink to /bin/false (which coreutils-single provides with identical exit behavior)
+#   so any /etc/passwd shell entries referencing nologin still resolve.
+# - sqlite-libs, xz-libs, bzip2-libs, libarchive, libxml2, rpm, rpm-libs: kept alive until the
+#   last step because rpm binary itself dynamically links against them (or transitively through
+#   librpm/librpmio -> libarchive -> libxml2); removed together in the final rpm -e call.
 # hadolint ignore=DL3059
 RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
     pam libpwquality expat \
@@ -171,11 +183,14 @@ RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
     crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
     microdnf libdnf librepo librhsm libsolv libmodulemd \
     gobject-introspection libpeas json-glib glib2 \
-    gpgme gnupg2 libarchive libusbx \
-    gnutls libxml2 sqlite-libs \
-    shadow-utils libsemanage bzip2-libs xz-libs openldap \
+    gpgme gnupg2 libusbx \
+    gnutls \
+    shadow-utils libsemanage openldap \
     libgcrypt \
-    rpm rpm-libs
+    cracklib cracklib-dicts gzip \
+&& rpm -e --nodeps util-linux util-linux-core libblkid libmount libsmartcols libuuid libfdisk \
+&& ln -sf /bin/false /sbin/nologin \
+&& rpm -e --nodeps rpm rpm-libs libarchive libxml2 sqlite-libs xz-libs bzip2-libs
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
