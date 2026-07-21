@@ -77,10 +77,19 @@ LABEL name="Nexus IQ Server image" \
 
 USER root
 
-# For testing
+# Runtime dependencies only.
+# Intentionally NOT installed:
+# - unzip: alpine's unzip package ships under the Info-ZIP license
+#   (https://infozip.sourceforge.net/license.html) which is not recognized by Sonatype
+#   Lifecycle and produces a License-Data-Not-Available violation that Legal must review
+#   individually. Removing the package resolves the violation and no runtime code invokes
+#   the unzip binary — the JVM handles ZIP/JAR reads natively via java.util.zip.
+# - gzip, tar, util-linux: not needed at runtime. The tar+gzip extraction of the IQ Server
+#   tarball happens in the builder stage only; the final image just runs the extracted
+#   Java process. util-linux binaries (mount/umount/etc.) are never invoked.
 # hadolint ignore=DL3018
 RUN apk update \
-&& apk add --no-cache procps-ng gzip unzip tar findutils util-linux less rsync git which curl
+&& apk add --no-cache procps-ng findutils less rsync git which curl
 
 # Create folders & set permissions
 RUN mkdir -p ${IQ_HOME} \
