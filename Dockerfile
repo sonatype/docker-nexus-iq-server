@@ -14,8 +14,18 @@
 # limitations under the License.
 #
 
+# Red Hat Hardened Images (Hummingbird) — base swap per CLM-42750.
+# Digest pinned to the multi-arch index snapshot captured on 2026-07-23 for the
+# `hi/core-runtime:latest-builder` tag. Bump this digest by re-running
+# `docker buildx imagetools inspect registry.access.redhat.com/hi/core-runtime:latest-builder`
+# and copying the top-level `Digest:` value.
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS builder
+FROM registry.access.redhat.com/hi/core-runtime@sha256:e8de00220ad4953bf99b464e84008b41d2642e70618c0015733e6570b082558f AS builder
+
+# hi/core-runtime defaults to non-root user 65532; the builder stage needs
+# root to run microdnf. Switch here rather than in the base.
+USER root
+
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.205.0-03
@@ -23,10 +33,13 @@ ARG IQ_SERVER_SHA256_AARCH=5dc7782190512e4aa512bc070b3b0b5841d7938ac7b06e6026944
 ARG IQ_SERVER_SHA256_X86_64=232290398ef4958ba7af6d5438ac4ab88c67285037d7be481b1f5b09a9c1ead4
 ARG SONATYPE_WORK="/sonatype-work"
 
+# unzip and rsync are intentionally NOT installed — neither is available in the
+# Hummingbird repo and neither is invoked by the build (jar extraction uses
+# java.util.zip; nothing rsyncs). curl and tar are already in the base builder.
 # hadolint ignore=DL3041,DL3040
 RUN mkdir -p ${TEMP} && \
     microdnf update -y && \
-    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip tar shadow-utils findutils less rsync git-core openssh-clients which crypto-policies crypto-policies-scripts
+    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip tar shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
@@ -52,7 +65,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
+FROM registry.access.redhat.com/hi/core-runtime@sha256:e8de00220ad4953bf99b464e84008b41d2642e70618c0015733e6570b082558f
 
 ARG IQ_SERVER_VERSION=1.205.0-03
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -85,7 +98,12 @@ LABEL name="Nexus IQ Server image" \
 
 USER root
 
-# For testing
+# Runtime packages. The Hummingbird base image already ships
+# openssl-fips-provider-upstream + fips.so, so OS-level FIPS is available
+# out-of-the-box for the native code paths in openssh-clients / git / libcurl.
+# IQ Server's own FIPS mode (BouncyCastle FIPS) activates via the
+# FIPS_MODE_ENABLED=true env var at runtime, independently of the OS
+# provider. See CLM-42750 §5.
 # hadolint ignore=DL3041
 RUN microdnf update -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts \
@@ -127,70 +145,93 @@ WORKDIR ${IQ_HOME}
 # enabling back support for SHA1 signed certificates
 RUN update-crypto-policies --set DEFAULT:SHA1
 
-# Remove packages not needed at runtime to reduce vulnerability surface
-# microdnf remove handles dependency resolution for the bulk of removals:
-# - Package management stack: microdnf, libdnf, librepo, librhsm, libsolv, libmodulemd
-# - Package management deps: gobject-introspection, libpeas, json-glib, glib2, gpgme, gnupg2
+# Remove packages not needed at runtime to reduce vulnerability surface.
+# The list below adapts the audited-UBI9 removal set to the Hummingbird base:
+# every package we removed on UBI9 is either (a) removed here, (b) not
+# installed in the Hummingbird base to begin with (so removal is redundant),
+# or (c) named differently in Hummingbird (microdnf → dnf5; libdnf → libdnf5).
+#
+# NEVER remove these from the runtime image (called out for future auditors):
+# - openssl-fips-provider-upstream + openssl-libs (both preinstalled in the
+#   Hummingbird base): provide OS-level FIPS-validated OpenSSL (fips.so).
+#   Activated on demand via `update-crypto-policies --set FIPS` at container
+#   start. IQ Server's own FIPS mode (BouncyCastle FIPS) activates via
+#   FIPS_MODE_ENABLED=true and doesn't require the OS provider, but keeping
+#   these ensures native code paths (ssh/git/curl) can be FIPS-compliant too.
+#
+# Packages NOT removed here because they aren't installed in the Hummingbird
+# base (differences vs. UBI9): gawk, libpwquality, python3-pip-wheel,
+# python3-setuptools-wheel, microdnf, libdnf, librhsm, gobject-introspection,
+# libpeas, json-glib, gpgme, gnupg2, libusbx, gnutls, libgcrypt, cracklib,
+# cracklib-dicts, util-linux, util-linux-core, libfdisk.
+#
+# microdnf-equivalent (dnf5) removal handles dependency resolution for the bulk:
+# - Package management stack: dnf5, libdnf5, libdnf5-cli, librepo, libsolv, libmodulemd
 # - crypto-policies-scripts + python3 stack: only needed for update-crypto-policies above
-# - gnutls: TLS handled by openssl; nothing at runtime links against libgnutls (verified via ldd)
-# - libxml2, sqlite-libs, libarchive, libusbx, rpm, rpm-libs: no runtime consumers
-# - shadow-utils + libsemanage: shadow-utils' user-management binaries (useradd/userdel/usermod)
-#   were only used at BUILD time to create the nexus user (line ~105 above). The image runs
-#   as that user and never re-invokes them. libsemanage is shadow-utils' SELinux helper.
-#   Listing them in microdnf's removal alongside bzip2-libs is what allows microdnf's
-#   depsolver to remove bzip2-libs cleanly (libsemanage was the only declared requirer).
-# - bzip2-libs: no runtime binary in the image links libbz2 once shadow-utils and libsemanage
-#   are also removed (verified via ldd survey across /usr/bin, /usr/sbin, /usr/libexec,
-#   /usr/lib64, and the JRE bundle).
-# - xz-libs (liblzma): no runtime binary links liblzma once microdnf is gone (microdnf used
-#   it for compressed-package-metadata reads during its own removal step). Verified via ldd.
-# - openldap (libldap): no runtime binary links libldap. Image runs no LDAP server. The
-#   original cascade-dep concern (libarchive -> libxml2) is moot because those are already
-#   in the microdnf removal list.
-# - libgcrypt: no runtime binary in the image links libgcrypt (verified via readelf -d
-#   across all 951 ELF files in the built image: 0 NEEDED entries for libgcrypt.so). Java
-#   uses BouncyCastle FIPS via JSSE for all cryptographic operations, not libgcrypt.
-#   Present only as a transitive install-time dep of packages that are themselves removed
-#   later in this block (systemd-libs pulls it in; systemd-libs is in the rpm -e list above).
-# - cracklib, cracklib-dicts, gzip: transitively pulled in by pam. pam is removed via the
-#   rpm -e --nodeps step above, which leaves cracklib and gzip as orphans. Nothing at runtime
-#   invokes gzip (verified: no reference in start.sh or the IQ Server bundle).
+# - libxml2, sqlite-libs, libarchive, rpm, rpm-libs, rpm-sequoia: no runtime consumers
+# - shadow-utils + libsemanage: shadow-utils' user-management binaries were only used
+#   at BUILD time to create the nexus user. The image runs as that user and never
+#   re-invokes them. libsemanage is shadow-utils' SELinux helper.
+# - bzip2-libs, xz-libs, zstd (libzstd): compression libs only reachable via rpm/dnf5
+#   at build time. No runtime binary links them once package management is gone.
+# - openldap (libldap): KEPT in the Hummingbird build. Hummingbird's libcurl
+#   is compiled with LDAP support and dynamically links libldap/liblber. Since
+#   IQ Server's healthcheck (`curl --fail ...`) is our only in-image use of
+#   curl, removing openldap would break healthcheck. On UBI9 the same libcurl
+#   did not link libldap (different build config), which is why the UBI9
+#   strip block removed openldap.
+# - gzip: transitively pulled in by other packages; nothing at runtime invokes gzip
+#   (verified: no reference in start.sh or the IQ Server bundle).
+# - glib2: no runtime binary links libglib once package management is gone.
 #
 # rpm -e --nodeps required only for packages with RPM-level deps that aren't actual runtime links:
-# - gawk: krb5-libs has a scriptlet-only dep on it
-# - systemd-libs: libfido2 depends on libudev (from systemd-libs) but both are unused at runtime
+# - systemd-libs: KEPT in the Hummingbird build. Hummingbird's coreutils-single
+#   (the multi-call binary that provides ls/cat/cp/mkdir/ln/etc.) is compiled
+#   with libsystemd support and dynamically links libsystemd.so.0. Removing
+#   systemd-libs breaks every basic command in the container. On UBI9 the
+#   same binary did not link libsystemd (different build config), which is
+#   why the UBI9 strip block removed systemd-libs.
 # - p11-kit, p11-kit-trust, libtasn1: only used at build time by update-ca-trust; at runtime
-#   OpenSSL reads the PEM bundle directly without loading these (verified via LD_DEBUG)
-# - libfido2: openssh-clients declares dep but ssh binary doesn't link against it (ssh-sk-helper does)
-# - expat: only linked by /usr/libexec/git-core/git-http-push (legacy "dumb HTTP" git push,
-#   WebDAV-based) and by /usr/bin/xmlwf (expat's own XML well-formedness checker).
-#   Modern git over HTTPS uses git-remote-https -> git-remote-http, which does NOT link
-#   libexpat (verified via ldd in the baseline image). No code path in IQ Server uses
-#   dumb-HTTP git push, and the JRE parses XML with Xerces, not libexpat.
-# - util-linux, util-linux-core, libblkid, libmount, libsmartcols, libuuid, libfdisk: no
-#   runtime binary in the image links libblkid/libmount/libsmartcols/libuuid/libfdisk (0 NEEDED
-#   entries across all ELFs, verified via readelf). openssh declares an RPM file-dep on
-#   /sbin/nologin (owned by util-linux); --nodeps breaks that declared dep and we substitute
-#   a symlink to /bin/false (which coreutils-single provides with identical exit behavior)
-#   so any /etc/passwd shell entries referencing nologin still resolve.
-# - sqlite-libs, xz-libs, bzip2-libs, libarchive, libxml2, rpm, rpm-libs: kept alive until the
-#   last step because rpm binary itself dynamically links against them (or transitively through
-#   librpm/librpmio -> libarchive -> libxml2); removed together in the final rpm -e call.
+#   OpenSSL reads the PEM bundle directly without loading these
+# - libfido2: KEPT in the Hummingbird build. Hummingbird's libcurl and libssh
+#   both dynamically link libfido2.so.1. Since IQ Server's healthcheck uses
+#   curl, removing libfido2 breaks the healthcheck. On UBI9 the same libcurl
+#   did not link libfido2 (different build config), which is why the UBI9
+#   strip block removed it.
+# - expat: only linked by /usr/libexec/git-core/git-http-push (legacy dumb-HTTP git push,
+#   WebDAV-based). Modern git over HTTPS uses git-remote-https which does NOT link libexpat.
+#   No code path in IQ Server uses dumb-HTTP git push, and the JRE parses XML with Xerces.
+# - pam: interactive login stack; the nexus user is a system daemon account with
+#   /bin/false as its shell — pam is never invoked at runtime.
+# - libblkid, libmount, libsmartcols, libuuid: no runtime binary links these (0 NEEDED
+#   entries across all ELFs when audited on UBI9). openssh declares an RPM file-dep on
+#   /sbin/nologin (owned by util-linux on UBI9 / coreutils-single on Hummingbird);
+#   --nodeps breaks that declared dep and we substitute a symlink to /bin/false.
+# - sqlite-libs, xz-libs, libzstd, bzip2-libs, libarchive, libxml2, rpm, rpm-libs,
+#   rpm-sequoia: kept alive until the last step because rpm binary itself dynamically
+#   links against them (or transitively); removed together in the final rpm -e call.
 # hadolint ignore=DL3059
-RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
-    pam libpwquality expat \
+# Order matters:
+# 1. microdnf remove (uses dnf5) while its dependencies (libsystemd, librepo,
+#    libsolv, libmodulemd, glib2, libdnf5) are still installed. Only remove
+#    things the depsolver is happy to remove — packages the depsolver knows
+#    are safe to unlink.
+# 2. rpm -e --nodeps for packages with RPM-level file/scriptlet deps that
+#    aren't actual runtime links (audited on UBI9, same logic applies here).
+# 3. Final rpm -e --nodeps cascade for the package-management stack itself —
+#    dnf5 is a "protected package" that refuses to remove itself; librepo /
+#    libsolv / libmodulemd / glib2 / libdnf5 are its runtime deps and must
+#    outlive it. All go together in this final step.
+RUN ln -sf /bin/false /sbin/nologin \
 && microdnf remove -y \
-    crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
-    microdnf libdnf librepo librhsm libsolv libmodulemd \
-    gobject-introspection libpeas json-glib glib2 \
-    gpgme gnupg2 libusbx \
-    gnutls \
-    shadow-utils libsemanage openldap \
-    libgcrypt \
-    cracklib cracklib-dicts gzip \
-&& rpm -e --nodeps util-linux util-linux-core libblkid libmount libsmartcols libuuid libfdisk \
-&& ln -sf /bin/false /sbin/nologin \
-&& rpm -e --nodeps rpm rpm-libs libarchive libxml2 sqlite-libs xz-libs bzip2-libs
+    crypto-policies-scripts python3 python3-libs \
+    shadow-utils libsemanage \
+    gzip \
+&& rpm -e --nodeps p11-kit p11-kit-trust libtasn1 \
+    pam-libs expat \
+&& rpm -e --nodeps libblkid libmount libsmartcols libuuid \
+&& rpm -e --nodeps dnf5 libdnf5-cli libdnf5 librepo libsolv libmodulemd glib2 \
+    rpm rpm-libs rpm-sequoia libarchive libxml2-16 sqlite-libs xz-libs libzstd bzip2-libs
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
