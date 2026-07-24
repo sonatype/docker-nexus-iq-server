@@ -115,6 +115,26 @@ Example: To customize the logging level that IQ Server will use:
 docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Ddw.logging.level=TRACE" sonatype/nexus-iq-server
 ```
 
+### FIPS Mode
+
+IQ Server ships with BouncyCastle FIPS providers built in. To run IQ Server in FIPS mode, set the `FIPS_MODE_ENABLED` environment variable to `true` at container start:
+
+```
+docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e FIPS_MODE_ENABLED=true sonatype/nexus-iq-server
+```
+
+IQ Server detects the env var via `com.sonatype.insight.brain.security.FIPSModeDetector`, which activates the BCFIPS keystore (`BCFKS`), the `BCFIPS` crypto provider, and FIPS-approved algorithms across the crypto stack. All FIPS-related knobs (algorithms, key sizes, HMAC, keystore) can be overridden via additional environment variables — see the `FIPSConfig` class for the full list.
+
+The base image (Red Hat Hardened Images / Hummingbird) also ships an OS-level FIPS-validated OpenSSL provider (`fips.so`), which the native code paths in `openssh-clients`, `git`, and `libcurl` can use. To enable OS-level FIPS crypto, run the following as `root`:
+
+```
+update-crypto-policies --set FIPS
+```
+
+Notes:
+- `update-crypto-policies` must run as root, so it cannot be executed by the default `nexus` (uid 1000) runtime user. Either override the container user to `root` when running it (`docker exec -u 0 <container> update-crypto-policies --set FIPS`), or bake the call into a custom entrypoint that runs as root before dropping to the `nexus` user.
+- `--set FIPS` **replaces** the `DEFAULT:SHA1` legacy-cert crypto policy that this image sets at build time. If you rely on SHA1-signed SCM certificates, they will stop working once FIPS mode is enabled — the two policies are mutually exclusive.
+
 ### Runtime Server Configuration for Versions 101 and 102
 
 Note that for version 101 and 102 `${JAVA_OPTS}` is missing from the startup script `start.sh` and so,
