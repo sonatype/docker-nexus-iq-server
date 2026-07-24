@@ -171,6 +171,7 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 # Packages KEPT that UBI9 removed (Hummingbird-specific runtime linkage):
 # - systemd-libs: coreutils-single dynamically links libsystemd.so.0.
 # - openldap: libcurl (used by the HEALTHCHECK) dynamically links libldap.
+# - libfido2: libcurl and libssh dynamically link libfido2.so.1.
 #
 # See Dockerfile (main variant) for the full reasoning per-package. This block
 # mirrors that logic.
