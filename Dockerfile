@@ -149,37 +149,29 @@ WORKDIR ${IQ_HOME}
 RUN update-crypto-policies --set DEFAULT:SHA1
 
 # Strip packages not needed at runtime to reduce vulnerability surface.
+# Removal audited via ldd/readelf against the built image: every ELF binary
+# has all its deps resolved except /usr/libexec/git-core/git-http-push
+# (missing libexpat.so.1) — legacy dumb-HTTP git push, which IQ Server
+# never uses.
 #
 # Order matters:
-# 1. microdnf remove (uses dnf5) while its dependencies are still installed —
-#    only for packages the depsolver is willing to unlink cleanly.
-# 2. rpm -e --nodeps for packages with RPM-level file/scriptlet deps that
-#    aren't actual runtime links (audited via ldd against the built image).
-# 3. Final cascade removes the package-management stack itself — dnf5 is a
-#    "protected package" that refuses to remove itself, and libdnf5/librepo/
-#    libsolv/libmodulemd/glib2 are its runtime deps.
+# 1. microdnf remove for packages the dnf5 depsolver unlinks cleanly.
+# 2. rpm -e --nodeps for packages with RPM-level deps that aren't runtime links.
+# 3. Final cascade for the package-management stack itself — dnf5 is a
+#    "protected package" that refuses to remove itself; libdnf5/librepo/
+#    libsolv/libmodulemd/glib2 are its runtime deps and go out together.
 #
-# WHY each package is safe to remove (audited by ldd/readelf against the
-# built image after `microdnf install ...` above):
-# - crypto-policies-scripts + python3 stack: only needed to run
-#   `update-crypto-policies --set DEFAULT:SHA1` above.
-# - shadow-utils + libsemanage: shadow-utils' user-management binaries
-#   (adduser/groupadd) were only used at BUILD time to create the nexus user.
-#   The image runs as nexus and never re-invokes them.
-# - p11-kit, p11-kit-trust, libtasn1: only used at build time by
-#   update-ca-trust; at runtime OpenSSL reads the PEM bundle directly.
-# - pam-libs, expat: pam is unused (nexus has /bin/false as its shell);
-#   expat is only linked by legacy git-http-push, which IQ Server never uses.
-# - libblkid, libmount, libsmartcols, libuuid: no runtime binary links
-#   these; openssh declares a file-dep on /sbin/nologin (owned by
-#   coreutils-single via util-linux on Hummingbird), which --nodeps breaks
-#   and we substitute a symlink to /bin/false.
+# Nexus user has /bin/false as its shell (see `adduser -s /bin/false` above),
+# so pam-libs is never invoked at runtime.
 #
-# WHY these packages are KEPT in Hummingbird (were strippable on UBI9):
-# - openldap: libcurl (used by the HEALTHCHECK) dynamically links libldap.
+# The `ln -sf /bin/false /sbin/nologin` step gives /etc/passwd's system
+# accounts (bin, daemon, adm, ...) a resolvable shell — none of them are
+# used by IQ Server, but leaving their nologin shell dangling is untidy.
+#
+# Packages KEPT that would look strippable but aren't:
+# - openldap: libcurl (used by the HEALTHCHECK) links libldap.
 # - systemd-libs: coreutils-single links libsystemd.so.0.
-# - libfido2: libcurl and libssh dynamically link libfido2.so.1.
-# All three verified via `ldd` against the Hummingbird base binaries.
+# - libfido2: libcurl and libssh both link libfido2.so.1.
 # hadolint ignore=DL3059
 RUN ln -sf /bin/false /sbin/nologin \
 && microdnf remove -y \

@@ -152,13 +152,8 @@ WORKDIR ${IQ_HOME}
 RUN update-crypto-policies --set DEFAULT:SHA1
 
 # Strip packages not needed at runtime to reduce vulnerability surface.
-# Mirrors the logic in Dockerfile (main variant) — see there for the per-package
-# WHY notes. Summary of Hummingbird-specific decisions:
-# - Kept for Hummingbird (were strippable on UBI9): openldap, systemd-libs,
-#   libfido2 — all runtime-linked by libcurl / coreutils-single / libssh.
-# - Order: microdnf remove first (needs libsystemd), then rpm -e --nodeps
-#   for install-time deps, then final cascade for dnf5 + its runtime deps
-#   (dnf5 is a "protected package" that won't remove itself).
+# Mirrors the logic in Dockerfile (main variant); see there for the audit
+# notes and the reasoning behind the removal order.
 # hadolint ignore=DL3059
 RUN ln -sf /bin/false /sbin/nologin \
 && microdnf remove -y \
