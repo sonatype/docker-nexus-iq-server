@@ -18,7 +18,7 @@
 # -hum1 patch stream with fixes for CVEs that Red Hat marks "Will not fix"
 # on standard UBI9 (e.g. CVE-2023-51767 on openssh, CVE-2026-60002).
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/hi/core-runtime:2.43-builder AS builder
+FROM registry.access.redhat.com/hi/core-runtime:latest-builder AS builder
 
 # hi/core-runtime defaults to non-root user 65532; the builder stage needs
 # root to run microdnf.
@@ -34,7 +34,7 @@ ARG SONATYPE_WORK="/sonatype-work"
 # Builder-only tools:
 #   tar, gzip:  extract the IQ Server tarball.
 # Everything else the build needs (curl, sha256sum, sed, cat, mkdir, coreutils,
-# bash) is already in hi/core-runtime:2.43-builder.
+# bash) is already in hi/core-runtime:latest-builder.
 # hadolint ignore=DL3041,DL3040
 RUN mkdir -p ${TEMP} && \
     microdnf update -y && \
@@ -64,7 +64,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/hi/core-runtime:2.43-builder
+FROM registry.access.redhat.com/hi/core-runtime:latest-builder
 
 ARG IQ_SERVER_VERSION=1.205.0-03
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"

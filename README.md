@@ -115,18 +115,6 @@ Example: To customize the logging level that IQ Server will use:
 docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e JAVA_OPTS="-Ddw.logging.level=TRACE" sonatype/nexus-iq-server
 ```
 
-### FIPS Mode
-
-IQ Server ships with BouncyCastle FIPS providers (`bc-fips`, `bcpkix-fips`, `bctls-fips`, `bcutil-fips`) shaded into the platform-bundle jar. To activate FIPS mode, set the `FIPS_MODE_ENABLED` environment variable to `true` at container start:
-
-```
-docker run -d -p 8070:8070 -p 8071:8071 --name nexus-iq-server -e FIPS_MODE_ENABLED=true sonatype/nexus-iq-server
-```
-
-IQ Server detects the env var via `com.sonatype.insight.brain.security.FIPSModeDetector`, which activates the `BCFKS` keystore, the `BCFIPS` crypto provider, and FIPS-approved algorithms across the Java crypto stack. All FIPS-related knobs (algorithms, key sizes, HMAC, keystore) can be overridden via additional environment variables — see the `FIPSConfig` class in `insight-brain-common` for the full list.
-
-**Scope note.** `FIPS_MODE_ENABLED=true` activates Java-layer FIPS via BouncyCastle FIPS providers, which are themselves NIST FIPS 140 validated modules. This does not extend FIPS validation to the *native* code paths in the container (`openssh-clients`, `git`, `libcurl`). For fully FIPS-validated native crypto — where OpenSSH, git-over-HTTPS, and other native tools also use FIPS-validated modules — a follow-up will move the runtime base to `hi/openjdk:latest-fips` (which ties Red Hat's OpenJDK build into the OS-level FIPS provider) and fetch the IQ Server jar via Maven rather than as a JRE-bundled tarball.
-
 ### Runtime Server Configuration for Versions 101 and 102
 
 Note that for version 101 and 102 `${JAVA_OPTS}` is missing from the startup script `start.sh` and so,
