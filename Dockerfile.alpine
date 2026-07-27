@@ -87,8 +87,11 @@ USER root
 # - gzip, tar, util-linux: not needed at runtime. The tar+gzip extraction of the IQ Server
 #   tarball happens in the builder stage only; the final image just runs the extracted
 #   Java process. util-linux binaries (mount/umount/etc.) are never invoked.
-# hadolint ignore=DL3018
+# DL3017 (apk upgrade) is intentionally suppressed: applying the latest Alpine
+# security patches at build time is the explicit goal of this change.
+# hadolint ignore=DL3017,DL3018
 RUN apk update \
+&& apk upgrade \
 && apk add --no-cache procps-ng findutils less rsync git which curl
 
 # Create folders & set permissions
