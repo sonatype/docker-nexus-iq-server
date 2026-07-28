@@ -22,6 +22,7 @@ FROM registry.access.redhat.com/hi/core-runtime:latest-builder AS builder
 
 # hi/core-runtime defaults to non-root user 65532; the builder stage needs
 # root to run microdnf.
+# hadolint ignore=DL3002
 USER root
 
 ARG TEMP="/tmp/work"
