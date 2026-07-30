@@ -27,7 +27,9 @@ properties([
     description: 'The latest release of IQ Server to build the docker image'),
     string(name: 'sourceJob',
         defaultValue: 'insight/insight-brain/aggregate-release',
-        description: 'Job path to read artifacts from')
+        description: 'Job path to read artifacts from'),
+    booleanParam(name: 'skipMarkAsLatest', defaultValue: false,
+        description: 'Skip committing the Dockerfile.rh ARG default bump back to main (use for patch/hotfix releases of older versions)')
   ]),
 ])
 
@@ -44,6 +46,13 @@ node('ubuntu-zion') {
       deleteDir()
 
       checkout scm
+
+      // Keep the Dockerfile.rh ARG defaults in sync with the released version so that the
+      // daily Jenkinsfile.rh snapshot cron (which does not pass --build-arg) builds against
+      // the current IQ Server release, and the docker-nexus-iq-server-rh IQ scan reflects
+      // the shipped code rather than a long-stale default.
+      updateIQServerVersionAndChecksum(env.IQ_SERVER_VERSION, env.IQ_SERVER_CHECKSUM)
+      commitAndPushChanges(env.IQ_SERVER_VERSION, params.skipMarkAsLatest)
 
       sh 'docker system prune -a -f'
       sh '''
@@ -70,5 +79,32 @@ node('ubuntu-zion') {
     sh 'docker logout'
     sh 'docker system prune -a -f'
     sh 'git clean -f && git reset --hard origin/main'
+  }
+}
+
+void updateIQServerVersionAndChecksum(String version, String checksum) {
+  def dockerFile = readFile(file: 'Dockerfile.rh')
+  def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
+  def shaRegex = /(ARG IQ_SERVER_SHA256=)([A-Fa-f0-9]{64})/
+  dockerFile = dockerFile.replaceAll(versionRegex, "\$1${version}")
+  dockerFile = dockerFile.replaceAll(shaRegex, "\$1${checksum}")
+
+  writeFile(file: 'Dockerfile.rh', text: dockerFile)
+}
+
+void commitAndPushChanges(String version, boolean skipMarkAsLatest) {
+  if (skipMarkAsLatest) {
+    echo "Skipping git commit and push because skipMarkAsLatest=true (patch/hotfix release)"
+    return
+  }
+  runSafely 'git config --global push.default simple'
+  sonatypeZionGitConfig()
+  sshagent(credentials: [sonatypeZionCredentialsId()]) {
+    runSafely 'git add .'
+    runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version}.'"
+
+    // pull and merge any new commits on main so that the push doesn't fail
+    runSafely 'git pull --no-rebase --no-edit origin main'
+    runSafely 'git push origin HEAD:main'
   }
 }
