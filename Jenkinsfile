@@ -48,7 +48,10 @@ dockerizedBuildPipeline(
   deploy: {
     // Hijacking deploy step to run the docker buildx build to make sure it is working
     withSonatypeDockerRegistry() {
-      sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit\" --use"
+      // Pinned by digest (moby/buildkit v0.31.1): all buildkit tags are currently quarantined by
+      // Sonatype Firewall; this pre-quarantine cached digest is pullable. Revert to a tag once the
+      // quarantine is released/waived.
+      sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a\" --use"
       sh "docker buildx build --platform linux/amd64,linux/arm64 " +
           "--tag ${sonatypeDockerRegistryId()}/${imageName}:${env.BUILD_NUMBER} ."
     }
