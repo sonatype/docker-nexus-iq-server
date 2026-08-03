@@ -106,11 +106,14 @@ USER root
 #       Only needed to run `update-crypto-policies --set DEFAULT:SHA1` in this
 #       stage (below), which enables SHA1-signed SCM certificates for customers
 #       whose CAs still use SHA1. Stripped afterward.
+#   which:
+#       Preinstalled in UBI9 but not in hi/core-runtime. Install explicitly so
+#       runtime tool-existence probes (`which <cmd>`) resolve inside the image.
 # shadow-utils, findutils, crypto-policies are already preinstalled in the
 # base image and are not listed here.
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git-core openssh-clients crypto-policies-scripts \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git-core openssh-clients crypto-policies-scripts which \
 && microdnf clean all
 
 # Create folders & set permissions
