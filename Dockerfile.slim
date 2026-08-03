@@ -69,12 +69,13 @@ RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
  && microdnf clean all
 
 WORKDIR /build
-# hadolint ignore=DL4006,SC3010
+# hadolint ignore=DL4006
 RUN curl -sSL "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-${OPENSSH_VERSION}.tar.gz" -o openssh.tar.gz \
  && echo "${OPENSSH_SHA256}  openssh.tar.gz" | sha256sum -c - \
- && tar -xzf openssh.tar.gz \
- && cd "openssh-${OPENSSH_VERSION}" \
- && ./configure \
+ && tar -xzf openssh.tar.gz
+
+WORKDIR /build/openssh-${OPENSSH_VERSION}
+RUN ./configure \
       --prefix=/usr \
       --sysconfdir=/etc/ssh \
       --libexecdir=/usr/libexec/openssh \
@@ -126,16 +127,19 @@ LABEL name="Nexus IQ Server image" \
 # hadolint ignore=DL3066
 USER root
 
-# For testing
+# git-core hard-depends on openssh + openssh-clients (and openssh-clients pulls in libfido2)
+# on RHEL9, so those packages get installed here even though we do not list them and pass
+# install_weak_deps=0. Remove them explicitly so the RPM DB no longer advertises the
+# vulnerable 9.9p1-9.el9_8 build. The compiled openssh 10.4p1 client binaries copied in
+# below take over the same /usr/bin, /usr/libexec/openssh, and /etc/ssh paths, so git-over-
+# ssh keeps working transparently. Fixes CVE-2026-60002 and companion CVEs unpatched in
+# RHEL9's openssh build. (CLM-42794)
 # hadolint ignore=DL3041
 RUN microdnf update -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip shadow-utils findutils less git-core which crypto-policies crypto-policies-scripts \
-&& microdnf clean all
+&& microdnf clean all \
+&& rpm -e --nodeps openssh-clients openssh libfido2
 
-# Install openssh 10.4p1 client binaries compiled from upstream source (see openssh-builder
-# stage above). Overlays /usr/bin, /usr/libexec/openssh, and /etc/ssh — the same paths the
-# RH openssh-clients package would have used. Fixes CVE-2026-60002 and other CVEs unpatched
-# in RHEL9's 9.9p1-9.el9_8 openssh build. (CLM-42794)
 COPY --from=openssh-builder /build/dest/usr/bin/ /usr/bin/
 COPY --from=openssh-builder /build/dest/usr/libexec/openssh/ /usr/libexec/openssh/
 COPY --from=openssh-builder /build/dest/etc/ssh/ /etc/ssh/
