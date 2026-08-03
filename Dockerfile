@@ -17,14 +17,22 @@
 # Red Hat Hardened Images (Hummingbird). Ships the -hum1 patch stream with
 # fixes for CVEs that Red Hat marks "Will not fix" on standard UBI9
 # (e.g. CVE-2023-51767 on openssh, CVE-2026-60002).
+#
+# `--platform=$BUILDPLATFORM` keeps the builder stage on the native build
+# host even when TARGETPLATFORM is linux/arm64. Hummingbird's tar/glibc
+# uses openat2(), which the buildkit-pinned QEMU-arm64 emulator returns
+# ENOSYS for; extracting on native amd64 sidesteps the emulator entirely.
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/hi/core-runtime:latest-builder AS builder
+FROM --platform=$BUILDPLATFORM registry.access.redhat.com/hi/core-runtime:latest-builder AS builder
 
 # hi/core-runtime defaults to non-root user 65532; the builder stage needs
 # root to run microdnf.
 # hadolint ignore=DL3002,DL3066
 USER root
 
+# TARGETARCH is set by buildx to amd64 / arm64 / ... and drives per-target
+# tarball selection below.
+ARG TARGETARCH
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.205.0-03
@@ -49,15 +57,14 @@ RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]
 
 # Download the server bundle, verify its checksum, and extract the server jar to the install directory
 WORKDIR ${TEMP}
-# hadolint ignore=SC3010
-RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
       echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
       curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
-    elif [[ "$(uname -m)" = "aarch64" ]]; then \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
       echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
       curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
     else \
-      echo "Unsupported architecture: $ARCH" && exit 1; \
+      echo "Unsupported TARGETARCH: $TARGETARCH" && exit 1; \
     fi
 
 RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
