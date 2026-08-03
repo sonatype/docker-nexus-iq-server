@@ -52,11 +52,8 @@ WORKDIR ${TEMP}
 RUN echo "${IQ_SERVER_SHA256} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256 && \
  curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz
 
-# --no-same-owner/--no-same-permissions/--no-xattrs/--no-acls sidestep
-# fchown/fsetxattr/setxattr syscalls that some QEMU-user versions return
-# ENOSYS for when linux/arm64 is emulated on an amd64 build node.
 RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
-    && tar --no-same-owner --no-same-permissions --no-xattrs --no-acls -xvf nexus-iq-server.tar.gz \
+    && tar -xvf nexus-iq-server.tar.gz \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # hadolint ignore=DL3026

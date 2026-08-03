@@ -60,11 +60,8 @@ RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
       echo "Unsupported architecture: $ARCH" && exit 1; \
     fi
 
-# --no-same-owner/--no-same-permissions/--no-xattrs/--no-acls sidestep
-# fchown/fsetxattr/setxattr syscalls that some QEMU-user versions return
-# ENOSYS for when linux/arm64 is emulated on an amd64 build node.
 RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
-    && tar --no-same-owner --no-same-permissions --no-xattrs --no-acls -xvf nexus-iq-server.tar.gz \
+    && tar -xvf nexus-iq-server.tar.gz \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # hadolint ignore=DL3026
