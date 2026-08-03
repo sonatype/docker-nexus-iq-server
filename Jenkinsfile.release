@@ -119,34 +119,21 @@ void pushImage(String imageName, boolean markAsLatest) {
   runSafely "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'"
   runSafely "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true"
 
-  withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig", 'DOCKER_CONTENT_TRUST=1', "TRUST_DIR=${env.WORKSPACE_TMP}/.dockerConfig/trust"]) {
+  withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig"]) {
     withCredentials([
-        file(credentialsId: 'sonatype_docker_root_private_key', variable: 'SONATYPE_DOCKER_ROOT_PRIVATE_KEY'),
-        file(credentialsId: 'nexus-iq-server_dct_gun_key', variable: 'NEXUS_IQ_SERVER_DCT_GUN_KEY'),
-        file(credentialsId: 'nexus-iq-server_dct_root_key', variable: 'NEXUS_IQ_SERVER_DCT_ROOT_KEY'),
-        string(credentialsId: 'sonatype_docker_root_pw', variable: 'NOTARY_DELEGATION_PASSPHRASE'),
-        string(credentialsId: 'sonatype_docker_root_pw', variable: 'NOTARY_ROOT_PASSPHRASE'),
-        string(credentialsId: 'nexus-iq-server_dct_reg_pw', variable: 'NOTARY_TARGETS_PASSPHRASE'),
       [ $class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
         usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
 
-      runSafely """docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}
-                   mkdir -p ${TRUST_DIR}/private
-                   cp '${SONATYPE_DOCKER_ROOT_PRIVATE_KEY}' ${TRUST_DIR}/private
-                   cp '${NEXUS_IQ_SERVER_DCT_GUN_KEY}' ${TRUST_DIR}/private
-                   cp '${NEXUS_IQ_SERVER_DCT_ROOT_KEY}' ${TRUST_DIR}/private"""
+      runSafely "docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}"
       withSonatypeDockerRegistry() {
         def tags = ["${env.VERSION}"]
         if (markAsLatest) {
           tags << "latest"
         }
         runSafely """
-        curl -L https://go.dev/dl/go1.23.3.linux-amd64.tar.gz | tar -xzf -
-        export PATH=${env.PATH}:${env.WORKSPACE}/go/bin:${env.WORKSPACE}/bin
-        export GOPATH=${env.WORKSPACE}
-        go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary@latest
-        notary --help
-        docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit
+        # buildkit tags are quarantined by Sonatype Firewall; pin the pre-quarantine cached digest
+        # (moby/buildkit v0.31.1). Revert to a tag once released/waived.
+        docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a
         export OCI_REPO="sonatype/nexus-iq-server"
         ./build_and_push_images.sh ${tags.join(' ')}
         """

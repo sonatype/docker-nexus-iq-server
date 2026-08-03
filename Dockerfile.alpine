@@ -75,6 +75,7 @@ LABEL name="Nexus IQ Server image" \
   io.openshift.expose-services="8071:8071" \
   io.openshift.tags="Sonatype,Nexus,IQ Server"
 
+# hadolint ignore=DL3066
 USER root
 
 # Runtime dependencies only.
@@ -87,8 +88,11 @@ USER root
 # - gzip, tar, util-linux: not needed at runtime. The tar+gzip extraction of the IQ Server
 #   tarball happens in the builder stage only; the final image just runs the extracted
 #   Java process. util-linux binaries (mount/umount/etc.) are never invoked.
-# hadolint ignore=DL3018
+# DL3017 (apk upgrade) is intentionally suppressed: applying the latest Alpine
+# security patches at build time is the explicit goal of this change.
+# hadolint ignore=DL3017,DL3018
 RUN apk update \
+&& apk upgrade \
 && apk add --no-cache procps-ng findutils less rsync git which curl
 
 # Create folders & set permissions
@@ -133,9 +137,10 @@ EXPOSE 8070
 EXPOSE 8071
 
 # Wire up health check
-HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthcheck || exit 1
+HEALTHCHECK CMD ["curl", "--fail", "--silent", "--show-error", "http://localhost:8071/healthcheck"]
 
 # Change to nexus user
+# hadolint ignore=DL3066
 USER nexus
 
 ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "

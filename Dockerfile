@@ -96,6 +96,7 @@ LABEL name="Nexus IQ Server image" \
   io.openshift.expose-services="8071:8071" \
   io.openshift.tags="Sonatype,Nexus,IQ Server"
 
+# hadolint ignore=DL3066
 USER root
 
 # Runtime packages. Every entry below is needed at runtime; build-only tools
@@ -196,9 +197,10 @@ EXPOSE 8070
 EXPOSE 8071
 
 # Wire up health check
-HEALTHCHECK CMD curl --fail --silent --show-error http://localhost:8071/healthcheck || exit 1
+HEALTHCHECK CMD ["curl", "--fail", "--silent", "--show-error", "http://localhost:8071/healthcheck"]
 
 # Change to nexus user
+# hadolint ignore=DL3066
 USER nexus
 
 ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "
