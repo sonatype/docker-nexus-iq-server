@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-# Red Hat Hardened Images (Hummingbird) — base swap per CLM-42750. Ships the
-# -hum1 patch stream with fixes for CVEs that Red Hat marks "Will not fix"
-# on standard UBI9 (e.g. CVE-2023-51767 on openssh, CVE-2026-60002).
+# Red Hat Hardened Images (Hummingbird). Ships the -hum1 patch stream with
+# fixes for CVEs that Red Hat marks "Will not fix" on standard UBI9
+# (e.g. CVE-2023-51767 on openssh, CVE-2026-60002).
 # hadolint ignore=DL3026
 FROM registry.access.redhat.com/hi/core-runtime:latest-builder AS builder
 
