@@ -26,7 +26,7 @@ ARG SONATYPE_WORK="/sonatype-work"
 # hadolint ignore=DL3041,DL3040
 RUN mkdir -p ${TEMP} && \
     microdnf update -y && \
-    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip tar shadow-utils findutils less rsync git-core openssh-clients which crypto-policies crypto-policies-scripts
+    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip tar shadow-utils findutils less rsync git-core which crypto-policies crypto-policies-scripts
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
@@ -50,6 +50,41 @@ RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
 RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && tar -xvf nexus-iq-server.tar.gz \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
+
+# Build openssh 10.4p1 from upstream source to pick up the fix for CVE-2026-60002 (and
+# CVE-2026-59999, CVE-2026-60000, CVE-2023-51767). Red Hat's UBI9 openssh package
+# (9.9p1-9.el9_8) has not backported these fixes, so the RH package cannot be used.
+# Binaries are compiled with client-oriented flags (no PAM, no SELinux, no libedit) and
+# installed into the final image at the same paths as the RH openssh-clients package so
+# git-over-ssh works transparently.
+# hadolint ignore=DL3026
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS openssh-builder
+ARG OPENSSH_VERSION=10.4p1
+ARG OPENSSH_SHA256=ef6026dd2aea8d56059638d5d3262902c892ceba9f88395835e0d06d3fb63238
+
+# hadolint ignore=DL3041,DL3040
+RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
+      gcc make tar gzip \
+      openssl-devel zlib-devel \
+ && microdnf clean all
+
+WORKDIR /build
+# hadolint ignore=DL4006,SC3010
+RUN curl -sSL "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-${OPENSSH_VERSION}.tar.gz" -o openssh.tar.gz \
+ && echo "${OPENSSH_SHA256}  openssh.tar.gz" | sha256sum -c - \
+ && tar -xzf openssh.tar.gz \
+ && cd "openssh-${OPENSSH_VERSION}" \
+ && ./configure \
+      --prefix=/usr \
+      --sysconfdir=/etc/ssh \
+      --libexecdir=/usr/libexec/openssh \
+      --without-pam \
+      --without-selinux \
+      --without-libedit \
+      --without-zlib-version-check \
+      --disable-strip \
+ && make -j"$(nproc)" \
+ && make DESTDIR=/build/dest install-nokeys
 
 # hadolint ignore=DL3026
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
@@ -89,8 +124,16 @@ USER root
 # For testing
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip shadow-utils findutils less git-core which crypto-policies crypto-policies-scripts \
 && microdnf clean all
+
+# Install openssh 10.4p1 client binaries compiled from upstream source (see openssh-builder
+# stage above). Overlays /usr/bin, /usr/libexec/openssh, and /etc/ssh — the same paths the
+# RH openssh-clients package would have used. Fixes CVE-2026-60002 and other CVEs unpatched
+# in RHEL9's 9.9p1-9.el9_8 openssh build. (CLM-42794)
+COPY --from=openssh-builder /build/dest/usr/bin/ /usr/bin/
+COPY --from=openssh-builder /build/dest/usr/libexec/openssh/ /usr/libexec/openssh/
+COPY --from=openssh-builder /build/dest/etc/ssh/ /etc/ssh/
 
 # Create folders & set permissions
 RUN mkdir -p ${IQ_HOME} \
@@ -159,10 +202,10 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 #
 # rpm -e --nodeps required only for packages with RPM-level deps that aren't actual runtime links:
 # - gawk: krb5-libs has a scriptlet-only dep on it
-# - systemd-libs: libfido2 depends on libudev (from systemd-libs) but both are unused at runtime
+# - systemd-libs: no runtime consumer once the packages it supported (originally libfido2 for
+#   openssh-clients) are gone; kept in the removal list defensively
 # - p11-kit, p11-kit-trust, libtasn1: only used at build time by update-ca-trust; at runtime
 #   OpenSSL reads the PEM bundle directly without loading these (verified via LD_DEBUG)
-# - libfido2: openssh-clients declares dep but ssh binary doesn't link against it (ssh-sk-helper does)
 # - expat: only linked by /usr/libexec/git-core/git-http-push (legacy "dumb HTTP" git push,
 #   WebDAV-based) and by /usr/bin/xmlwf (expat's own XML well-formedness checker).
 #   Modern git over HTTPS uses git-remote-https -> git-remote-http, which does NOT link
@@ -170,15 +213,14 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 #   dumb-HTTP git push, and the JRE parses XML with Xerces, not libexpat.
 # - util-linux, util-linux-core, libblkid, libmount, libsmartcols, libuuid, libfdisk: no
 #   runtime binary in the image links libblkid/libmount/libsmartcols/libuuid/libfdisk (0 NEEDED
-#   entries across all ELFs, verified via readelf). openssh declares an RPM file-dep on
-#   /sbin/nologin (owned by util-linux); --nodeps breaks that declared dep and we substitute
-#   a symlink to /bin/false (which coreutils-single provides with identical exit behavior)
-#   so any /etc/passwd shell entries referencing nologin still resolve.
+#   entries across all ELFs, verified via readelf). We substitute /sbin/nologin with a symlink
+#   to /bin/false (which coreutils-single provides with identical exit behavior) so any
+#   /etc/passwd shell entries referencing nologin still resolve after util-linux is removed.
 # - sqlite-libs, xz-libs, bzip2-libs, libarchive, libxml2, rpm, rpm-libs: kept alive until the
 #   last step because rpm binary itself dynamically links against them (or transitively through
 #   librpm/librpmio -> libarchive -> libxml2); removed together in the final rpm -e call.
 # hadolint ignore=DL3059
-RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
+RUN rpm -e --nodeps gawk systemd-libs p11-kit p11-kit-trust libtasn1 \
     pam libpwquality expat \
 && microdnf remove -y \
     crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
