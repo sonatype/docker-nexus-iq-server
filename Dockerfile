@@ -14,25 +14,8 @@
 # limitations under the License.
 #
 
-# Red Hat Hardened Images (Hummingbird). Ships the -hum1 patch stream with
-# fixes for CVEs that Red Hat marks "Will not fix" on standard UBI9
-# (e.g. CVE-2023-51767 on openssh, CVE-2026-60002).
-#
-# `--platform=$BUILDPLATFORM` keeps the builder stage on the native build
-# host even when TARGETPLATFORM is linux/arm64. Hummingbird's tar/glibc
-# uses openat2(), which the buildkit-pinned QEMU-arm64 emulator returns
-# ENOSYS for; extracting on native amd64 sidesteps the emulator entirely.
 # hadolint ignore=DL3026
-FROM --platform=$BUILDPLATFORM registry.access.redhat.com/hi/core-runtime:latest-builder AS builder
-
-# hi/core-runtime defaults to non-root user 65532; the builder stage needs
-# root to run microdnf.
-# hadolint ignore=DL3002,DL3066
-USER root
-
-# TARGETARCH is set by buildx to amd64 / arm64 / ... and drives per-target
-# tarball selection below.
-ARG TARGETARCH
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.205.0-03
@@ -40,14 +23,10 @@ ARG IQ_SERVER_SHA256_AARCH=5dc7782190512e4aa512bc070b3b0b5841d7938ac7b06e6026944
 ARG IQ_SERVER_SHA256_X86_64=232290398ef4958ba7af6d5438ac4ab88c67285037d7be481b1f5b09a9c1ead4
 ARG SONATYPE_WORK="/sonatype-work"
 
-# Builder-only tools:
-#   tar, gzip:  extract the IQ Server tarball.
-# Everything else the build needs (curl, sha256sum, sed, cat, mkdir, coreutils,
-# bash) is already in hi/core-runtime:latest-builder.
 # hadolint ignore=DL3041,DL3040
 RUN mkdir -p ${TEMP} && \
     microdnf update -y && \
-    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y tar gzip
+    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip tar shadow-utils findutils less rsync git-core openssh-clients which crypto-policies crypto-policies-scripts
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
@@ -57,14 +36,15 @@ RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]
 
 # Download the server bundle, verify its checksum, and extract the server jar to the install directory
 WORKDIR ${TEMP}
-RUN if [ "$TARGETARCH" = "amd64" ]; then \
+# hadolint ignore=SC3010
+RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
       echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
       curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
-    elif [ "$TARGETARCH" = "arm64" ]; then \
+    elif [[ "$(uname -m)" = "aarch64" ]]; then \
       echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
       curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
     else \
-      echo "Unsupported TARGETARCH: $TARGETARCH" && exit 1; \
+      echo "Unsupported architecture: $ARCH" && exit 1; \
     fi
 
 RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
@@ -72,7 +52,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/hi/core-runtime:latest-builder
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
 
 ARG IQ_SERVER_VERSION=1.205.0-03
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -106,13 +86,10 @@ LABEL name="Nexus IQ Server image" \
 # hadolint ignore=DL3066
 USER root
 
-# Runtime packages (shadow-utils, findutils, crypto-policies come preinstalled):
-#   git-core, openssh-clients — git/git+ssh for SCM policy scans.
-#   crypto-policies-scripts — used by `update-crypto-policies` below, then stripped.
-#   which — the `which` command isn't in the base; install explicitly.
+# For testing
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git-core openssh-clients crypto-policies-scripts which \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts \
 && microdnf clean all
 
 # Create folders & set permissions
@@ -132,7 +109,7 @@ RUN groupadd -g ${GID} nexus \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
 && chown -R nexus:nexus ${LOGS_HOME}
-
+    
 # Copy config.yml
 COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
 RUN chmod 0644 ${CONFIG_HOME}/config.yml
@@ -148,43 +125,73 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 
 WORKDIR ${IQ_HOME}
 
-# Enable support for SHA1-signed SCM certificates (some legacy customer CAs).
+# enabling back support for SHA1 signed certificates
 RUN update-crypto-policies --set DEFAULT:SHA1
 
-# Strip packages not needed at runtime to reduce vulnerability surface.
-# Removal audited via ldd/readelf against the built image: every ELF binary
-# has all its deps resolved except /usr/libexec/git-core/git-http-push
-# (missing libexpat.so.1) — legacy dumb-HTTP git push, which IQ Server
-# never uses.
+# Remove packages not needed at runtime to reduce vulnerability surface
+# microdnf remove handles dependency resolution for the bulk of removals:
+# - Package management stack: microdnf, libdnf, librepo, librhsm, libsolv, libmodulemd
+# - Package management deps: gobject-introspection, libpeas, json-glib, glib2, gpgme, gnupg2
+# - crypto-policies-scripts + python3 stack: only needed for update-crypto-policies above
+# - gnutls: TLS handled by openssl; nothing at runtime links against libgnutls (verified via ldd)
+# - libxml2, sqlite-libs, libarchive, libusbx, rpm, rpm-libs: no runtime consumers
+# - shadow-utils + libsemanage: shadow-utils' user-management binaries (useradd/userdel/usermod)
+#   were only used at BUILD time to create the nexus user (line ~105 above). The image runs
+#   as that user and never re-invokes them. libsemanage is shadow-utils' SELinux helper.
+#   Listing them in microdnf's removal alongside bzip2-libs is what allows microdnf's
+#   depsolver to remove bzip2-libs cleanly (libsemanage was the only declared requirer).
+# - bzip2-libs: no runtime binary in the image links libbz2 once shadow-utils and libsemanage
+#   are also removed (verified via ldd survey across /usr/bin, /usr/sbin, /usr/libexec,
+#   /usr/lib64, and the JRE bundle).
+# - xz-libs (liblzma): no runtime binary links liblzma once microdnf is gone (microdnf used
+#   it for compressed-package-metadata reads during its own removal step). Verified via ldd.
+# - openldap (libldap): no runtime binary links libldap. Image runs no LDAP server. The
+#   original cascade-dep concern (libarchive -> libxml2) is moot because those are already
+#   in the microdnf removal list.
+# - libgcrypt: no runtime binary in the image links libgcrypt (verified via readelf -d
+#   across all 951 ELF files in the built image: 0 NEEDED entries for libgcrypt.so). Java
+#   uses BouncyCastle FIPS via JSSE for all cryptographic operations, not libgcrypt.
+#   Present only as a transitive install-time dep of packages that are themselves removed
+#   later in this block (systemd-libs pulls it in; systemd-libs is in the rpm -e list above).
+# - cracklib, cracklib-dicts, gzip: transitively pulled in by pam. pam is removed via the
+#   rpm -e --nodeps step above, which leaves cracklib and gzip as orphans. Nothing at runtime
+#   invokes gzip (verified: no reference in start.sh or the IQ Server bundle).
 #
-# Order matters:
-# 1. microdnf remove for packages the dnf5 depsolver unlinks cleanly.
-# 2. rpm -e --nodeps for packages with RPM-level deps that aren't runtime links.
-# 3. Final cascade for the package-management stack itself — dnf5 is a
-#    "protected package" that refuses to remove itself; libdnf5/librepo/
-#    libsolv/libmodulemd/glib2 are its runtime deps and go out together.
-#
-# Nexus user has /bin/false as its shell (see `adduser -s /bin/false` above),
-# so pam-libs is never invoked at runtime.
-#
-# The `ln -sf /bin/false /sbin/nologin` step gives /etc/passwd's system
-# accounts (bin, daemon, adm, ...) a resolvable shell — none of them are
-# used by IQ Server, but leaving their nologin shell dangling is untidy.
-#
-# Packages KEPT that would look strippable but aren't:
-# - openldap: libcurl (used by the HEALTHCHECK) links libldap.
-# - systemd-libs: coreutils-single links libsystemd.so.0.
-# - libfido2: libcurl and libssh both link libfido2.so.1.
+# rpm -e --nodeps required only for packages with RPM-level deps that aren't actual runtime links:
+# - gawk: krb5-libs has a scriptlet-only dep on it
+# - systemd-libs: libfido2 depends on libudev (from systemd-libs) but both are unused at runtime
+# - p11-kit, p11-kit-trust, libtasn1: only used at build time by update-ca-trust; at runtime
+#   OpenSSL reads the PEM bundle directly without loading these (verified via LD_DEBUG)
+# - libfido2: openssh-clients declares dep but ssh binary doesn't link against it (ssh-sk-helper does)
+# - expat: only linked by /usr/libexec/git-core/git-http-push (legacy "dumb HTTP" git push,
+#   WebDAV-based) and by /usr/bin/xmlwf (expat's own XML well-formedness checker).
+#   Modern git over HTTPS uses git-remote-https -> git-remote-http, which does NOT link
+#   libexpat (verified via ldd in the baseline image). No code path in IQ Server uses
+#   dumb-HTTP git push, and the JRE parses XML with Xerces, not libexpat.
+# - util-linux, util-linux-core, libblkid, libmount, libsmartcols, libuuid, libfdisk: no
+#   runtime binary in the image links libblkid/libmount/libsmartcols/libuuid/libfdisk (0 NEEDED
+#   entries across all ELFs, verified via readelf). openssh declares an RPM file-dep on
+#   /sbin/nologin (owned by util-linux); --nodeps breaks that declared dep and we substitute
+#   a symlink to /bin/false (which coreutils-single provides with identical exit behavior)
+#   so any /etc/passwd shell entries referencing nologin still resolve.
+# - sqlite-libs, xz-libs, bzip2-libs, libarchive, libxml2, rpm, rpm-libs: kept alive until the
+#   last step because rpm binary itself dynamically links against them (or transitively through
+#   librpm/librpmio -> libarchive -> libxml2); removed together in the final rpm -e call.
 # hadolint ignore=DL3059
-RUN ln -sf /bin/false /sbin/nologin \
+RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
+    pam libpwquality expat \
 && microdnf remove -y \
-    crypto-policies-scripts python3 python3-libs \
-    shadow-utils libsemanage \
-&& rpm -e --nodeps p11-kit p11-kit-trust libtasn1 \
-    pam-libs expat \
-&& rpm -e --nodeps libblkid libmount libsmartcols libuuid \
-&& rpm -e --nodeps dnf5 libdnf5-cli libdnf5 librepo libsolv libmodulemd glib2 \
-    rpm rpm-libs rpm-sequoia libarchive libxml2-16 sqlite-libs xz-libs libzstd bzip2-libs
+    crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
+    microdnf libdnf librepo librhsm libsolv libmodulemd \
+    gobject-introspection libpeas json-glib glib2 \
+    gpgme gnupg2 libusbx \
+    gnutls \
+    shadow-utils libsemanage openldap \
+    libgcrypt \
+    cracklib cracklib-dicts gzip \
+&& rpm -e --nodeps util-linux util-linux-core libblkid libmount libsmartcols libuuid libfdisk \
+&& ln -sf /bin/false /sbin/nologin \
+&& rpm -e --nodeps rpm rpm-libs libarchive libxml2 sqlite-libs xz-libs bzip2-libs
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}

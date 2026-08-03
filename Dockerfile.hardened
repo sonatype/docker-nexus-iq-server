@@ -1,0 +1,210 @@
+#
+# Copyright (c) 2017-present Sonatype, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Nexus IQ Server on Red Hat Hardened Images (Hummingbird). Ships the -hum1
+# patch stream with fixes for CVEs that Red Hat marks "Will not fix" on
+# standard UBI9 (e.g. CVE-2023-51767 on openssh, CVE-2026-60002).
+#
+# --platform=$BUILDPLATFORM keeps the builder stage on the native build host
+# even when TARGETPLATFORM is linux/arm64: Hummingbird's tar/glibc uses
+# openat2(), which the buildkit-pinned QEMU-arm64 emulator returns ENOSYS
+# for, so extracting on native amd64 sidesteps the emulator entirely.
+# hadolint ignore=DL3026
+FROM --platform=$BUILDPLATFORM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest-builder AS builder
+
+# hi/core-runtime defaults to non-root user 65532; the builder stage needs
+# root to run microdnf.
+# hadolint ignore=DL3002,DL3066
+USER root
+
+# TARGETARCH is set by buildx to amd64 / arm64 / ...
+ARG TARGETARCH
+ARG TEMP="/tmp/work"
+# Build parameters
+ARG IQ_SERVER_VERSION=1.205.3-01
+ARG IQ_SERVER_SHA256_AARCH=8cf0c56ca535dda92682d8b644dbf2a5d59712c89d88f1e7989001c49ac24c27
+ARG IQ_SERVER_SHA256_X86_64=2be3e74a3c84a5f8e721725bc6adf05b98c5c78881da5378e086292916ca68dd
+ARG SONATYPE_WORK="/sonatype-work"
+
+# Builder-only tools:
+#   tar, gzip — extract the IQ Server tarball.
+# curl, sha256sum, sed, cat, mkdir, coreutils, bash are already in
+# hi/core-runtime:latest-builder.
+# hadolint ignore=DL3041,DL3040
+RUN mkdir -p ${TEMP} && \
+    microdnf update -y && \
+    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y tar gzip
+
+COPY config.yml ${TEMP}
+
+# hadolint ignore=DL4006,SC3060
+RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${TEMP}/config-edited.yml
+
+WORKDIR ${TEMP}
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+      echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
+      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+      echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
+      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
+    else \
+      echo "Unsupported TARGETARCH: $TARGETARCH" && exit 1; \
+    fi
+
+RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
+    && tar -xvf nexus-iq-server.tar.gz \
+    && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
+
+# ---------------------------------------------------------------------------
+# Runtime stage.
+#
+# TODO: hi/core-runtime:latest (the non-builder runtime tag) is the more
+# correct choice here, but it strips microdnf and the package-management
+# stack, which means git-core/openssh-clients/crypto-policies-scripts must
+# be installed into a staging chroot in the builder stage and COPY'd in
+# rather than installed via `microdnf` here. That restructure is planned
+# as a follow-up; for now this stage stays on :latest-builder to keep the
+# install path simple. See PR #199 review thread for context.
+# hadolint ignore=DL3026
+FROM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest-builder
+
+ARG IQ_SERVER_VERSION=1.205.3-01
+ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
+ARG SONATYPE_WORK="/sonatype-work"
+ARG CONFIG_HOME="/etc/nexus-iq-server"
+ARG LOGS_HOME="/var/log/nexus-iq-server"
+ARG GID=1000
+ARG UID=1000
+ARG TIMEOUT=600
+
+LABEL name="Nexus IQ Server (hardened)" \
+  maintainer="Sonatype <support@sonatype.com>" \
+  vendor=Sonatype \
+  version="${IQ_SERVER_VERSION}" \
+  release="1.205.3" \
+  url="https://www.sonatype.com" \
+  summary="Nexus IQ Server on Red Hat Hardened Images (Hummingbird)" \
+  description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
+    This variant is built on Red Hat Hardened Images (Hummingbird) and receives -hum1 patch-stream CVE fixes \
+    not available in the standard UBI9 build." \
+  com.sonatype.license="Apache License, Version 2.0" \
+  com.sonatype.name="Nexus IQ Server (hardened)" \
+  run="docker run -d -p 8070:8070 -p 8071:8071 IMAGE" \
+  io.k8s.description="Nexus IQ Server (hardened). Policy engine on Red Hat Hardened Images (Hummingbird)." \
+  io.k8s.display-name="Nexus IQ Server (hardened)" \
+  io.openshift.expose-services="8071:8071" \
+  io.openshift.tags="Sonatype,Nexus,IQ Server,Hardened"
+
+# hadolint ignore=DL3066
+USER root
+
+# Runtime packages (shadow-utils, findutils, crypto-policies come preinstalled):
+#   git-core, openssh-clients — git/git+ssh for SCM policy scans.
+#   crypto-policies-scripts — used by `update-crypto-policies` below, then stripped.
+# hadolint ignore=DL3041
+RUN microdnf update -y \
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git-core openssh-clients crypto-policies-scripts \
+&& microdnf clean all
+
+# Create folders & set permissions
+RUN mkdir -p ${IQ_HOME} \
+&& mkdir -p ${SONATYPE_WORK} \
+&& mkdir -p ${CONFIG_HOME} \
+&& mkdir -p ${LOGS_HOME} \
+&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \
+&& chmod 0755 ${CONFIG_HOME} \
+&& chmod 0755 ${LOGS_HOME}
+
+# Add group and user
+RUN groupadd -g ${GID} nexus \
+&& adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
+# Change owner to nexus user
+&& chown -R nexus:nexus ${IQ_HOME} \
+&& chown -R nexus:nexus ${SONATYPE_WORK} \
+&& chown -R nexus:nexus ${CONFIG_HOME} \
+&& chown -R nexus:nexus ${LOGS_HOME}
+
+COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
+RUN chmod 0644 ${CONFIG_HOME}/config.yml
+
+COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
+
+# Create start script
+RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
+&& echo "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
+&& echo "wait" >> ${IQ_HOME}/start.sh \
+&& chmod 0755 ${IQ_HOME}/start.sh
+
+WORKDIR ${IQ_HOME}
+
+# Enable support for SHA1-signed SCM certificates (some legacy customer CAs).
+RUN update-crypto-policies --set DEFAULT:SHA1
+
+# Strip packages not needed at runtime to reduce vulnerability surface.
+# Removal audited via ldd/readelf against the built image: every ELF binary
+# has all its deps resolved except /usr/libexec/git-core/git-http-push
+# (missing libexpat.so.1) — legacy dumb-HTTP git push, which IQ Server
+# never uses.
+#
+# Order matters:
+# 1. microdnf remove — packages the dnf5 depsolver unlinks cleanly.
+# 2. rpm -e --nodeps — packages with RPM-level deps that aren't runtime links.
+# 3. Final cascade — dnf5 is a "protected package" that refuses to remove
+#    itself; libdnf5/librepo/libsolv/libmodulemd/glib2 are its runtime deps
+#    and go out together.
+#
+# Why pam-libs is safe to remove: PAM is invoked by interactive-session
+# tools (login/su/sudo/ssh). The nexus user has /bin/false as its shell
+# (via `adduser -s /bin/false` above), and IQ Server launches java
+# directly (via `sh start.sh`, not `su -c ... nexus`). No runtime code
+# path calls into PAM.
+#
+# The `ln -sf /bin/false /sbin/nologin` step keeps /etc/passwd's system
+# accounts (bin, daemon, adm, ...) with a resolvable shell after nologin's
+# owning package (util-linux) has been removed elsewhere. None of them are
+# used by IQ Server, but leaving their shell reference dangling is untidy.
+#
+# Packages KEPT that look strippable but aren't:
+# - openldap — libcurl (used by HEALTHCHECK) links libldap.
+# - systemd-libs — coreutils-single links libsystemd.so.0.
+# - libfido2 — libcurl and libssh both link libfido2.so.1.
+# hadolint ignore=DL3059
+RUN ln -sf /bin/false /sbin/nologin \
+&& microdnf remove -y \
+    crypto-policies-scripts python3 python3-libs \
+    shadow-utils libsemanage \
+&& rpm -e --nodeps p11-kit p11-kit-trust libtasn1 \
+    pam-libs expat \
+&& rpm -e --nodeps libblkid libmount libsmartcols libuuid \
+&& rpm -e --nodeps dnf5 libdnf5-cli libdnf5 librepo libsolv libmodulemd glib2 \
+    rpm rpm-libs rpm-sequoia libarchive libxml2-16 sqlite-libs xz-libs libzstd bzip2-libs
+
+VOLUME ${SONATYPE_WORK}
+VOLUME ${LOGS_HOME}
+
+EXPOSE 8070
+EXPOSE 8071
+
+HEALTHCHECK CMD ["curl", "--fail", "--silent", "--show-error", "http://localhost:8071/healthcheck"]
+
+USER nexus
+
+ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "
+ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
+
+WORKDIR ${IQ_HOME}
+
+CMD [ "sh", "./start.sh" ]
