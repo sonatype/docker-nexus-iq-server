@@ -18,19 +18,36 @@
 # patch stream with fixes for CVEs that Red Hat marks "Will not fix" on
 # standard UBI9 (e.g. CVE-2023-51767 on openssh, CVE-2026-60002).
 #
-# --platform=$BUILDPLATFORM keeps the builder stage on the native build host
-# even when TARGETPLATFORM is linux/arm64: Hummingbird's tar/glibc uses
-# openat2(), which the buildkit-pinned QEMU-arm64 emulator returns ENOSYS
-# for, so extracting on native amd64 sidesteps the emulator entirely.
-# hadolint ignore=DL3026
-FROM --platform=$BUILDPLATFORM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest-builder AS builder
+# Three-stage build:
+#   1. downloader — runs on --platform=$BUILDPLATFORM (the Jenkins agent's
+#      native arch, always amd64 for this repo). Fetches the IQ Server
+#      tarball for TARGETARCH and extracts it. Runs natively so the tar
+#      extraction never touches the buildkit-pinned QEMU-arm64 emulator
+#      (Hummingbird's tar/glibc uses openat2(), which that QEMU returns
+#      ENOSYS for).
+#   2. rootfs — target platform. Installs runtime packages into an isolated
+#      /rootfs via `microdnf --installroot`, applies update-crypto-policies
+#      inside the chroot, sets up the nexus user by appending directly to
+#      /rootfs/etc/passwd|group, and lays out IQ Server + config under
+#      the target directory tree.
+#   3. runtime — hi/core-runtime:latest (the runtime tag, no microdnf, no
+#      build tools). COPYs /rootfs from stage 2 wholesale. Only packages
+#      that were explicitly installed in stage 2 are present, so no strip
+#      block is needed here.
+#
+# Base images are pulled through Sonatype's Nexus proxy of
+# registry.access.redhat.com rather than directly from upstream.
 
-# hi/core-runtime defaults to non-root user 65532; the builder stage needs
+# ---- Stage 1: downloader ----
+# hadolint ignore=DL3026
+FROM --platform=$BUILDPLATFORM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest-builder AS downloader
+
+# hi/core-runtime defaults to non-root uid 65532; the builder stage needs
 # root to run microdnf.
 # hadolint ignore=DL3002,DL3066
 USER root
 
-# TARGETARCH is set by buildx to amd64 / arm64 / ...
+# TARGETARCH is set by buildx and drives per-target tarball selection.
 ARG TARGETARCH
 ARG TEMP="/tmp/work"
 # Build parameters
@@ -68,20 +85,13 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && tar -xvf nexus-iq-server.tar.gz \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
-# ---------------------------------------------------------------------------
-# Runtime stage.
-#
-# TODO: hi/core-runtime:latest (the non-builder runtime tag) is the more
-# correct choice here, but it strips microdnf and the package-management
-# stack, which means git-core/openssh-clients/crypto-policies-scripts must
-# be installed into a staging chroot in the builder stage and COPY'd in
-# rather than installed via `microdnf` here. That restructure is planned
-# as a follow-up; for now this stage stays on :latest-builder to keep the
-# install path simple. See PR #199 review thread for context.
+# ---- Stage 2: rootfs builder ----
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest-builder
+FROM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest-builder AS rootfs
 
-ARG IQ_SERVER_VERSION=1.205.3-01
+# hadolint ignore=DL3002,DL3066
+USER root
+
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -89,6 +99,87 @@ ARG LOGS_HOME="/var/log/nexus-iq-server"
 ARG GID=1000
 ARG UID=1000
 ARG TIMEOUT=600
+ARG ROOTFS=/rootfs
+
+# Runtime packages installed into an isolated rootfs:
+#   git-core, openssh-clients — git/git+ssh for SCM policy scans.
+#   crypto-policies-scripts — needed at build time for
+#       `update-crypto-policies --set DEFAULT:SHA1` (below); removed
+#       from the rootfs afterward. crypto-policies (the config data)
+#       is pulled in transitively and stays — openssl and openssh
+#       read the resulting `/etc/crypto-policies/back-ends/*.config`
+#       files at runtime.
+#   bash, curl, coreutils-single — needed by the container's `CMD`
+#       (`sh start.sh`), HEALTHCHECK (curl), and the start script
+#       (trap, cut, tail, timeout). Explicitly requested so the rootfs
+#       is self-sufficient and doesn't depend on any of these being
+#       preinstalled in the runtime base tag.
+# hadolint ignore=DL3041
+RUN mkdir -p ${ROOTFS} && \
+    microdnf install -y \
+      --installroot=${ROOTFS} \
+      --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
+      bash coreutils-single curl \
+      git-core openssh-clients \
+      crypto-policies-scripts && \
+    microdnf clean all --installroot=${ROOTFS}
+
+# Enable support for SHA1-signed SCM certificates (some legacy customer
+# CAs still use SHA1). Applied inside the chroot so the resulting
+# `/etc/crypto-policies/back-ends/*.config` files land in the rootfs.
+RUN chroot ${ROOTFS} update-crypto-policies --set DEFAULT:SHA1
+
+# crypto-policies-scripts (and its python3 dependency) are only needed at
+# build time to run update-crypto-policies above. Remove from the rootfs
+# so they don't ship. crypto-policies (the config-data package that
+# supplies the back-ends/* files openssl and openssh actually read) is
+# a separate package and stays.
+RUN chroot ${ROOTFS} microdnf remove -y crypto-policies-scripts python3 python3-libs
+
+# Nexus user & group. Writing to /etc/passwd + /etc/group directly avoids
+# needing shadow-utils in the runtime.
+RUN echo "nexus:x:${GID}:" >> ${ROOTFS}/etc/group && \
+    echo "nexus:x:${UID}:${GID}:Nexus IQ user:${IQ_HOME}:/bin/false" >> ${ROOTFS}/etc/passwd
+
+# Directory layout.
+RUN mkdir -p \
+      ${ROOTFS}${IQ_HOME} \
+      ${ROOTFS}${SONATYPE_WORK} \
+      ${ROOTFS}${CONFIG_HOME} \
+      ${ROOTFS}${LOGS_HOME} && \
+    chmod 0755 \
+      ${ROOTFS}/opt/sonatype \
+      ${ROOTFS}${IQ_HOME} \
+      ${ROOTFS}${CONFIG_HOME} \
+      ${ROOTFS}${LOGS_HOME} && \
+    chown -R ${UID}:${GID} \
+      ${ROOTFS}${IQ_HOME} \
+      ${ROOTFS}${SONATYPE_WORK} \
+      ${ROOTFS}${CONFIG_HOME} \
+      ${ROOTFS}${LOGS_HOME}
+
+# IQ Server binaries + config (from the native-platform downloader stage).
+COPY --from=downloader --chown=${UID}:${GID} /tmp/work/nexus-iq-server ${ROOTFS}${IQ_HOME}
+COPY --from=downloader /tmp/work/config-edited.yml ${ROOTFS}${CONFIG_HOME}/config.yml
+RUN chmod 0644 ${ROOTFS}${CONFIG_HOME}/config.yml
+
+# Start script.
+RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${ROOTFS}${IQ_HOME}/start.sh \
+&& echo "${IQ_HOME}/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${ROOTFS}${IQ_HOME}/start.sh \
+&& echo "wait" >> ${ROOTFS}${IQ_HOME}/start.sh \
+&& chmod 0755 ${ROOTFS}${IQ_HOME}/start.sh \
+&& chown ${UID}:${GID} ${ROOTFS}${IQ_HOME}/start.sh
+
+# ---- Stage 3: runtime ----
+# hadolint ignore=DL3026
+FROM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest
+
+ARG IQ_SERVER_VERSION=1.205.3-01
+ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
+ARG SONATYPE_WORK="/sonatype-work"
+ARG CONFIG_HOME="/etc/nexus-iq-server"
+ARG LOGS_HOME="/var/log/nexus-iq-server"
+ARG UID=1000
 
 LABEL name="Nexus IQ Server (hardened)" \
   maintainer="Sonatype <support@sonatype.com>" \
@@ -99,7 +190,8 @@ LABEL name="Nexus IQ Server (hardened)" \
   summary="Nexus IQ Server on Red Hat Hardened Images (Hummingbird)" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
     This variant is built on Red Hat Hardened Images (Hummingbird) and receives -hum1 patch-stream CVE fixes \
-    not available in the standard UBI9 build." \
+    not available in the standard UBI9 build. Runtime uses the non-builder tag with a distroless-style layout: \
+    only the packages explicitly installed at build time are present, no microdnf/rpm/package-management stack." \
   com.sonatype.license="Apache License, Version 2.0" \
   com.sonatype.name="Nexus IQ Server (hardened)" \
   run="docker run -d -p 8070:8070 -p 8071:8071 IMAGE" \
@@ -108,89 +200,8 @@ LABEL name="Nexus IQ Server (hardened)" \
   io.openshift.expose-services="8071:8071" \
   io.openshift.tags="Sonatype,Nexus,IQ Server,Hardened"
 
-# hadolint ignore=DL3066
-USER root
-
-# Runtime packages (shadow-utils, findutils, crypto-policies come preinstalled):
-#   git-core, openssh-clients — git/git+ssh for SCM policy scans.
-#   crypto-policies-scripts — used by `update-crypto-policies` below, then stripped.
-# hadolint ignore=DL3041
-RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git-core openssh-clients crypto-policies-scripts \
-&& microdnf clean all
-
-# Create folders & set permissions
-RUN mkdir -p ${IQ_HOME} \
-&& mkdir -p ${SONATYPE_WORK} \
-&& mkdir -p ${CONFIG_HOME} \
-&& mkdir -p ${LOGS_HOME} \
-&& chmod 0755 "/opt/sonatype" ${IQ_HOME} \
-&& chmod 0755 ${CONFIG_HOME} \
-&& chmod 0755 ${LOGS_HOME}
-
-# Add group and user
-RUN groupadd -g ${GID} nexus \
-&& adduser -u ${UID} -d ${IQ_HOME} -c "Nexus IQ user" -g nexus -s /bin/false nexus \
-# Change owner to nexus user
-&& chown -R nexus:nexus ${IQ_HOME} \
-&& chown -R nexus:nexus ${SONATYPE_WORK} \
-&& chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME}
-
-COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
-RUN chmod 0644 ${CONFIG_HOME}/config.yml
-
-COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
-
-# Create start script
-RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
-&& echo "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
-&& echo "wait" >> ${IQ_HOME}/start.sh \
-&& chmod 0755 ${IQ_HOME}/start.sh
-
-WORKDIR ${IQ_HOME}
-
-# Enable support for SHA1-signed SCM certificates (some legacy customer CAs).
-RUN update-crypto-policies --set DEFAULT:SHA1
-
-# Strip packages not needed at runtime to reduce vulnerability surface.
-# Removal audited via ldd/readelf against the built image: every ELF binary
-# has all its deps resolved except /usr/libexec/git-core/git-http-push
-# (missing libexpat.so.1) — legacy dumb-HTTP git push, which IQ Server
-# never uses.
-#
-# Order matters:
-# 1. microdnf remove — packages the dnf5 depsolver unlinks cleanly.
-# 2. rpm -e --nodeps — packages with RPM-level deps that aren't runtime links.
-# 3. Final cascade — dnf5 is a "protected package" that refuses to remove
-#    itself; libdnf5/librepo/libsolv/libmodulemd/glib2 are its runtime deps
-#    and go out together.
-#
-# Why pam-libs is safe to remove: PAM is invoked by interactive-session
-# tools (login/su/sudo/ssh). The nexus user has /bin/false as its shell
-# (via `adduser -s /bin/false` above), and IQ Server launches java
-# directly (via `sh start.sh`, not `su -c ... nexus`). No runtime code
-# path calls into PAM.
-#
-# The `ln -sf /bin/false /sbin/nologin` step keeps /etc/passwd's system
-# accounts (bin, daemon, adm, ...) with a resolvable shell after nologin's
-# owning package (util-linux) has been removed elsewhere. None of them are
-# used by IQ Server, but leaving their shell reference dangling is untidy.
-#
-# Packages KEPT that look strippable but aren't:
-# - openldap — libcurl (used by HEALTHCHECK) links libldap.
-# - systemd-libs — coreutils-single links libsystemd.so.0.
-# - libfido2 — libcurl and libssh both link libfido2.so.1.
-# hadolint ignore=DL3059
-RUN ln -sf /bin/false /sbin/nologin \
-&& microdnf remove -y \
-    crypto-policies-scripts python3 python3-libs \
-    shadow-utils libsemanage \
-&& rpm -e --nodeps p11-kit p11-kit-trust libtasn1 \
-    pam-libs expat \
-&& rpm -e --nodeps libblkid libmount libsmartcols libuuid \
-&& rpm -e --nodeps dnf5 libdnf5-cli libdnf5 librepo libsolv libmodulemd glib2 \
-    rpm rpm-libs rpm-sequoia libarchive libxml2-16 sqlite-libs xz-libs libzstd bzip2-libs
+# Overlay the fully-prepared rootfs onto the runtime base.
+COPY --from=rootfs /rootfs/ /
 
 VOLUME ${SONATYPE_WORK}
 VOLUME ${LOGS_HOME}
@@ -200,7 +211,7 @@ EXPOSE 8071
 
 HEALTHCHECK CMD ["curl", "--fail", "--silent", "--show-error", "http://localhost:8071/healthcheck"]
 
-USER nexus
+USER ${UID}
 
 ENV JAVA_OPTS=" -Djava.util.prefs.userRoot=${SONATYPE_WORK}/javaprefs "
 ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
