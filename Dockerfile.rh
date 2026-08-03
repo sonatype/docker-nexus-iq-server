@@ -22,7 +22,7 @@ FROM registry.access.redhat.com/hi/core-runtime:latest-builder AS builder
 
 # hi/core-runtime defaults to non-root user 65532; the builder stage needs
 # root to run microdnf.
-# hadolint ignore=DL3002
+# hadolint ignore=DL3002,DL3066
 USER root
 
 ARG TEMP="/tmp/work"
@@ -92,19 +92,10 @@ LABEL name="Nexus IQ Server image" \
 # hadolint ignore=DL3066
 USER root
 
-# Runtime packages. Every entry below is needed at runtime; build-only tools
-# are installed transiently and stripped afterward.
-#   git-core, openssh-clients:
-#       IQ Server clones SCM repositories over git and git+ssh for policy scans.
-#   crypto-policies-scripts:
-#       Only needed to run `update-crypto-policies --set DEFAULT:SHA1` in this
-#       stage (below), which enables SHA1-signed SCM certificates for customers
-#       whose CAs still use SHA1. Stripped afterward.
-#   which:
-#       Preinstalled in UBI9 but not in hi/core-runtime. Install explicitly so
-#       runtime tool-existence probes (`which <cmd>`) resolve inside the image.
-# shadow-utils, findutils, crypto-policies are already preinstalled in the
-# base image and are not listed here.
+# Runtime packages (shadow-utils, findutils, crypto-policies come preinstalled):
+#   git-core, openssh-clients — git/git+ssh for SCM policy scans.
+#   crypto-policies-scripts — used by `update-crypto-policies` below, then stripped.
+#   which — the `which` command isn't in the base; install explicitly.
 # hadolint ignore=DL3041
 RUN microdnf update -y \
 && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y git-core openssh-clients crypto-policies-scripts which \
