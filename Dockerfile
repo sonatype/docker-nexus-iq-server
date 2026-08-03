@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS builder
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.205.0-03
@@ -58,7 +58,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
 # installed into the final image at the same paths as the RH openssh-clients package so
 # git-over-ssh works transparently.
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS openssh-builder
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6 AS openssh-builder
 ARG OPENSSH_VERSION=10.4p1
 ARG OPENSSH_SHA256=ef6026dd2aea8d56059638d5d3262902c892ceba9f88395835e0d06d3fb63238
 
@@ -84,10 +84,15 @@ RUN curl -sSL "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-${OP
       --without-zlib-version-check \
       --disable-strip \
  && make -j"$(nproc)" \
- && make DESTDIR=/build/dest install-nokeys
+ && make DESTDIR=/build/dest install-nokeys \
+ # Client-only install: strip out sshd + sftp-server binaries and the sshd config
+ && rm -f /build/dest/usr/libexec/openssh/sshd-auth \
+          /build/dest/usr/libexec/openssh/sshd-session \
+          /build/dest/usr/libexec/openssh/sftp-server \
+          /build/dest/etc/ssh/sshd_config
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6
 
 ARG IQ_SERVER_VERSION=1.205.0-03
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
