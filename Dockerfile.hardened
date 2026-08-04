@@ -38,9 +38,19 @@
 # Base images are pulled through Sonatype's Nexus proxy of
 # registry.access.redhat.com rather than directly from upstream.
 
+# NOTE ON BASE-IMAGE PROXYING:
+# @rpokorny requested that base images be pulled through Sonatype's Nexus
+# proxy of registry.access.redhat.com rather than directly. Empirical check
+# (`docker manifest inspect` on 2026-08-03): `hi/core-runtime` is not
+# currently proxied under `sonatype.repo.sonatype.app/docker-all/redhat/`
+# (returns Nexus 404); only `ubi*` variants are cached there. Until an infra
+# ticket adds `hi/core-runtime` to the proxy, these `FROM` statements pull
+# directly from registry.access.redhat.com. Update to the proxy path once
+# it exists.
+
 # ---- Stage 1: downloader ----
 # hadolint ignore=DL3026
-FROM --platform=$BUILDPLATFORM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest-builder AS downloader
+FROM --platform=$BUILDPLATFORM registry.access.redhat.com/hi/core-runtime:latest-builder AS downloader
 
 # hi/core-runtime defaults to non-root uid 65532; the builder stage needs
 # root to run microdnf.
@@ -87,7 +97,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
 
 # ---- Stage 2: rootfs builder ----
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest-builder AS rootfs
+FROM registry.access.redhat.com/hi/core-runtime:latest-builder AS rootfs
 
 # hadolint ignore=DL3002,DL3066
 USER root
@@ -102,39 +112,38 @@ ARG TIMEOUT=600
 ARG ROOTFS=/rootfs
 
 # Runtime packages installed into an isolated rootfs:
+#   bash, coreutils-single — needed by `CMD [ "sh", "./start.sh" ]` and by the
+#       start script itself (trap, cut, tail, timeout).
+#   curl — HEALTHCHECK.
 #   git-core, openssh-clients — git/git+ssh for SCM policy scans.
-#   crypto-policies-scripts — needed at build time for
-#       `update-crypto-policies --set DEFAULT:SHA1` (below); removed
-#       from the rootfs afterward. crypto-policies (the config data)
-#       is pulled in transitively and stays — openssl and openssh
-#       read the resulting `/etc/crypto-policies/back-ends/*.config`
-#       files at runtime.
-#   bash, curl, coreutils-single — needed by the container's `CMD`
-#       (`sh start.sh`), HEALTHCHECK (curl), and the start script
-#       (trap, cut, tail, timeout). Explicitly requested so the rootfs
-#       is self-sufficient and doesn't depend on any of these being
-#       preinstalled in the runtime base tag.
+# crypto-policies (the config-data package that supplies the
+# `/etc/crypto-policies/back-ends/*.config` files openssl and openssh read at
+# runtime) is pulled in transitively and stays. crypto-policies-scripts (the
+# `update-crypto-policies` tool) is NOT installed into the rootfs; instead
+# it runs on the builder and its output is copied over — see below.
+# --use-host-config tells microdnf to resolve packages against the host's
+# repo configuration rather than looking for repo config inside the empty
+# ${ROOTFS} directory.
 # hadolint ignore=DL3041
 RUN mkdir -p ${ROOTFS} && \
     microdnf install -y \
-      --installroot=${ROOTFS} \
+      --installroot=${ROOTFS} --use-host-config \
       --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
       bash coreutils-single curl \
-      git-core openssh-clients \
-      crypto-policies-scripts && \
+      git-core openssh-clients && \
     microdnf clean all --installroot=${ROOTFS}
 
-# Enable support for SHA1-signed SCM certificates (some legacy customer
-# CAs still use SHA1). Applied inside the chroot so the resulting
-# `/etc/crypto-policies/back-ends/*.config` files land in the rootfs.
-RUN chroot ${ROOTFS} update-crypto-policies --set DEFAULT:SHA1
-
-# crypto-policies-scripts (and its python3 dependency) are only needed at
-# build time to run update-crypto-policies above. Remove from the rootfs
-# so they don't ship. crypto-policies (the config-data package that
-# supplies the back-ends/* files openssl and openssh actually read) is
-# a separate package and stays.
-RUN chroot ${ROOTFS} microdnf remove -y crypto-policies-scripts python3 python3-libs
+# Enable support for SHA1-signed SCM certificates (some legacy customer CAs
+# still use SHA1). Run update-crypto-policies on the BUILDER — not via
+# `chroot ${ROOTFS}` — because the tool introspects /proc/self/mountinfo
+# to decide FIPS auto-binding, which fails inside a chroot without /proc
+# mounted. The resulting `/etc/crypto-policies/` files are then copied over
+# the ones the rootfs got from its own crypto-policies install, so the
+# runtime image ends up with DEFAULT:SHA1.
+# hadolint ignore=DL3041
+RUN microdnf install -y --setopt=install_weak_deps=0 --setopt=tsflags=nodocs crypto-policies-scripts && \
+    update-crypto-policies --set DEFAULT:SHA1 && \
+    cp -a /etc/crypto-policies/. ${ROOTFS}/etc/crypto-policies/
 
 # Nexus user & group. Writing to /etc/passwd + /etc/group directly avoids
 # needing shadow-utils in the runtime.
@@ -172,7 +181,7 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 
 # ---- Stage 3: runtime ----
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/redhat/hi/core-runtime:latest
+FROM registry.access.redhat.com/hi/core-runtime:latest
 
 ARG IQ_SERVER_VERSION=1.205.3-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
