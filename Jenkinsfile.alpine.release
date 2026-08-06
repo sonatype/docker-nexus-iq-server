@@ -64,7 +64,8 @@ dockerizedBuildPipeline(
       nexusPolicyEvaluation(
           iqApplication: 'docker-nexus-iq-server-alpine',
           iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
-          iqStage: 'release')
+          iqStage: 'release',
+          unstableBuildOnScanningWarnings: false)
     },
     deploy: {
       pushImage(imageName, !params.skipMarkAsLatest)

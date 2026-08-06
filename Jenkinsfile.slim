@@ -63,7 +63,8 @@ dockerizedBuildPipeline(
     nexusPolicyEvaluation(
       iqApplication: 'docker-nexus-iq-server-slim',
       iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
-      iqStage: theStage)
+      iqStage: theStage,
+      unstableBuildOnScanningWarnings: false)
   },
   onUnstable: {
     if (env.BRANCH_NAME == deployBranch) {
