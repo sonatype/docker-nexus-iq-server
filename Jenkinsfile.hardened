@@ -30,9 +30,16 @@ void configureBranchJob() {
 
 String deployBranch = 'main'
 String imageName = 'sonatype/nexus-iq-server'
+String productionImage = 'iq-server-hardened-under-test'
 
 configureBranchJob()
 dockerizedBuildPipeline(
+  // Use a generic docker image as the Jenkins build environment rather than
+  // the IQ runtime image itself. This keeps runtime-image dependencies (e.g.
+  // `which`) out of the shipped image and avoids building the IQ image twice
+  // (once as build env, once as build output).
+  buildImageId: 'sonatype.repo.sonatype.app/docker-all/docker:latest',
+  dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock -u root:root',
   deployBranch: deployBranch,
   deployCondition: { return true }, // always run the deploy stage
   prepare: {
@@ -43,18 +50,43 @@ dockerizedBuildPipeline(
     hadolint(['./Dockerfile.hardened'])
   },
   buildAndTest: {
-    def expectations = load 'expectations.groovy'
-    validateExpectations(expectations.containerExpectations())
-  },
-  deploy: {
-    // Hijacking deploy step to run the docker buildx build to make sure it is working
     withSonatypeDockerRegistry() {
+      sh 'echo $JENKINS_DOCKER_PASSWORD | docker login -u $JENKINS_DOCKER_USERNAME --password-stdin sonatype.repo.sonatype.app'
       // Pinned by digest (moby/buildkit v0.31.1): all buildkit tags are currently quarantined by
       // Sonatype Firewall; this pre-quarantine cached digest is pullable. Revert to a tag once the
       // quarantine is released/waived.
       sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a\" --use"
+      // Build single-platform for testing, cache for the multi-platform deploy stage.
+      sh "docker buildx build --platform linux/amd64 " +
+          "-f Dockerfile.hardened " +
+          "--cache-to type=local,dest=${env.WORKSPACE}/.buildx-cache " +
+          "--load " +
+          "--tag ${productionImage} ."
+    }
+    def containerName = 'iq-server-hardened-test'
+    try {
+      sh "docker run -d --name ${containerName} ${productionImage}"
+      // Wait for the admin port to respond to /ping (curl is available in the
+      // hardened image; localcheck is not — hardened keeps a shell + curl).
+      sh """for i in \$(seq 1 60); do
+        docker exec ${containerName} curl -s --fail http://localhost:8071/ping 2>/dev/null | grep -q pong && break
+        sleep 5
+      done
+      sleep 10"""
+      def expectations = load 'expectations.groovy'
+      validateExpectations(expectations.containerExpectations(containerName))
+    } finally {
+      sh "docker logs ${containerName} || true"
+      sh "docker rm -f ${containerName} || true"
+    }
+  },
+  deploy: {
+    withSonatypeDockerRegistry() {
+      // Reuse the cached single-platform build for the multi-platform push.
+      sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a\" --use"
       sh "docker buildx build --platform linux/amd64,linux/arm64 " +
-          " -f Dockerfile.hardened " +
+          "-f Dockerfile.hardened " +
+          "--cache-from type=local,src=${env.WORKSPACE}/.buildx-cache " +
           "--tag ${sonatypeDockerRegistryId()}/${imageName}:${env.BUILD_NUMBER}-hardened ."
     }
   },
@@ -62,7 +94,7 @@ dockerizedBuildPipeline(
     def theStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
     nexusPolicyEvaluation(
       iqApplication: 'docker-nexus-iq-server-hardened',
-      iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
+      iqScanPatterns: [[scanPattern: "container:${productionImage}"]],
       iqStage: theStage)
   },
   onUnstable: {

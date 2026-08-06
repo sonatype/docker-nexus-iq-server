@@ -140,7 +140,7 @@ RUN mkdir -p ${ROOTFS} && \
 # mounted. The resulting `/etc/crypto-policies/` files are then copied over
 # the ones the rootfs got from its own crypto-policies install, so the
 # runtime image ends up with DEFAULT:SHA1.
-# hadolint ignore=DL3041
+# hadolint ignore=DL3041,DL3040
 RUN microdnf install -y --setopt=install_weak_deps=0 --setopt=tsflags=nodocs crypto-policies-scripts && \
     update-crypto-policies --set DEFAULT:SHA1 && \
     cp -a /etc/crypto-policies/. ${ROOTFS}/etc/crypto-policies/
@@ -180,7 +180,7 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 && chown ${UID}:${GID} ${ROOTFS}${IQ_HOME}/start.sh
 
 # ---- Stage 3: runtime ----
-# hadolint ignore=DL3026
+# hadolint ignore=DL3026,DL3007
 FROM registry.access.redhat.com/hi/core-runtime:latest
 
 ARG IQ_SERVER_VERSION=1.205.3-01
