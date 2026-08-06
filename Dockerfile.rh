@@ -18,8 +18,8 @@
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
-ARG IQ_SERVER_VERSION=1.205.0-03
-ARG IQ_SERVER_SHA256=232290398ef4958ba7af6d5438ac4ab88c67285037d7be481b1f5b09a9c1ead4
+ARG IQ_SERVER_VERSION=1.206.0-01
+ARG IQ_SERVER_SHA256=18923bad4a06d7d5525520a344ecfcebd339b8cdd08582fd3053dd95f44338c2
 ARG SONATYPE_WORK="/sonatype-work"
 
 # hadolint ignore=DL3041,DL3040
@@ -46,7 +46,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
 # hadolint ignore=DL3026
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7
 
-ARG IQ_SERVER_VERSION=1.205.0-03
+ARG IQ_SERVER_VERSION=1.206.0-01
 ARG IQ_RELEASE
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
