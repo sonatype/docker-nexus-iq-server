@@ -20,10 +20,15 @@ def containerExpectations() {
   return [
     new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
     new Expectation('nexus-user', 'grep', '^nexus: /etc/passwd', 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
-    // openssh 10.4p1 is compiled from source and overlaid onto the image (CLM-42794);
-    // these pin the version and assert no server-side or setuid artifacts leak in.
-    new Expectation('ssh-version', 'ssh', '-V 2>&1 | grep -c "^OpenSSH_10\\.4p1"', '1'),
-    new Expectation('ssh-client-usable', 'ssh', '-G localhost 2>&1 | grep -c "^port 22"', '1'),
+    // openssh 10.4p1 is compiled from source and overlaid onto the image (CLM-42794).
+    // These pin the version and assert no server-side or setuid artifacts leak in.
+    // NOTE: We can't run 'ssh -V' here because upstream OpenSSH refuses to start when
+    // the calling UID isn't in /etc/passwd ("No user exists for uid X"), and the CI
+    // agent runs the container as its own unmapped UID. Inspect the binary directly
+    // instead — the version string is compiled in and always present.
+    new Expectation('ssh-version', 'grep', '-ac "OpenSSH_10\\.4p1" /usr/bin/ssh', '1'),
+    new Expectation('ssh-client-installed', 'test', '-x /usr/bin/ssh && echo yes', 'yes'),
+    new Expectation('ssh-config-present', 'test', '-f /etc/ssh/ssh_config && echo yes', 'yes'),
     new Expectation('ssh-no-sshd', 'test', '! -e /usr/sbin/sshd && echo absent', 'absent'),
     new Expectation('ssh-no-sshd-session', 'test', '! -e /usr/libexec/openssh/sshd-session && echo absent', 'absent'),
     new Expectation('ssh-no-setuid-keysign', 'test', '! -e /usr/libexec/openssh/ssh-keysign && echo absent', 'absent'),
