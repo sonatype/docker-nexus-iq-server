@@ -20,6 +20,13 @@ def containerExpectations() {
   return [
     new Expectation('nexus-group', 'grep', '^nexus: /etc/group', 'nexus:x:1000:'),
     new Expectation('nexus-user', 'grep', '^nexus: /etc/passwd', 'nexus:x:1000:1000:Nexus IQ user:/opt/sonatype/nexus-iq-server:/bin/false'),
+    // openssh 10.4p1 is compiled from source and overlaid onto the image (CLM-42794);
+    // these pin the version and assert no server-side or setuid artifacts leak in.
+    new Expectation('ssh-version', 'ssh', '-V 2>&1 | grep -c "^OpenSSH_10\\.4p1"', '1'),
+    new Expectation('ssh-client-usable', 'ssh', '-G localhost 2>&1 | grep -c "^port 22"', '1'),
+    new Expectation('ssh-no-sshd', 'test', '! -e /usr/sbin/sshd && echo absent', 'absent'),
+    new Expectation('ssh-no-sshd-session', 'test', '! -e /usr/libexec/openssh/sshd-session && echo absent', 'absent'),
+    new Expectation('ssh-no-setuid-keysign', 'test', '! -e /usr/libexec/openssh/ssh-keysign && echo absent', 'absent'),
     new Expectation('iq-process', 'test', '-d /proc/1 -a "$(cat /proc/1/comm)" = java | echo $?', '0'),
     new Expectation('application-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8070/ | echo $?', '0'),
     new Expectation('admin-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8071/ | echo $?', '0'),

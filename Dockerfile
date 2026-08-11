@@ -83,13 +83,18 @@ RUN ./configure \
       --without-selinux \
       --without-libedit \
       --without-zlib-version-check \
-      --disable-strip \
  && make -j"$(nproc)" \
  && make DESTDIR=/build/dest install-nokeys \
- # Client-only install: strip out sshd + sftp-server binaries and the sshd config
+ # Client-only install. sshd itself lands in /usr/sbin and is never COPYed; the paths
+ # below are server-side or unusable-client artifacts under libexecdir/sysconfdir that
+ # would otherwise leak in via the wholesale COPY of /usr/libexec/openssh and /etc/ssh.
+ # ssh-keysign is upstream-installed setuid root but only supports HostbasedAuthentication
+ # which needs host keys that install-nokeys never generates; moduli is only read by sshd.
  && rm -f /build/dest/usr/libexec/openssh/sshd-auth \
           /build/dest/usr/libexec/openssh/sshd-session \
           /build/dest/usr/libexec/openssh/sftp-server \
+          /build/dest/usr/libexec/openssh/ssh-keysign \
+          /build/dest/etc/ssh/moduli \
           /build/dest/etc/ssh/sshd_config
 
 # hadolint ignore=DL3026
