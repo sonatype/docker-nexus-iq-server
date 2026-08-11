@@ -36,11 +36,9 @@ RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]
 # Download the server bundle, verify its checksum, and extract the server jar to the install directory
 WORKDIR ${TEMP}
 
-RUN echo "${IQ_SERVER_SHA256} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256 && \
- curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz
+COPY nexus-iq-server.tar.gz ${TEMP}/
 
-RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
-    && tar -xvf nexus-iq-server.tar.gz \
+RUN tar -xvf nexus-iq-server.tar.gz \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # hadolint ignore=DL3026
