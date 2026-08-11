@@ -32,6 +32,11 @@ def containerExpectations() {
     new Expectation('ssh-no-sshd', 'test', '! -e /usr/sbin/sshd && echo absent', 'absent'),
     new Expectation('ssh-no-sshd-session', 'test', '! -e /usr/libexec/openssh/sshd-session && echo absent', 'absent'),
     new Expectation('ssh-no-setuid-keysign', 'test', '! -e /usr/libexec/openssh/ssh-keysign && echo absent', 'absent'),
+    // Arbitrary-UID handoff for openssh 10.4p1 — see the Dockerfile /etc/passwd
+    // chmod and start.sh passwd-fixup for context. Lock in both halves so a
+    // future refactor cannot silently strip either.
+    new Expectation('etc-passwd-group-writable', 'stat', '-c "%a %G" /etc/passwd', '664 root'),
+    new Expectation('start-script-has-passwd-fixup', 'grep', '-c "iqserver:" /opt/sonatype/nexus-iq-server/start.sh', '1'),
     new Expectation('iq-process', 'test', '-d /proc/1 -a "$(cat /proc/1/comm)" = java | echo $?', '0'),
     new Expectation('application-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8070/ | echo $?', '0'),
     new Expectation('admin-port', 'curl', '-s --fail --connect-timeout 120 http://localhost:8071/ | echo $?', '0'),

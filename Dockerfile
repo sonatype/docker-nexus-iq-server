@@ -165,7 +165,15 @@ RUN groupadd -g ${GID} nexus \
 && chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME}
+&& chown -R nexus:nexus ${LOGS_HOME} \
+# Allow arbitrary-UID runtime containers (K8s runAsUser, OpenShift SCC) to
+# self-register in /etc/passwd at startup — required by upstream openssh
+# 10.4p1 which exits with "No user exists for uid X" when getpwuid(getuid())
+# returns NULL. start.sh below adds a synthetic entry if the current UID is
+# not already mapped. Matches the /etc/passwd 0664 + group-root pattern
+# already used by Dockerfile.rh for Red Hat container certification.
+&& chgrp 0 /etc/passwd \
+&& chmod 0664 /etc/passwd
     
 # Copy config.yml
 COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
@@ -174,8 +182,10 @@ RUN chmod 0644 ${CONFIG_HOME}/config.yml
 # Copy server assemblies
 COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
 
-# Create start script
-RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
+# Create start script. First line is the arbitrary-UID passwd fixup — see
+# the /etc/passwd chmod above for why this is needed under openssh 10.4p1.
+RUN echo "if ! id -un >/dev/null 2>&1; then echo \"iqserver:x:\$(id -u):\$(id -g):IQ Server:${IQ_HOME}:/bin/false\" >> /etc/passwd 2>/dev/null || true; fi" > ${IQ_HOME}/start.sh \
+&& echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" >> ${IQ_HOME}/start.sh \
 && echo "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
 && echo "wait" >> ${IQ_HOME}/start.sh \
 && chmod 0755 ${IQ_HOME}/start.sh
