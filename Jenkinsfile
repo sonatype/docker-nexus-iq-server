@@ -44,14 +44,17 @@ dockerizedBuildPipeline(
   },
   buildAndTest: {
     withSonatypeDockerRegistry() {
-      sh 'echo $JENKINS_DOCKER_PASSWORD | docker login -u $JENKINS_DOCKER_USERNAME --password-stdin sonatype.repo.sonatype.app'
-      // buildkit tags quarantined by Sonatype Firewall — pin to pre-quarantine digest until waived.
-      sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a\" --use"
-      sh "docker buildx build --platform linux/amd64 " +
-          "-f Dockerfile " +
-          "--cache-to type=local,dest=${env.WORKSPACE}/.buildx-cache " +
-          "--load " +
-          "--tag troy-test-image ."
+      withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig"]) {
+
+        sh 'echo $JENKINS_DOCKER_PASSWORD | docker login -u $JENKINS_DOCKER_USERNAME --password-stdin sonatype.repo.sonatype.app'
+        // buildkit tags quarantined by Sonatype Firewall — pin to pre-quarantine digest until waived.
+        sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a\" --use"
+        sh "docker buildx build --platform linux/amd64 " +
+            "-f Dockerfile " +
+            "--cache-to type=local,dest=${env.WORKSPACE}/.buildx-cache " +
+            "--load " +
+            "--tag troy-test-image ."
+      }
     }
   },
   deploy: {
