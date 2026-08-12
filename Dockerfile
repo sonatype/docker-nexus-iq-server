@@ -271,11 +271,13 @@ ARG READY_SLEEP=5s
 # Referenced inside the RUN below because BuildKit only rekeys on args a command
 # actually uses. ARG is stage-scoped, so runtime-base's cache is unaffected.
 ARG CACHEBUST=""
+# hadolint ignore=DL3066
 USER root
 COPY --from=goss-bin /tmp/goss/goss /usr/local/bin/goss
 COPY goss_wait.yaml goss.yaml /test/
 RUN mkdir -p /results && chown nexus:nexus /results
 # run the validation as the same user the image ships with
+# hadolint ignore=DL3066
 USER nexus
 # Two phases, on purpose:
 #   1. goss_wait.yaml -- only the asynchronously-created things, WITH retry.
