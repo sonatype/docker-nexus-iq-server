@@ -36,7 +36,6 @@ dockerizedBuildPipeline(
   buildImageId: 'sonatype.repo.sonatype.app/docker-all/docker:latest',
   dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock -u root:root',
   deployBranch: deployBranch,
-  deployCondition: { return true }, // always run the deploy stage
   prepare: {
     githubStatusUpdate('pending')
   },
@@ -48,6 +47,11 @@ dockerizedBuildPipeline(
       sh 'echo $JENKINS_DOCKER_PASSWORD | docker login -u $JENKINS_DOCKER_USERNAME --password-stdin sonatype.repo.sonatype.app'
       // buildkit tags quarantined by Sonatype Firewall — pin to pre-quarantine digest until waived.
       sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a\" --use"
+      sh "docker buildx build --platform linux/amd64 " +
+          "-f Dockerfile.hardened " +
+          "--cache-to type=local,dest=${env.WORKSPACE}/.buildx-cache " +
+          "--load " +
+          "--tag troy-test-image ."
     }
   },
   deploy: {
