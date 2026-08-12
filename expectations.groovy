@@ -26,12 +26,17 @@ def containerExpectations() {
     // the calling UID isn't in /etc/passwd ("No user exists for uid X"), and the CI
     // agent runs the container as its own unmapped UID. Inspect the binary directly
     // instead — the version string is compiled in and always present.
+    // Absence checks use the 5-arg statusCode form so the harness routes them through
+    // testForFailure (returnStatus, not returnStdout). That path never throws and never
+    // writes an XML attribute on failure, so args stay free of '&' — a regression can't
+    // silently tank the JUnit report parse the way `test ! -e X && echo absent` would.
     new Expectation('ssh-version', 'grep', '-ac "OpenSSH_10\\.4p1" /usr/bin/ssh', '1'),
-    new Expectation('ssh-client-installed', 'test', '-x /usr/bin/ssh && echo yes', 'yes'),
-    new Expectation('ssh-config-present', 'test', '-f /etc/ssh/ssh_config && echo yes', 'yes'),
-    new Expectation('ssh-no-sshd', 'test', '! -e /usr/sbin/sshd && echo absent', 'absent'),
-    new Expectation('ssh-no-sshd-session', 'test', '! -e /usr/libexec/openssh/sshd-session && echo absent', 'absent'),
-    new Expectation('ssh-no-setuid-keysign', 'test', '! -e /usr/libexec/openssh/ssh-keysign && echo absent', 'absent'),
+    new Expectation('ssh-client-installed', 'stat', '-c \'%n\' /usr/bin/ssh', '/usr/bin/ssh'),
+    new Expectation('ssh-config-present', 'stat', '-c \'%n\' /etc/ssh/ssh_config', '/etc/ssh/ssh_config'),
+    new Expectation('ssh-no-sshd', 'test', '-e /usr/sbin/sshd', '', 1),
+    new Expectation('ssh-no-sshd-session', 'test', '-e /usr/libexec/openssh/sshd-session', '', 1),
+    new Expectation('ssh-no-sftp-server', 'test', '-e /usr/libexec/openssh/sftp-server', '', 1),
+    new Expectation('ssh-no-setuid-keysign', 'test', '-e /usr/libexec/openssh/ssh-keysign', '', 1),
     // Arbitrary-UID handoff for openssh 10.4p1 — see the Dockerfile /etc/passwd
     // chmod and start.sh passwd-fixup for context. Lock in both halves so a
     // future refactor cannot silently strip either.
