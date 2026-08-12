@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6 AS builder
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.206.0-01
@@ -26,7 +26,7 @@ ARG SONATYPE_WORK="/sonatype-work"
 # hadolint ignore=DL3041,DL3040
 RUN mkdir -p ${TEMP} && \
     microdnf update -y && \
-    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip tar shadow-utils findutils less rsync git-core openssh-clients which crypto-policies crypto-policies-scripts
+    microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip unzip tar shadow-utils findutils less rsync git-core which crypto-policies crypto-policies-scripts
 
 # Copy config.yml and set sonatypeWork to the correct value
 COPY config.yml ${TEMP}
@@ -51,8 +51,54 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && tar -xvf nexus-iq-server.tar.gz \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
+# Build openssh 10.4p1 from upstream source to pick up the fix for CVE-2026-60002 (and
+# CVE-2026-59999, CVE-2026-60000, CVE-2023-51767). Red Hat's UBI9 openssh package
+# (9.9p1-9.el9_8) has not backported these fixes, so the RH package cannot be used.
+# Binaries are compiled with client-oriented flags (no PAM, no SELinux, no libedit) and
+# installed into the final image at the same paths as the RH openssh-clients package so
+# git-over-ssh works transparently.
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6 AS openssh-builder
+ARG OPENSSH_VERSION=10.4p1
+ARG OPENSSH_SHA256=ef6026dd2aea8d56059638d5d3262902c892ceba9f88395835e0d06d3fb63238
+
+# hadolint ignore=DL3041,DL3040
+RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
+      gcc make tar gzip \
+      openssl-devel zlib-devel \
+ && microdnf clean all
+
+WORKDIR /build
+# hadolint ignore=DL4006
+RUN curl -sSL "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-${OPENSSH_VERSION}.tar.gz" -o openssh.tar.gz \
+ && echo "${OPENSSH_SHA256}  openssh.tar.gz" | sha256sum -c - \
+ && tar -xzf openssh.tar.gz
+
+WORKDIR /build/openssh-${OPENSSH_VERSION}
+RUN ./configure \
+      --prefix=/usr \
+      --sysconfdir=/etc/ssh \
+      --libexecdir=/usr/libexec/openssh \
+      --without-pam \
+      --without-selinux \
+      --without-libedit \
+      --without-zlib-version-check \
+ && make -j"$(nproc)" \
+ && make DESTDIR=/build/dest install-nokeys \
+ # Client-only install. sshd itself lands in /usr/sbin and is never COPYed; the paths
+ # below are server-side or unusable-client artifacts under libexecdir/sysconfdir that
+ # would otherwise leak in via the wholesale COPY of /usr/libexec/openssh and /etc/ssh.
+ # ssh-keysign is upstream-installed setuid root but only supports HostbasedAuthentication
+ # which needs host keys that install-nokeys never generates; moduli is only read by sshd.
+ && rm -f /build/dest/usr/libexec/openssh/sshd-auth \
+          /build/dest/usr/libexec/openssh/sshd-session \
+          /build/dest/usr/libexec/openssh/sftp-server \
+          /build/dest/usr/libexec/openssh/ssh-keysign \
+          /build/dest/etc/ssh/moduli \
+          /build/dest/etc/ssh/sshd_config
+
+# hadolint ignore=DL3026
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6
 
 ARG IQ_SERVER_VERSION=1.206.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -86,11 +132,22 @@ LABEL name="Nexus IQ Server image" \
 # hadolint ignore=DL3066
 USER root
 
-# For testing
+# git-core hard-depends on openssh + openssh-clients (and openssh-clients pulls in libfido2)
+# on RHEL9, so those packages get installed here even though we do not list them and pass
+# install_weak_deps=0. Remove them explicitly so the RPM DB no longer advertises the
+# vulnerable 9.9p1-9.el9_8 build. The compiled openssh 10.4p1 client binaries copied in
+# below take over the same /usr/bin, /usr/libexec/openssh, and /etc/ssh paths, so git-over-
+# ssh keeps working transparently. Fixes CVE-2026-60002 and companion CVEs unpatched in
+# RHEL9's openssh build. (CLM-42794)
 # hadolint ignore=DL3041
 RUN microdnf update -y \
-&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip shadow-utils findutils less git-core openssh-clients which crypto-policies crypto-policies-scripts \
-&& microdnf clean all
+&& microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y gzip shadow-utils findutils less git-core which crypto-policies crypto-policies-scripts \
+&& microdnf clean all \
+&& rpm -e --nodeps openssh-clients openssh libfido2
+
+COPY --from=openssh-builder /build/dest/usr/bin/ /usr/bin/
+COPY --from=openssh-builder /build/dest/usr/libexec/openssh/ /usr/libexec/openssh/
+COPY --from=openssh-builder /build/dest/etc/ssh/ /etc/ssh/
 
 # Create folders & set permissions
 RUN mkdir -p ${IQ_HOME} \
@@ -108,7 +165,15 @@ RUN groupadd -g ${GID} nexus \
 && chown -R nexus:nexus ${IQ_HOME} \
 && chown -R nexus:nexus ${SONATYPE_WORK} \
 && chown -R nexus:nexus ${CONFIG_HOME} \
-&& chown -R nexus:nexus ${LOGS_HOME}
+&& chown -R nexus:nexus ${LOGS_HOME} \
+# Allow arbitrary-UID runtime containers (K8s runAsUser, OpenShift SCC) to
+# self-register in /etc/passwd at startup — required by upstream openssh
+# 10.4p1 which exits with "No user exists for uid X" when getpwuid(getuid())
+# returns NULL. start.sh below adds a synthetic entry if the current UID is
+# not already mapped. Matches the /etc/passwd 0664 + group-root pattern
+# already used by Dockerfile.rh for Red Hat container certification.
+&& chgrp 0 /etc/passwd \
+&& chmod 0664 /etc/passwd
     
 # Copy config.yml
 COPY --from=builder /tmp/work/config-edited.yml ${CONFIG_HOME}/config.yml
@@ -117,8 +182,10 @@ RUN chmod 0644 ${CONFIG_HOME}/config.yml
 # Copy server assemblies
 COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
 
-# Create start script
-RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
+# Create start script. First line is the arbitrary-UID passwd fixup — see
+# the /etc/passwd chmod above for why this is needed under openssh 10.4p1.
+RUN echo "if ! id -un >/dev/null 2>&1; then echo \"iqserver:x:\$(id -u):\$(id -g):IQ Server:${IQ_HOME}:/bin/false\" >> /etc/passwd 2>/dev/null || true; fi" > ${IQ_HOME}/start.sh \
+&& echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" >> ${IQ_HOME}/start.sh \
 && echo "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
 && echo "wait" >> ${IQ_HOME}/start.sh \
 && chmod 0755 ${IQ_HOME}/start.sh
@@ -159,10 +226,10 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 #
 # rpm -e --nodeps required only for packages with RPM-level deps that aren't actual runtime links:
 # - gawk: krb5-libs has a scriptlet-only dep on it
-# - systemd-libs: libfido2 depends on libudev (from systemd-libs) but both are unused at runtime
+# - systemd-libs: no runtime consumer once the packages it supported (originally libfido2 for
+#   openssh-clients) are gone; kept in the removal list defensively
 # - p11-kit, p11-kit-trust, libtasn1: only used at build time by update-ca-trust; at runtime
 #   OpenSSL reads the PEM bundle directly without loading these (verified via LD_DEBUG)
-# - libfido2: openssh-clients declares dep but ssh binary doesn't link against it (ssh-sk-helper does)
 # - expat: only linked by /usr/libexec/git-core/git-http-push (legacy "dumb HTTP" git push,
 #   WebDAV-based) and by /usr/bin/xmlwf (expat's own XML well-formedness checker).
 #   Modern git over HTTPS uses git-remote-https -> git-remote-http, which does NOT link
@@ -170,15 +237,14 @@ RUN update-crypto-policies --set DEFAULT:SHA1
 #   dumb-HTTP git push, and the JRE parses XML with Xerces, not libexpat.
 # - util-linux, util-linux-core, libblkid, libmount, libsmartcols, libuuid, libfdisk: no
 #   runtime binary in the image links libblkid/libmount/libsmartcols/libuuid/libfdisk (0 NEEDED
-#   entries across all ELFs, verified via readelf). openssh declares an RPM file-dep on
-#   /sbin/nologin (owned by util-linux); --nodeps breaks that declared dep and we substitute
-#   a symlink to /bin/false (which coreutils-single provides with identical exit behavior)
-#   so any /etc/passwd shell entries referencing nologin still resolve.
+#   entries across all ELFs, verified via readelf). We substitute /sbin/nologin with a symlink
+#   to /bin/false (which coreutils-single provides with identical exit behavior) so any
+#   /etc/passwd shell entries referencing nologin still resolve after util-linux is removed.
 # - sqlite-libs, xz-libs, bzip2-libs, libarchive, libxml2, rpm, rpm-libs: kept alive until the
 #   last step because rpm binary itself dynamically links against them (or transitively through
 #   librpm/librpmio -> libarchive -> libxml2); removed together in the final rpm -e call.
 # hadolint ignore=DL3059
-RUN rpm -e --nodeps gawk libfido2 systemd-libs p11-kit p11-kit-trust libtasn1 \
+RUN rpm -e --nodeps gawk systemd-libs p11-kit p11-kit-trust libtasn1 \
     pam libpwquality expat \
 && microdnf remove -y \
     crypto-policies-scripts python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
