@@ -33,9 +33,16 @@ String imageName = 'sonatype/nexus-iq-server'
 
 configureBranchJob()
 dockerizedBuildPipeline(
-  buildImageId: 'sonatype.repo.sonatype.app/docker-all/docker:latest',
-  dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock',
   deployBranch: deployBranch,
+  testOutputStage: 'test-results',
+  // dockerPrepareBuildImage exports the test-results stage to ./out, and
+  // collectTestResults is a no-op unless testResults is set, so without this
+  // goss failures would never be published and the build would stay green.
+  testResults: ['out/**/*.xml'],
+  // The test stage's RUN has no file inputs; without a changing build arg
+  // BuildKit serves a cached pass on every rebuild. Single-quoted so $BUILD_NUMBER
+  // is expanded by the shell in dockerPrepareBuildImage, not by Groovy.
+  additionalBuildArguments: ['CACHEBUST=${BUILD_NUMBER}'],
   prepare: {
     githubStatusUpdate('pending')
   },
@@ -43,19 +50,7 @@ dockerizedBuildPipeline(
     hadolint(['./Dockerfile'])
   },
   buildAndTest: {
-    withSonatypeDockerRegistry() {
-      withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig"]) {
-
-        sh 'echo $JENKINS_DOCKER_PASSWORD | docker login -u $JENKINS_DOCKER_USERNAME --password-stdin sonatype.repo.sonatype.app'
-        // buildkit tags quarantined by Sonatype Firewall — pin to pre-quarantine digest until waived.
-        sh "docker buildx create --driver-opt=\"image=${sonatypeDockerRegistryId()}/moby/buildkit@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a\" --use"
-        sh "docker buildx build --platform linux/amd64 " +
-            "-f Dockerfile " +
-            "--cache-to type=local,dest=${env.WORKSPACE}/.buildx-cache " +
-            "--load " +
-            "--tag troy-test-image ."
-      }
-    }
+    echo "Doing nothing"
   },
   deploy: {
     // Hijacking deploy step to run the docker buildx build to make sure it is working

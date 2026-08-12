@@ -1,0 +1,66 @@
+#
+# Copyright (c) 2017-present Sonatype, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Readiness gate for the Dockerfile `test` stage -- the dgoss goss_wait.yaml
+# pattern.
+#
+# This file holds ONLY the things that appear asynchronously while IQ Server
+# starts up. It is the one phase that runs with --retry-timeout. Once it passes,
+# goss.yaml runs exactly once with no retry, so a genuinely wrong assertion
+# fails immediately instead of stalling for the whole retry window.
+#
+# Keep every check here cheap and eventually-true. Anything that is either true
+# or false the instant the container starts (permissions, ownership, users,
+# removed packages) belongs in goss.yaml, not here.
+---
+process:
+  java:
+    title: startup-process
+    running: true
+
+addr:
+  tcp://localhost:8070:
+    title: startup-application-port
+    reachable: true
+    timeout: 5000
+  tcp://localhost:8071:
+    title: startup-admin-port
+    reachable: true
+    timeout: 5000
+
+# NOTE: deliberately no /healthcheck gate here. That endpoint returns 500 for
+# an unlicensed server (product-license: healthy=false, remainingDays=0), so it
+# would never become true and would burn the whole retry window. Subsystem
+# health is asserted once in goss.yaml instead.
+
+file:
+  # created by the server on first start
+  /sonatype-work/data:
+    title: startup-data-directory
+    exists: true
+    filetype: directory
+  # config.yml:39 -- clm-server.log, not clm-server-log.log
+  /var/log/nexus-iq-server/clm-server.log:
+    title: startup-clm-server-log
+    exists: true
+  /var/log/nexus-iq-server/audit.log:
+    title: startup-audit-log
+    exists: true
+  /var/log/nexus-iq-server/request.log:
+    title: startup-request-log
+    exists: true
+  /var/log/nexus-iq-server/stderr.log:
+    title: startup-stderr-log
+    exists: true

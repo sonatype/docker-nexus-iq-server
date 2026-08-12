@@ -1,0 +1,207 @@
+#
+# Copyright (c) 2017-present Sonatype, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Image validation for sonatype/nexus-iq-server.
+#
+# Replaces expectations.groovy / jenkins-shared validateExpectations.
+# Executed inside the `test` stage of the Dockerfile against a running server.
+#
+# Docs: https://goss.rocks   Schema: https://goss.readthedocs.io/en/stable/schema.yaml
+# `title` is used as the JUnit testcase name, so it maps 1:1 to the old
+# Expectation names that Jenkins already reports on.
+---
+group:
+  nexus:
+    title: nexus-group
+    exists: true
+    gid: 1000
+
+user:
+  nexus:
+    title: nexus-user
+    exists: true
+    uid: 1000
+    gid: 1000
+    home: /opt/sonatype/nexus-iq-server
+    shell: /bin/false
+
+process:
+  java:
+    title: iq-process
+    # NOTE: the old `/proc/1/comm == java` check cannot work in a build stage --
+    # PID 1 inside a RUN is BuildKit's shell. The PID-1 contract (CMD wiring,
+    # SIGTERM trap in start.sh) needs a real `docker run` smoke test.
+    running: true
+
+addr:
+  tcp://localhost:8070:
+    title: application-port
+    reachable: true
+    timeout: 5000
+  tcp://localhost:8071:
+    title: admin-port
+    reachable: true
+    timeout: 5000
+
+file:
+  # --- logs -----------------------------------------------------------------
+  /var/log/nexus-iq-server:
+    title: log-directory
+    exists: true
+    filetype: directory
+    mode: "0755"
+    owner: nexus
+    group: nexus
+  # config.yml:39 names this file clm-server.log. expectations.groovy asserted
+  # clm-server-log.log, which has never existed -- it only "passed" because of
+  # the `| echo $?` in the old Expectation.
+  /var/log/nexus-iq-server/clm-server.log:
+    title: clm-server-log
+    exists: true
+    filetype: file
+  /var/log/nexus-iq-server/audit.log:
+    title: audit-log
+    exists: true
+    filetype: file
+  /var/log/nexus-iq-server/request.log:
+    title: request-log
+    exists: true
+    filetype: file
+  /var/log/nexus-iq-server/stderr.log:
+    title: stderr-log
+    exists: true
+    filetype: file
+
+  # --- install directory ----------------------------------------------------
+  /opt/sonatype/nexus-iq-server:
+    title: home-directory
+    exists: true
+    filetype: directory
+    mode: "0755"
+    owner: nexus
+    group: nexus
+  /opt/sonatype/nexus-iq-server/start.sh:
+    title: start-script
+    exists: true
+    filetype: file
+    mode: "0755"
+    # root:root, not nexus:nexus -- the Dockerfile creates this with `RUN echo`
+    # as root, after the COPY --chown of the install directory.
+    owner: root
+    group: root
+  /opt/sonatype/nexus-iq-server/bin/nexus-iq-server:
+    title: server-launcher
+    exists: true
+    owner: nexus
+    group: nexus
+
+  # --- work directory -------------------------------------------------------
+  /sonatype-work:
+    title: work-directory
+    exists: true
+    filetype: directory
+    mode: "0755"
+    owner: nexus
+    group: nexus
+  /sonatype-work/data:
+    title: data-directory
+    exists: true
+    filetype: directory
+    owner: nexus
+    group: nexus
+
+  # --- config ---------------------------------------------------------------
+  /etc/nexus-iq-server:
+    title: config-directory
+    exists: true
+    filetype: directory
+    mode: "0755"
+    owner: nexus
+    group: nexus
+  /etc/nexus-iq-server/config.yml:
+    title: config-file
+    # the old `config-file` expectation was `test -f /etc/nexus-iq-server`,
+    # which is a directory -- it only passed because of `| echo $?`.
+    exists: true
+    filetype: file
+    mode: "0644"
+    # COPY --from=builder without --chown lands as root:root
+    owner: root
+    group: root
+    contains:
+      - "sonatypeWork: /sonatype-work"
+
+  # --- de-bloat regression guards ------------------------------------------
+  # The final stage strips the package-management stack and other build-only
+  # packages to shrink the CVE surface. These fail loudly if any come back.
+  /usr/bin/rpm:
+    title: rpm-removed
+    exists: false
+  /usr/bin/microdnf:
+    title: microdnf-removed
+    exists: false
+  /usr/sbin/useradd:
+    title: shadow-utils-removed
+    exists: false
+  /usr/bin/gzip:
+    title: gzip-removed
+    exists: false
+  /usr/bin/python3:
+    title: python3-removed
+    exists: false
+  /sbin/nologin:
+    title: nologin-symlink
+    exists: true
+    filetype: symlink
+    linked-to: /bin/false
+
+  # --- still required at runtime -------------------------------------------
+  /usr/bin/curl:
+    title: curl-present
+    # required by the image HEALTHCHECK
+    exists: true
+
+command:
+  # The admin /healthcheck endpoint -- same one the image HEALTHCHECK uses.
+  #
+  # It returns HTTP 500 on an unlicensed server because the product-license
+  # subsystem reports healthy=false / remainingDays=0. Verified against the live
+  # response body in a real build. A build sandbox has no license, so asserting
+  # `status: 200` can never pass. Instead assert what the image is actually
+  # responsible for: every other subsystem is healthy.
+  #
+  # Regexes (not plain substrings) so a field-order change inside a subsystem
+  # object does not break the match.
+  healthcheck-subsystems:
+    title: admin-healthcheck
+    exec: curl -s --max-time 30 http://localhost:8071/healthcheck
+    exit-status: 0
+    stdout:
+      - '/"database":\{[^}]*"healthy":true/'
+      - '/"deadlocks":\{[^}]*"healthy":true/'
+      - '/"newDatabaseConnections":\{[^}]*"healthy":true/'
+      - '/"shutdown-state":\{[^}]*"healthy":true/'
+      - '/"work-directory":\{[^}]*"healthy":true/'
+
+  # Replaces the old `grep JAVA_OPTS start.sh` expectation, which was vacuous:
+  # start.sh does not mention JAVA_OPTS at all (verified -- goss reported the
+  # pattern missing). The real contract is the image ENV, consumed by the
+  # bin/nexus-iq-server launcher.
+  java-opts-env:
+    title: start-script-has-java-opts
+    exec: printenv JAVA_OPTS
+    exit-status: 0
+    stdout:
+      - "java.util.prefs.userRoot"
