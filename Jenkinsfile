@@ -34,7 +34,7 @@ String imageName = 'sonatype/nexus-iq-server'
 configureBranchJob()
 dockerizedBuildPipeline(
   buildImageId: 'sonatype.repo.sonatype.app/docker-all/docker:latest',
-  dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock -u root:root',
+  dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock',
   deployBranch: deployBranch,
   prepare: {
     githubStatusUpdate('pending')
