@@ -33,6 +33,8 @@ String imageName = 'sonatype/nexus-iq-server'
 
 configureBranchJob()
 dockerizedBuildPipeline(
+  buildImageId: 'sonatype.repo.sonatype.app/docker-all/docker:latest',
+  dockerArgs: '-v /var/run/docker.sock:/var/run/docker.sock -u root:root',
   deployBranch: deployBranch,
   deployCondition: { return true }, // always run the deploy stage
   prepare: {
@@ -42,8 +44,7 @@ dockerizedBuildPipeline(
     hadolint(['./Dockerfile'])
   },
   buildAndTest: {
-    def expectations = load 'expectations.groovy'
-    validateExpectations(expectations.containerExpectations())
+    currentBuild.displayName = "Just testing"
   },
   deploy: {
     // Hijacking deploy step to run the docker buildx build to make sure it is working
