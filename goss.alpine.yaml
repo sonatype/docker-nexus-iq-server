@@ -64,9 +64,15 @@ file:
     exists: true
     filetype: file
     mode: "0755"
-    # Created by `RUN echo` as root, after the COPY --chown of the install directory.
+    # root:NEXUS, not root:root as on the UBI images. `RUN echo` runs as root so root owns
+    # the file, but the install directory above is setgid (drwxr-sr-x), and new files in a
+    # setgid directory inherit the DIRECTORY's group -- so the group is nexus.
+    #
+    # Confirmed by build #10: this was the single failing check across all four images
+    # ("group: Expected "nexus" to equal "root""), i.e. a direct consequence of the
+    # setgid mode asserted above, which passed.
     owner: root
-    group: root
+    group: nexus
     # Deliberately no `contains` here: unlike the UBI images, this start.sh has no
     # arbitrary-UID passwd fixup, because Alpine does not ship the from-source openssh
     # that requires it.
