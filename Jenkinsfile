@@ -56,19 +56,36 @@ String deployBranch = 'main'
 //   smokePlatform  : non-host platform to build as a smoke test, or null if the image
 //                    does not support one.
 //
-// NOTE on rh: Dockerfile.rh hardcodes the linux-x86_64 IQ Server tarball and a single
-// IQ_SERVER_SHA256 (no per-arch args), so an arm64 build would silently produce an image
-// containing x86_64 binaries. smokePlatform is null until that is fixed -- an arm64
-// build there would pass and mean nothing.
+// NOTE on smokePlatform: Dockerfile.rh and Dockerfile.alpine both hardcode an x86_64 IQ
+// Server tarball with a single IQ_SERVER_SHA256 (rh: linux-x86_64, alpine:
+// linux_musl-x86_64), so an arm64 build would silently produce an image containing x86_64
+// binaries. Both are null until that is fixed -- an arm64 build there would pass and mean
+// nothing. Only Dockerfile/Dockerfile.slim select the tarball per architecture.
+//
+// NOTE on slim: Dockerfile.slim is currently BYTE-IDENTICAL to Dockerfile, and has been
+// for at least 9 months (every historical difference was a lag in the IQ version bump).
+// It is included so the team can see the full matrix experience, but as it stands the
+// slim cell builds the same image twice under a second IQ application. Whether slim is
+// meant to be a distinct image is unresolved.
 Map<String, Map<String, String>> variants = [
   'ubi': [
     dockerfile   : 'Dockerfile',
     iqApplication: 'docker-nexus-iq-server',
     smokePlatform: 'linux/arm64',
   ],
+  'slim': [
+    dockerfile   : 'Dockerfile.slim',
+    iqApplication: 'docker-nexus-iq-server-slim',
+    smokePlatform: 'linux/arm64',
+  ],
   'rh': [
     dockerfile   : 'Dockerfile.rh',
     iqApplication: 'docker-nexus-iq-server-rh',
+    smokePlatform: null,
+  ],
+  'alpine': [
+    dockerfile   : 'Dockerfile.alpine',
+    iqApplication: 'docker-nexus-iq-server-alpine',
     smokePlatform: null,
   ],
 ]
@@ -195,7 +212,7 @@ pipeline {
         axes {
           axis {
             name 'IMAGE'
-            values 'ubi', 'rh'
+            values 'ubi', 'slim', 'rh', 'alpine'
           }
         }
 

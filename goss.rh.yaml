@@ -13,30 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Red Hat Certified Container variant (Dockerfile.rh).
+# Red Hat Certified Container variant (./Dockerfile.rh, 'rh').
 #
-# This is an OVERLAY: `gossfile:` imports the shared suite, then adds only what is
-# specific to the RH image. Everything the two images have in common -- users, dirs,
-# logs, ports, config, openssh client contract, de-bloat guards -- lives in goss.yaml
-# and is asserted identically for both.
-#
-# NOTE: the resource key really is `gossfile`, not `goss`. goss silently ignores
-# unknown top-level keys, so a typo here means the imported checks just never run
-# with no error. Verified against goss 0.4.10.
+# The RH image is the UBI image plus the certification payload, so this imports
+# goss.yaml -- which in turn imports goss.common.yaml -- and adds only the extras.
+# Verified that goss 0.4.10 follows a chained import (rh -> ubi -> common).
 ---
 gossfile:
   /test/goss.yaml: {}
-
-user:
-  # `usermod -a -G root nexus` (Dockerfile.rh ~165). Red Hat certification expects
-  # arbitrary-UID containers to work via group root, since an unknown UID still lands
-  # in gid 0.
-  nexus:
-    title: rh-nexus-in-root-group
-    exists: true
-    groups:
-      - nexus
-      - root
 
 file:
   # --- Red Hat Certified Container payload (COPY rh-docker /) ----------------
@@ -51,8 +35,8 @@ file:
     filetype: file
     mode: "0755"
   /uid_entrypoint.sh:
-    # The image ENTRYPOINT. Rewrites /etc/passwd from the template when the runtime
-    # UID differs, then exec's the CMD.
+    # The image ENTRYPOINT. Rewrites /etc/passwd from the template when the runtime UID
+    # differs, then exec's the CMD.
     title: rh-uid-entrypoint
     exists: true
     filetype: file
@@ -68,3 +52,18 @@ file:
     title: rh-passwd-template
     exists: true
     filetype: file
+
+command:
+  # `usermod -a -G root nexus` (Dockerfile.rh ~165). Red Hat certification expects
+  # arbitrary-UID containers to work via group root, since an unknown UID still lands in
+  # gid 0.
+  #
+  # Asserted with `id` rather than adding `groups:` to the `user: nexus` resource, because
+  # that resource is already declared in the imported goss.yaml and a resource declared
+  # twice across an import chain has undefined merge behaviour.
+  nexus-in-root-group:
+    title: rh-nexus-in-root-group
+    exec: id -nG nexus
+    exit-status: 0
+    stdout:
+      - '/(^|\s)root(\s|$)/'

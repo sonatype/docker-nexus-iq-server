@@ -340,7 +340,7 @@ ARG CACHEBUST=""
 # hadolint ignore=DL3066
 USER root
 COPY --from=goss-bin /tmp/goss/goss /usr/local/bin/goss
-COPY goss_wait.yaml goss.yaml /test/
+COPY goss_wait.yaml goss.common.yaml goss.yaml /test/
 RUN mkdir -p /results && chown nexus:nexus /results
 # run the validation as the same user the image ships with
 # hadolint ignore=DL3066
