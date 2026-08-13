@@ -211,7 +211,7 @@ pipeline {
 
     // Two arm64 stages, one of which runs. The stage name in the build UI tells you
     // which coverage you got, rather than hiding the difference in a build arg.
-    stage('Smoke Build (arm64, builder stage only)') {
+    stage('Smoke Build (arm64)') {
       when {
         not { branch 'main' }
       }
