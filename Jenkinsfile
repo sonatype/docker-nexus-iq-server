@@ -43,14 +43,62 @@ String testResultsDir = 'build/test-results'
 // Platform validated by the goss suite. Only the host platform can run the test
 // stage without emulation, and the agents are amd64.
 String testPlatform = 'linux/amd64'
-// Platforms that must at least BUILD. arm64 is a smoke build only (no tests): the
-// only arch-conditional logic is the IQ Server tarball/SHA256 selection in the
-// builder stage, and a stale IQ_SERVER_SHA256_AARCH currently only surfaces at
-// release time.
-List<String> smokeBuildPlatforms = ['linux/arm64']
+// Non-host platforms that must at least BUILD. No goss run: booting the whole server
+// under qemu is not worth it.
+String smokeBuildPlatform = 'linux/arm64'
+// On branches, only build the `builder` stage for arm64. That covers the sole
+// arch-conditional logic -- the IQ Server tarball + SHA256 selection, where a stale
+// IQ_SERVER_SHA256_AARCH otherwise surfaces at release time -- and skips compiling
+// OpenSSH from source under emulation, which measured 12+ minutes in build #1 and
+// dwarfed the 1m43s the rest of the pipeline takes.
+String smokeBuildTarget = 'builder'
 // A docker-container builder is required for foreign-platform builds. Named (not
 // --use) so plain `docker build` keeps using the default builder and its image store.
+// NOTE: it has its own cache, entirely separate from the default builder, so nothing
+// is shared with the amd64 stages above.
 String builderName = 'iq-image-multiarch'
+
+// Mirrors jenkins-shared's configureBranchJob(): serialize builds and run daily only
+// on the deploy branch. Concurrent builds on feature branches are fine, and a cron
+// trigger there would be noise. Declarative options{} cannot be made conditional, so
+// this is set imperatively before the pipeline block, as the previous Jenkinsfile did.
+void configureBranchJob() {
+  String projName = currentBuild.fullProjectName
+  if (projName.endsWith('main')) {
+    properties([
+      disableConcurrentBuilds(),
+      pipelineTriggers([cron('@daily')])
+    ])
+  }
+}
+
+// Builds one non-host platform. Output is discarded (type=cacheonly): a foreign-platform
+// image cannot be loaded into the local image store, and we do not push from here.
+//
+// buildkit is pinned by digest (moby/buildkit v0.31.1): all buildkit tags are currently
+// quarantined by Sonatype Firewall; this pre-quarantine cached digest is pullable.
+// Revert to a tag once the quarantine is released/waived.
+void buildPlatform(String builderName, String dockerfile, String platform, String target) {
+  withSonatypeDockerRegistry() {
+    String buildkitImage = "${sonatypeDockerRegistryId()}/moby/buildkit@sha256:" +
+        '6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a'
+    // Created if missing and deliberately NOT removed, so later builds on this agent
+    // reuse it instead of re-pulling buildkit.
+    sh """
+      docker buildx inspect ${builderName} >/dev/null 2>&1 \
+        || docker buildx create --name ${builderName} --driver-opt="image=${buildkitImage}"
+    """
+    String targetArg = target ? "--target ${target} " : ''
+    sh """
+      docker buildx build --builder ${builderName} \
+        --file ${dockerfile} \
+        --platform ${platform} \
+        ${targetArg}--output type=cacheonly .
+    """
+  }
+}
+
+configureBranchJob()
 
 pipeline {
   agent {
@@ -58,8 +106,9 @@ pipeline {
   }
 
   options {
+    // disableConcurrentBuilds() and the daily cron are set in configureBranchJob()
+    // above, for the deploy branch only.
     buildDiscarder(logRotator(numToKeepStr: '30', daysToKeepStr: '90'))
-    disableConcurrentBuilds()
   }
 
   // No environment{} block on purpose. dockerizedBuildPipeline exported
@@ -160,40 +209,34 @@ pipeline {
       }
     }
 
-    stage('Smoke Build (arm64)') {
+    // Two arm64 stages, one of which runs. The stage name in the build UI tells you
+    // which coverage you got, rather than hiding the difference in a build arg.
+    stage('Smoke Build (arm64, builder stage only)') {
+      when {
+        not { branch 'main' }
+      }
       steps {
-        // Build-only validation of the non-host platform. No goss run: the test stage
-        // would need the whole server to boot under qemu. This exists to catch
-        // arch-conditional build breakage -- a stale IQ_SERVER_SHA256_AARCH, or an
-        // aarch64 package that is not available -- before release.
+        // Branch builds: `builder` stage only. Catches the arch-conditional tarball
+        // and SHA256 selection without the emulated OpenSSH compile.
         //
-        // type=cacheonly: nothing is exported. A foreign-platform build cannot be
-        // loaded into the local image store, and we do not want to push from a branch.
-        //
-        // The builder is created if missing and deliberately NOT removed, so subsequent
-        // builds on this agent reuse it instead of re-pulling buildkit each time.
-        //
-        // buildkit is pinned by digest (moby/buildkit v0.31.1): all buildkit tags are
-        // currently quarantined by Sonatype Firewall; this pre-quarantine cached digest
-        // is pullable. Revert to a tag once the quarantine is released/waived.
-        withSonatypeDockerRegistry() {
-          script {
-            String buildkitImage =
-                "${sonatypeDockerRegistryId()}/moby/buildkit@sha256:" +
-                '6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a'
-            sh """
-              docker buildx inspect ${builderName} >/dev/null 2>&1 \
-                || docker buildx create --name ${builderName} --driver-opt="image=${buildkitImage}"
-            """
-            smokeBuildPlatforms.each { String platform ->
-              sh """
-                docker buildx build --builder ${builderName} \
-                  --file ${dockerfile} \
-                  --platform ${platform} \
-                  --output type=cacheonly .
-              """
-            }
-          }
+        // Does NOT cover openssh-builder or the runtime stage for arm64 -- that is what
+        // the full build on the deploy branch below is for.
+        script {
+          buildPlatform(builderName, dockerfile, smokeBuildPlatform, smokeBuildTarget)
+        }
+      }
+    }
+
+    stage('Full Build (arm64)') {
+      when {
+        branch 'main'
+      }
+      steps {
+        // Deploy branch: the whole graph for arm64, including the emulated OpenSSH
+        // compile. Slow (12+ min) but this is the only place the arm64 runtime stage
+        // gets built before release.
+        script {
+          buildPlatform(builderName, dockerfile, smokeBuildPlatform, null)
         }
       }
     }
