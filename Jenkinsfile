@@ -122,10 +122,20 @@ pipeline {
   // images fail to authenticate. licenseCheck() and hadolint() wrap themselves.
 
   stages {
-    stage('License Check') {
+    stage('Compliance Check') {
       steps {
+        // NOTE: mixed failure semantics in this stage, on purpose.
+        //   - branchNamingCheck() and jiraIssueAndPrCheck() are INFORMATIONAL. They
+        //     publish GitHub statuses, badges and build summaries but never fail the
+        //     build, so a green stage does not mean they were satisfied -- check the
+        //     badges. jiraIssueAndPrCheck() also self-skips on main/master/release-*.
+        //   - licenseCheck() DOES fail the build: it records issues with a FAILURE
+        //     quality gate at 1 finding.
+        // The informational checks run first so their badges and PR/Jira links are
+        // attached even when licenseCheck() fails the stage.
+        branchNamingCheck()
+        jiraIssueAndPrCheck()
         // Runs on the agent, but shells out to `docker run bnr/license-check`.
-        // Records issues with a FAILURE quality gate at 1 finding.
         licenseCheck()
       }
     }
