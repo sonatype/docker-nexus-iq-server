@@ -101,6 +101,11 @@ file:
     # as root, after the COPY --chown of the install directory.
     owner: root
     group: root
+    contains:
+      # The arbitrary-UID passwd fixup added with openssh 10.4p1 (CLM-42794).
+      # Dockerfile line ~187 writes this as the first line of start.sh; upstream
+      # openssh refuses to run when getpwuid() returns NULL for the caller.
+      - "iqserver:"
   /opt/sonatype/nexus-iq-server/bin/nexus-iq-server:
     title: server-launcher
     exists: true
@@ -143,6 +148,45 @@ file:
     contains:
       - "sonatypeWork: /sonatype-work"
 
+  # --- openssh 10.4p1, compiled from source and overlaid (CLM-42794) --------
+  # Client-only install: the Dockerfile rm -f's the server-side and setuid
+  # artifacts out of /build/dest before COPYing /usr/bin, /usr/libexec/openssh
+  # and /etc/ssh wholesale, and sshd itself is never COPYed at all. These pin
+  # that contract so a future refactor cannot silently leak a server back in.
+  /usr/bin/ssh:
+    title: ssh-client-installed
+    exists: true
+    filetype: file
+  /etc/ssh/ssh_config:
+    title: ssh-config-present
+    exists: true
+    filetype: file
+  /usr/sbin/sshd:
+    title: ssh-no-sshd
+    exists: false
+  /usr/libexec/openssh/sshd-session:
+    title: ssh-no-sshd-session
+    exists: false
+  /usr/libexec/openssh/sftp-server:
+    title: ssh-no-sftp-server
+    exists: false
+  /usr/libexec/openssh/ssh-keysign:
+    # upstream installs this setuid root; it is unusable here (needs host keys
+    # that install-nokeys never generates) so it is stripped.
+    title: ssh-no-setuid-keysign
+    exists: false
+
+  # --- arbitrary-UID handoff (K8s runAsUser / OpenShift) -------------------
+  # /etc/passwd is group-root and group-writable so start.sh can self-register
+  # an entry for an unmapped UID. Both halves are asserted: this, and the
+  # `iqserver:` line in start.sh above.
+  /etc/passwd:
+    title: etc-passwd-group-writable
+    exists: true
+    filetype: file
+    mode: "0664"
+    group: root
+
   # --- de-bloat regression guards ------------------------------------------
   # The final stage strips the package-management stack and other build-only
   # packages to shrink the CVE surface. These fail loudly if any come back.
@@ -174,6 +218,23 @@ file:
     exists: true
 
 command:
+  # openssh version pin. Ported from the ssh-version Expectation, which grepped
+  # the binary rather than running `ssh -V`: upstream openssh exits with
+  # "No user exists for uid X" when the caller's UID is not in /etc/passwd, and
+  # CI can run the container under an unmapped UID. The version string is
+  # compiled in, so grepping is UID-agnostic. -a treats the binary as text.
+  #
+  # Keep in sync with ARG OPENSSH_VERSION in the Dockerfile.
+  ssh-version:
+    title: ssh-version
+    # -q: exit status is the whole assertion. The original Expectation used
+    # `grep -ac ... == 1`, but that only ever passed because the harness did a
+    # substring compare (a count of "10" would also have matched "1"). Asserting
+    # presence via exit status is what was actually intended and cannot break on
+    # a benign change in match count.
+    exec: grep -aq "OpenSSH_10\.4p1" /usr/bin/ssh
+    exit-status: 0
+
   # The admin /healthcheck endpoint -- same one the image HEALTHCHECK uses.
   #
   # It returns HTTP 500 on an unlicensed server because the product-license
