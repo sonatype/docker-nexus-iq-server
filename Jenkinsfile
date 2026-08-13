@@ -25,12 +25,17 @@
 //
 // Ground rules here:
 //   - EVERY step in this file runs directly on the agent, except the two shared steps
-//     that intentionally run tools in throwaway containers (see 'License Check' and
+//     that intentionally run tools in throwaway containers (see 'Compliance Check' and
 //     'Lint'). Those are noted at the call site.
 //   - Image validation happens inside the docker build (see the `test` stage in
 //     ./Dockerfile) but is invoked from its own visible pipeline stage, so the tests
 //     are named in the build UI instead of being a side effect of another stage.
 //   - The same commands work locally; see 'Local equivalent' comments.
+//   - There is deliberately no githubStatusUpdate() for the overall build result. The
+//     job uses the GitHub Branch Source plugin, which reports commit status for free.
+//     The call in the previous Jenkinsfile was vestigial from the old Git branch source
+//     and should not be reinstated. (branchNamingCheck() and jiraIssueAndPrCheck() do
+//     post their own named statuses; that is separate and still wanted.)
 
 @Library(['private-pipeline-library', 'jenkins-shared']) _
 
