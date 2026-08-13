@@ -13,25 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Checks that are IDENTICAL for every IQ Server image variant.
+# Checks that are IDENTICAL for every IQ Server image variant. Imported by goss.yaml,
+# goss.rh.yaml and goss.alpine.yaml via `gossfile:`.
 #
-# Imported by goss.yaml (ubi/slim), goss.rh.yaml and goss.alpine.yaml via `gossfile:`.
-# Do not add anything here that differs between variants -- put it in the variant file
-# instead. In particular these all differ and are deliberately absent:
-#   - the nexus uid/gid and login shell (1000 + /bin/false on UBI, 1001 + /sbin/nologin
-#     on Alpine)
-#   - the mode of the install directory (0755 on UBI, setgid 2755 on Alpine)
-#   - start.sh, because UBI/RH need the arbitrary-UID passwd fixup asserted and Alpine
-#     has no such line
-# A resource declared in two files that import each other has undefined merge behaviour,
-# so each path appears exactly once across a variant's import chain.
+# Anything that differs between variants lives in the variant file: the nexus uid/gid and
+# shell, the install directory mode, and start.sh. A resource declared twice across an
+# import chain has undefined merge behaviour, so each path appears exactly once per chain.
 ---
 process:
   java:
+    # Not a PID-1 check: PID 1 inside a build-stage RUN is BuildKit's shell.
     title: iq-process
-    # The old `/proc/1/comm == java` check cannot work in a build stage -- PID 1 inside a
-    # RUN is BuildKit's shell. The PID-1 contract (CMD wiring, SIGTERM trap in start.sh)
-    # needs a real `docker run` smoke test.
     running: true
 
 addr:
@@ -53,9 +45,8 @@ file:
     mode: "0755"
     owner: nexus
     group: nexus
-  # config.yml:39 names this file clm-server.log. expectations.groovy asserted
-  # clm-server-log.log, which has never existed -- it only "passed" because of the
-  # `| echo $?` in the old Expectation.
+  # config.yml:39 names this clm-server.log; expectations.groovy asserted a filename that
+  # has never existed.
   /var/log/nexus-iq-server/clm-server.log:
     title: clm-server-log
     exists: true
@@ -105,8 +96,6 @@ file:
     group: nexus
   /etc/nexus-iq-server/config.yml:
     title: config-file
-    # the old `config-file` expectation was `test -f /etc/nexus-iq-server`, which is a
-    # directory -- it only passed because of `| echo $?`.
     exists: true
     filetype: file
     mode: "0644"
@@ -116,23 +105,15 @@ file:
     contains:
       - "sonatypeWork: /sonatype-work"
 
-  # --- required at runtime --------------------------------------------------
+  # required by the image HEALTHCHECK
   /usr/bin/curl:
     title: curl-present
-    # required by the image HEALTHCHECK
     exists: true
 
 command:
-  # The admin /healthcheck endpoint -- same one the image HEALTHCHECK uses.
-  #
-  # It returns HTTP 500 on an unlicensed server because the product-license subsystem
-  # reports healthy=false / remainingDays=0. Verified against the live response body in a
-  # real build. A build sandbox has no license, so asserting `status: 200` can never
-  # pass. Instead assert what the image is actually responsible for: every other
-  # subsystem is healthy.
-  #
-  # Regexes (not plain substrings) so a field-order change inside a subsystem object does
-  # not break the match.
+  # /healthcheck returns 500 on an unlicensed server (product-license healthy=false), so
+  # the aggregate status is unusable here; assert the subsystems the image owns instead.
+  # Regexes so field order inside a subsystem object does not matter.
   healthcheck-subsystems:
     title: admin-healthcheck
     exec: curl -s --max-time 30 http://localhost:8071/healthcheck
@@ -144,9 +125,8 @@ command:
       - '/"shutdown-state":\{[^}]*"healthy":true/'
       - '/"work-directory":\{[^}]*"healthy":true/'
 
-  # Replaces the old `grep JAVA_OPTS start.sh` expectation, which was vacuous: start.sh
-  # does not mention JAVA_OPTS at all (verified -- goss reported the pattern missing).
-  # The real contract is the image ENV, consumed by the bin/nexus-iq-server launcher.
+  # start.sh does not mention JAVA_OPTS; the contract is the image ENV, read by the
+  # bin/nexus-iq-server launcher.
   java-opts-env:
     title: start-script-has-java-opts
     exec: printenv JAVA_OPTS

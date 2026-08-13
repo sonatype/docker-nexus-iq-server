@@ -13,15 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# UBI-based images: ./Dockerfile ('ubi') and ./Dockerfile.slim ('slim').
+# UBI-based images: ./Dockerfile ('ubi') and ./Dockerfile.slim ('slim'), which are
+# currently byte-identical. Also the base for goss.rh.yaml.
 #
-# Those two Dockerfiles are currently byte-identical, so they share this suite. Also the
-# base for goss.rh.yaml, which imports this file and adds the Red Hat certification
-# payload -- the RH image is this image plus extras.
-#
-# NOTE: the import key really is `gossfile`, not `goss`. goss silently ignores unknown
-# top-level keys, so a typo means the imported checks just never run with no error.
-# Verified against goss 0.4.10.
+# The import key is `gossfile`, not `goss`: goss silently ignores unknown top-level keys,
+# so a typo here drops every imported check with no error.
 ---
 gossfile:
   /test/goss.common.yaml: {}
@@ -54,20 +50,15 @@ file:
     exists: true
     filetype: file
     mode: "0755"
-    # root:root, not nexus:nexus -- the Dockerfile creates this with `RUN echo` as root,
-    # after the COPY --chown of the install directory.
+    # root:root: created by `RUN echo` as root, after the COPY --chown.
     owner: root
     group: root
     contains:
-      # The arbitrary-UID passwd fixup added with openssh 10.4p1 (CLM-42794). The
-      # Dockerfile writes this as the first line of start.sh; upstream openssh refuses to
-      # run when getpwuid() returns NULL for the caller.
+      # First line of start.sh: the arbitrary-UID passwd fixup openssh 10.4p1 needs
+      # (CLM-42794). Paired with the /etc/passwd mode below.
       - "iqserver:"
 
-  # --- arbitrary-UID handoff (K8s runAsUser / OpenShift) -------------------
-  # /etc/passwd is group-root and group-writable so start.sh can self-register an entry
-  # for an unmapped UID. Both halves are asserted: this, and the `iqserver:` line in
-  # start.sh above.
+  # Group-writable so start.sh can self-register an unmapped UID (K8s runAsUser).
   /etc/passwd:
     title: etc-passwd-group-writable
     exists: true
@@ -75,11 +66,9 @@ file:
     mode: "0664"
     group: root
 
-  # --- openssh 10.4p1, compiled from source and overlaid (CLM-42794) --------
-  # Client-only install: the Dockerfile rm -f's the server-side and setuid artifacts out
-  # of /build/dest before COPYing /usr/bin, /usr/libexec/openssh and /etc/ssh wholesale,
-  # and sshd itself is never COPYed at all. These pin that contract so a future refactor
-  # cannot silently leak a server back in.
+  # --- openssh 10.4p1, compiled from source (CLM-42794) ---------------------
+  # Client-only: the Dockerfile strips the server-side and setuid artifacts before COPYing
+  # /usr/bin, /usr/libexec/openssh and /etc/ssh wholesale. These pin that contract.
   /usr/bin/ssh:
     title: ssh-client-installed
     exists: true
@@ -97,15 +86,12 @@ file:
   /usr/libexec/openssh/sftp-server:
     title: ssh-no-sftp-server
     exists: false
+  # upstream installs this setuid root; stripped because it is unusable without host keys
   /usr/libexec/openssh/ssh-keysign:
-    # upstream installs this setuid root; it is unusable here (needs host keys that
-    # install-nokeys never generates) so it is stripped.
     title: ssh-no-setuid-keysign
     exists: false
 
-  # --- de-bloat regression guards ------------------------------------------
-  # The final stage strips the package-management stack and other build-only packages to
-  # shrink the CVE surface. These fail loudly if any come back.
+  # --- de-bloat guards: the final stage strips these to shrink the CVE surface ---
   /usr/bin/rpm:
     title: rpm-removed
     exists: false
@@ -128,18 +114,10 @@ file:
     linked-to: /bin/false
 
 command:
-  # openssh version pin. Ported from the ssh-version Expectation, which grepped the
-  # binary rather than running `ssh -V`: upstream openssh exits with "No user exists for
-  # uid X" when the caller's UID is not in /etc/passwd, and CI can run the container under
-  # an unmapped UID. The version string is compiled in, so grepping is UID-agnostic.
-  #
-  # Keep in sync with ARG OPENSSH_VERSION in the Dockerfile.
+  # Greps the binary rather than running `ssh -V`, which exits "No user exists for uid X"
+  # under an unmapped UID. -a treats the binary as text, -q makes exit status the whole
+  # assertion. Keep in sync with ARG OPENSSH_VERSION in the Dockerfile.
   ssh-version:
     title: ssh-version
-    # -q: exit status is the whole assertion. The original Expectation used
-    # `grep -ac ... == 1`, but that only ever passed because the harness did a substring
-    # compare (a count of "10" would also have matched "1"). Asserting presence via exit
-    # status is what was actually intended and cannot break on a benign change in match
-    # count. -a treats the binary as text.
     exec: grep -aq "OpenSSH_10\.4p1" /usr/bin/ssh
     exit-status: 0

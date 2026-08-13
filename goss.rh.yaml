@@ -13,11 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Red Hat Certified Container variant (./Dockerfile.rh, 'rh').
-#
-# The RH image is the UBI image plus the certification payload, so this imports
-# goss.yaml -- which in turn imports goss.common.yaml -- and adds only the extras.
-# Verified that goss 0.4.10 follows a chained import (rh -> ubi -> common).
+# Red Hat Certified Container variant (./Dockerfile.rh). The RH image is the UBI image plus
+# the certification payload, so this imports goss.yaml, which imports goss.common.yaml.
 ---
 gossfile:
   /test/goss.yaml: {}
@@ -34,9 +31,8 @@ file:
     exists: true
     filetype: file
     mode: "0755"
+  # the image ENTRYPOINT: rewrites /etc/passwd from the template, then exec's the CMD
   /uid_entrypoint.sh:
-    # The image ENTRYPOINT. Rewrites /etc/passwd from the template when the runtime UID
-    # differs, then exec's the CMD.
     title: rh-uid-entrypoint
     exists: true
     filetype: file
@@ -46,21 +42,16 @@ file:
     exists: true
     filetype: file
     mode: "0755"
+  # generated at build time by `bash /uid_template.sh`
   /etc/passwd.template:
-    # Generated at build time by `bash /uid_template.sh`; uid_entrypoint.sh sed's this
-    # into /etc/passwd at startup.
     title: rh-passwd-template
     exists: true
     filetype: file
 
 command:
-  # `usermod -a -G root nexus` (Dockerfile.rh ~165). Red Hat certification expects
-  # arbitrary-UID containers to work via group root, since an unknown UID still lands in
-  # gid 0.
-  #
-  # Asserted with `id` rather than adding `groups:` to the `user: nexus` resource, because
-  # that resource is already declared in the imported goss.yaml and a resource declared
-  # twice across an import chain has undefined merge behaviour.
+  # `usermod -a -G root nexus`: certification expects arbitrary-UID containers to work via
+  # group root. Uses `id` rather than `groups:` on user nexus, which goss.yaml already
+  # declares -- a resource declared twice across an import chain is undefined.
   nexus-in-root-group:
     title: rh-nexus-in-root-group
     exec: id -nG nexus

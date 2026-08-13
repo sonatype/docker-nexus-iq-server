@@ -13,20 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Alpine/musl variant (./Dockerfile.alpine, 'alpine').
+# Alpine/musl variant (./Dockerfile.alpine).
 #
-# This imports goss.common.yaml directly, NOT goss.yaml: the Alpine image is not the UBI
-# image plus extras, it is a different image that happens to run the same server. It has
-# no openssh built from source, no rpm/microdnf de-bloat block, and different user ids.
-# Ported from alpine-expectations.groovy plus the facts in Dockerfile.alpine.
-#
-# Alpine differences that drove the split (all read off Dockerfile.alpine):
-#   - apk, not microdnf: `apk add procps-ng findutils less rsync git which curl`
-#   - uid/gid 1001, not 1000 (ARG GID/UID)
-#   - login shell /sbin/nologin, not /bin/false (adduser -s)
-#   - no openssh from source, so none of the ssh-* checks apply
-#   - no arbitrary-UID passwd fixup in start.sh and no /etc/passwd chmod
-#   - the IQ Server bundle is the linux_musl-x86_64 build
+# Imports goss.common.yaml directly, NOT goss.yaml: Alpine is not "UBI plus extras", its
+# checks are a subset. No from-source openssh, no rpm/microdnf de-bloat, uid/gid 1001,
+# shell /sbin/nologin, no passwd fixup in start.sh. Ported from alpine-expectations.groovy
+# and Dockerfile.alpine.
 ---
 gossfile:
   /test/goss.common.yaml: {}
@@ -35,7 +27,7 @@ group:
   nexus:
     title: nexus-group
     exists: true
-    # 1001 on Alpine (ARG GID), not 1000 as on the UBI images.
+    # 1001 here, 1000 on UBI
     gid: 1001
 
 user:
@@ -45,7 +37,7 @@ user:
     uid: 1001
     gid: 1001
     home: /opt/sonatype/nexus-iq-server
-    # `adduser -s /sbin/nologin`, where the UBI images use /bin/false.
+    # /bin/false on UBI
     shell: /sbin/nologin
 
 file:
@@ -53,9 +45,7 @@ file:
     title: home-directory
     exists: true
     filetype: directory
-    # 2755, not 0755: alpine-expectations.groovy asserts drwxr-sr-x here (setgid), which
-    # busybox adduser sets when it takes ownership of an existing home directory. That
-    # expectation had no `| echo $?` so it was a real assertion, unlike most of the others.
+    # setgid, unlike 0755 on UBI. Drives the start.sh group below.
     mode: "2755"
     owner: nexus
     group: nexus
@@ -64,22 +54,13 @@ file:
     exists: true
     filetype: file
     mode: "0755"
-    # root:NEXUS, not root:root as on the UBI images. `RUN echo` runs as root so root owns
-    # the file, but the install directory above is setgid (drwxr-sr-x), and new files in a
-    # setgid directory inherit the DIRECTORY's group -- so the group is nexus.
-    #
-    # Confirmed by build #10: this was the single failing check across all four images
-    # ("group: Expected "nexus" to equal "root""), i.e. a direct consequence of the
-    # setgid mode asserted above, which passed.
+    # root:nexus, not root:root as on UBI: root creates the file but the setgid install
+    # directory above makes new files inherit its group.
     owner: root
     group: nexus
-    # Deliberately no `contains` here: unlike the UBI images, this start.sh has no
-    # arbitrary-UID passwd fixup, because Alpine does not ship the from-source openssh
-    # that requires it.
+    # No `contains` on purpose: no passwd fixup here, since there is no from-source openssh.
 
   # --- runtime packages (apk add ...) --------------------------------------
-  # Asserted because they are the reason the image is not just the JRE, and because
-  # alpine-expectations.groovy only ever checked curl.
   /usr/bin/git:
     title: alpine-git-present
     exists: true
@@ -87,10 +68,7 @@ file:
     title: alpine-rsync-present
     exists: true
 
-  # --- de-bloat guards ------------------------------------------------------
-  # Alpine has no rpm/microdnf; apk is the package manager and IS present, so unlike the
-  # UBI images there is nothing to assert as removed. These pin that the RPM stack never
-  # appears here by accident.
+  # apk is the package manager here and stays; these just pin that no RPM stack appears.
   /usr/bin/rpm:
     title: rpm-absent
     exists: false

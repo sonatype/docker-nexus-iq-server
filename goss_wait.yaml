@@ -13,17 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Readiness gate for the Dockerfile `test` stage -- the dgoss goss_wait.yaml
-# pattern.
+# Readiness gate for the `test` stage (the dgoss goss_wait.yaml convention).
 #
-# This file holds ONLY the things that appear asynchronously while IQ Server
-# starts up. It is the one phase that runs with --retry-timeout. Once it passes,
-# goss.yaml runs exactly once with no retry, so a genuinely wrong assertion
-# fails immediately instead of stalling for the whole retry window.
-#
-# Keep every check here cheap and eventually-true. Anything that is either true
-# or false the instant the container starts (permissions, ownership, users,
-# removed packages) belongs in goss.yaml, not here.
+# ONLY things that appear asynchronously as IQ Server starts. This is the one phase run
+# with --retry-timeout; the full suite then runs once with no retry, so a wrong assertion
+# fails immediately instead of burning the retry window. Anything true-or-false the instant
+# the container starts belongs in the variant suites, not here.
 ---
 process:
   java:
@@ -40,10 +35,8 @@ addr:
     reachable: true
     timeout: 5000
 
-# NOTE: deliberately no /healthcheck gate here. That endpoint returns 500 for
-# an unlicensed server (product-license: healthy=false, remainingDays=0), so it
-# would never become true and would burn the whole retry window. Subsystem
-# health is asserted once in goss.yaml instead.
+# No /healthcheck gate: it returns 500 on an unlicensed server, so it would never become
+# true. Subsystem health is asserted once in the variant suites.
 
 file:
   # created by the server on first start
@@ -51,7 +44,6 @@ file:
     title: startup-data-directory
     exists: true
     filetype: directory
-  # config.yml:39 -- clm-server.log, not clm-server-log.log
   /var/log/nexus-iq-server/clm-server.log:
     title: startup-clm-server-log
     exists: true
