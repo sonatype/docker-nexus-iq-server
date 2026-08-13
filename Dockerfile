@@ -98,7 +98,7 @@ RUN ./configure \
           /build/dest/etc/ssh/sshd_config
 
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6 AS runtime-base
 
 ARG IQ_SERVER_VERSION=1.206.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -280,3 +280,125 @@ ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 WORKDIR ${IQ_HOME}
 
 CMD [ "sh", "./start.sh" ]
+
+#
+# ---------------------------------------------------------------------------
+# Image validation (goss). These stages fork off `runtime-base` and contribute
+# nothing to the shipped image.
+#
+# IMPORTANT: `runtime` must stay the LAST stage in this file. With no --target,
+# BuildKit builds the last stage -- if an export stage were last, plain
+# `docker build .` (and build_and_push_images.sh, which passes no --target)
+# would build/push a scratch image containing only test results.
+#
+#   Run the tests and export JUnit XML to ./build/test-results:
+#     docker buildx build --target test-results --no-cache-filter test \
+#         --output type=local,dest=build/test-results .
+#
+#   In CI (CI env var set) all tests run and the build always succeeds so the
+#   report is exported; Jenkins' junit step decides build status. Locally the
+#   build fails on any test failure.
+#     docker buildx build --target test-results --no-cache-filter test \
+#         --build-arg CI --output type=local,dest=build/test-results .
+# ---------------------------------------------------------------------------
+#
+
+# Fetch the goss binary for the target architecture. `builder` already has
+# curl and tar, and runs on the target platform so uname -m is correct.
+FROM builder AS goss-bin
+ARG GOSS_VERSION=0.4.10
+WORKDIR /tmp/goss
+# hadolint ignore=DL4006
+RUN case "$(uname -m)" in \
+      x86_64)  GOSS_ARCH=x86_64 ;; \
+      aarch64) GOSS_ARCH=arm64  ;; \
+      *) echo "Unsupported architecture for goss: $(uname -m)" && exit 1 ;; \
+    esac \
+ && curl -fsSL -O "https://github.com/goss-org/goss/releases/download/v${GOSS_VERSION}/goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" \
+ && curl -fsSL -O "https://github.com/goss-org/goss/releases/download/v${GOSS_VERSION}/goss_${GOSS_VERSION}_SHA256SUMS" \
+ && grep "goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" "goss_${GOSS_VERSION}_SHA256SUMS" | sha256sum -c - \
+ && tar -xzf "goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" goss \
+ && chmod 0755 goss
+
+# Start IQ Server, wait for readiness, then validate the image.
+FROM runtime-base AS test
+# CI: when non-empty (Jenkins sets CI=true), always exit 0 so the results are
+# exported and the pipeline's junit step owns pass/fail. Empty (local): fail the
+# build on any test failure.
+ARG CI=""
+ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
+# NOT named GOSS_*: build args are exposed to RUN as environment variables, and
+# goss itself reads GOSS_RETRY_TIMEOUT/GOSS_SLEEP from the environment. Naming
+# these GOSS_* silently made the no-retry phase retry anyway.
+ARG READY_TIMEOUT=300s
+ARG READY_SLEEP=5s
+# Pass --build-arg CACHEBUST=<unique> to force the tests to re-run; the test RUN
+# has no file inputs, so BuildKit would otherwise serve a cached pass forever.
+# Referenced inside the RUN below because BuildKit only rekeys on args a command
+# actually uses. ARG is stage-scoped, so runtime-base's cache is unaffected.
+ARG CACHEBUST=""
+# hadolint ignore=DL3066
+USER root
+COPY --from=goss-bin /tmp/goss/goss /usr/local/bin/goss
+COPY goss_wait.yaml goss.yaml /test/
+RUN mkdir -p /results && chown nexus:nexus /results
+# run the validation as the same user the image ships with
+# hadolint ignore=DL3066
+USER nexus
+# Two phases, on purpose:
+#   1. goss_wait.yaml -- only the asynchronously-created things, WITH retry.
+#      This is the sole phase allowed to burn the retry window. Its output is a
+#      LOG, not JUnit: with --retry-timeout goss re-emits its whole report per
+#      attempt, so a junit-formatted retry produces N concatenated XML documents
+#      interleaved with "Retrying in ..." text, which no JUnit parser accepts.
+#      A readiness failure is reported via a synthesized single-testcase XML.
+#   2. goss.yaml -- the full suite, exactly ONCE. --retry-timeout 0s is explicit
+#      so it cannot be re-enabled by a stray environment variable. One attempt
+#      means exactly one XML document, which is what Jenkins can parse.
+# Phase 2 runs even when phase 1 times out, so a server that never starts still
+# produces a full report of everything that failed rather than one timeout.
+RUN echo "starting IQ Server (cachebust=${CACHEBUST:-none})"; \
+    sh "${IQ_HOME}/start.sh" & \
+    goss --gossfile /test/goss_wait.yaml validate \
+        --format documentation \
+        --retry-timeout "${READY_TIMEOUT}" \
+        --sleep "${READY_SLEEP}" \
+        > /results/readiness.log 2>&1; \
+    wait_status=$?; \
+    tail -30 /results/readiness.log; \
+    goss --gossfile /test/goss.yaml validate \
+        --format junit \
+        --retry-timeout 0s \
+        > /results/goss-results.xml; \
+    status=$?; \
+    cat /results/goss-results.xml; \
+    if [ "${wait_status}" -ne 0 ]; then \
+      echo "readiness gate FAILED (goss exit ${wait_status}): not ready within ${READY_TIMEOUT}"; \
+      echo "--- healthcheck body ---" >> /results/readiness.log; \
+      curl -s --max-time 10 http://localhost:8071/healthcheck >> /results/readiness.log 2>&1 || true; \
+      { echo '<?xml version="1.0" encoding="UTF-8"?>'; \
+        echo '<testsuite name="goss-readiness" tests="1" failures="1" errors="0" skipped="0">'; \
+        echo '<testcase name="IQ Server becomes ready" classname="readiness">'; \
+        printf '<failure message="readiness gate failed">goss exit %s after %s. See readiness.log</failure>\n' \
+            "${wait_status}" "${READY_TIMEOUT}"; \
+        echo '</testcase>'; \
+        echo '</testsuite>'; \
+      } > /results/readiness-results.xml; \
+      status="${wait_status}"; \
+    fi; \
+    echo "${status}" > /results/exit-code; \
+    if [ -n "${CI}" ]; then \
+      echo "CI set: exporting results regardless of failures (exit ${status})"; \
+      exit 0; \
+    fi; \
+    exit "${status}"
+
+# Export target: `--output type=local` writes just the results to the host.
+FROM scratch AS test-results
+COPY --from=test /results/ /
+
+# The shipped image. MUST be the last stage so it is the default build target.
+# No instructions: a stage with no instructions inherits its base's layers and
+# full image config (ENV, WORKDIR, USER, CMD, EXPOSE, VOLUME, LABEL,
+# HEALTHCHECK), so this is byte-for-byte the runtime-base image.
+FROM runtime-base AS runtime
