@@ -43,8 +43,8 @@
 
 String deployBranch = 'main'
 
-// Per-image configuration. Adding an image = adding one entry here; every stage is driven
-// off this map, and the map order is the build order.
+// Per-image configuration, keyed by the IMAGE matrix axis value. Adding an image =
+// adding an entry here plus the axis value below; every stage is driven off this map.
 //
 // 'ubi' is the plain UBI-based image built from ./Dockerfile. 'rh' is the Red Hat
 // Certified Container variant -- also UBI-based, but with the certification payload
@@ -190,32 +190,45 @@ pipeline {
       }
     }
 
-    // One pass per image variant, SERIALIZED on this build's single agent.
+    // One matrix cell per image variant. Cells run in PARALLEL.
     //
-    // Timing experiment (see EXPERIMENT.md-less history: builds #11-#15 were the parallel
-    // per-cell-agent variant). Serialized trades parallelism for:
-    //   - one agent provisioning event instead of four
-    //   - a SHARED BuildKit cache: ubi/slim/rh have the same UBI base and near-identical
-    //     graphs, so the 2nd..4th builds should be largely cache hits
-    //   - one workspace, so no per-cell checkout
-    // Cost: wall time is the sum of the variants rather than the slowest one.
+    // Each cell declares its own agent, which is what makes that safe: a cell gets its
+    // own workspace, so the variants cannot fight over ./build/test-results, image tags,
+    // or `deleteDir()`. Without a per-cell agent, all cells would run concurrently in
+    // the SHARED top-level workspace.
     //
-    // A scripted loop rather than a declarative matrix, which also means the stage names
-    // can carry the variant -- declarative requires string literals, so a matrix cannot.
+    // Cost of that choice: cells may land on different agents, so they do not share a
+    // BuildKit cache, and each cell re-checks-out the repo. Both acceptable here since
+    // the variants have different base images anyway.
+    //
+    // Deliberately NOT failFast: if the default image fails validation we still want the
+    // rh result in the same build.
     stage('Images') {
-      steps {
-        script {
-          variants.each { String variant, Map config ->
-            String dockerfile = config.dockerfile
-            String tag = imageTag(variant)
+      matrix {
+        agent {
+          label 'ubuntu-zion'
+        }
 
-            stage("Lint (${variant})") {
-              // Runs hadolint INSIDE a hadolint container (withDockerImage), on the
-              // agent's docker. Fails the build on >= 1 finding.
-              hadolint(["./${dockerfile}"])
+        axes {
+          axis {
+            name 'IMAGE'
+            values 'ubi', 'slim', 'rh', 'alpine'
+          }
+        }
+
+        stages {
+          stage('Lint') {
+            steps {
+              script {
+                // Runs hadolint INSIDE a hadolint container (withDockerImage), on the
+                // agent's docker. Fails the build on >= 1 finding.
+                hadolint(["./${variants[env.IMAGE].dockerfile}"])
+              }
             }
+          }
 
-            stage("Build Image (${variant})") {
+          stage('Build Image') {
+            steps {
               // Plain docker on the agent, default builder, so the result lands in the
               // local image store. No --target: `runtime` is the last stage in every
               // Dockerfile and therefore the default target.
@@ -230,68 +243,75 @@ pipeline {
               //      builds the release image.
               //   3. Separate stages mean "build broke" and "tests failed" are distinct
               //      failures with distinct durations in the build UI.
+              // Cost is near zero: the second build shares BuildKit cache with this one,
+              // so only the goss-bin and test stages actually execute there.
               //
               // Local equivalent:
               //   docker build -t docker-nexus-iq-server:dev .
-              withSonatypeDockerRegistry() {
-                sh "docker build --file ${dockerfile} --platform ${testPlatform} " +
-                    "--tag ${tag} ."
+              script {
+                withSonatypeDockerRegistry() {
+                  sh "docker build --file ${variants[env.IMAGE].dockerfile} " +
+                      "--platform ${testPlatform} --tag ${imageTag(env.IMAGE)} ."
+                }
               }
             }
+          }
 
-            stage("Test Image (${variant})") {
+          stage('Test Image') {
+            steps {
               // Validation runs inside the build graph (each Dockerfile's `test` stage
-              // forks off `runtime-base`), and the results are exported to the workspace
-              // by building the `test-results` stage. Earlier stages are cache hits from
-              // 'Build Image', so this only executes the test layer.
+              // forks off `runtime-base`), and the results are exported to this cell's
+              // workspace by building the `test-results` stage. Earlier stages are cache
+              // hits from 'Build Image', so this only executes the test layer.
               //
               // CACHEBUST is required: the test RUN has no file inputs, so BuildKit would
               // otherwise serve a cached pass forever.
               //
               // --build-arg CI=true makes the test stage exit 0 even when checks fail, so
-              // the report is always exported and the JUnit results own pass/fail. Omit it
-              // locally and a failing check fails `docker build` directly instead.
+              // the report is always exported and the JUnit results own pass/fail. Omit
+              // it locally and a failing check fails `docker build` directly instead.
               //
               // Local equivalent:
               //   docker build --target test-results --no-cache-filter test \
               //       --output type=local,dest=build/test-results .
-              withSonatypeDockerRegistry() {
+              script {
+                withSonatypeDockerRegistry() {
+                  sh """
+                    rm -rf ${testResultsDir}
+                    docker build --file ${variants[env.IMAGE].dockerfile} \
+                      --target test-results \
+                      --platform ${testPlatform} \
+                      --build-arg CI=true \
+                      --build-arg CACHEBUST=\${BUILD_NUMBER} \
+                      --output type=local,dest=${testResultsDir} .
+                  """
+                }
+                // goss always names its suite "goss", so without this both cells would
+                // publish identically-named suites containing identically-named test
+                // cases, and the JUnit plugin would merge them into one indistinguishable
+                // report. Prefix the suite with the variant instead.
                 sh """
-                  rm -rf ${testResultsDir}
-                  docker build --file ${dockerfile} \
-                    --target test-results \
-                    --platform ${testPlatform} \
-                    --build-arg CI=true \
-                    --build-arg CACHEBUST=\${BUILD_NUMBER} \
-                    --output type=local,dest=${testResultsDir} .
+                  for f in ${testResultsDir}/*.xml; do
+                    [ -e "\$f" ] || continue
+                    sed -i 's|<testsuite name="goss|<testsuite name="goss-${env.IMAGE}|' "\$f"
+                  done
                 """
+                // Publishes this cell's results. The build-wide gate runs after the
+                // matrix -- see 'Verify Test Results'.
+                collectTestResults(["${testResultsDir}/**/*.xml"])
               }
-              // goss always names its suite "goss", so without this every variant would
-              // publish identically-named suites containing identically-named test cases,
-              // and the JUnit plugin would merge them into one indistinguishable report.
-              sh """
-                for f in ${testResultsDir}/*.xml; do
-                  [ -e "\$f" ] || continue
-                  sed -i 's|<testsuite name="goss|<testsuite name="goss-${variant}|' "\$f"
-                done
-              """
-              // The readiness log is not a test report but is the first thing you want on
-              // a failure. Archived before the next variant overwrites the directory.
-              archiveArtifacts artifacts: "${testResultsDir}/readiness.log",
-                  allowEmptyArchive: true, fingerprint: false
-              // Publishes this variant's results. The build-wide gate runs after every
-              // variant -- see 'Verify Test Results'.
-              collectTestResults(["${testResultsDir}/**/*.xml"])
             }
+          }
 
-            stage("Vulnerability Scan (${variant})") {
-              // Scans the image built above.
+          stage('Vulnerability Scan') {
+            steps {
+              // Scans the image built by 'Build Image' in this cell.
               //
               // Goes through jenkins-shared's vulnerabilityScan() rather than calling
               // nexusPolicyEvaluation() directly. That wrapper is NOT boilerplate: it
               // supplies the container scanner's license
-              // (NEXUS_CONTAINER_SCANNING_LICENSE), the scanner image, and both Docker Hub
-              // and sonatype.repo registry credentials via runEvaluation(). Calling
+              // (NEXUS_CONTAINER_SCANNING_LICENSE), the scanner image, and both Docker
+              // Hub and sonatype.repo registry credentials via runEvaluation(). Calling
               // nexusPolicyEvaluation() bare would run unlicensed and without registry
               // auth. It passes the stage name into the closure.
               //
@@ -300,41 +320,73 @@ pipeline {
               //
               // unstableBuildOnScanningWarnings: false is deliberate (CLM-44294): IQ
               // policy WARNINGS must not mark the build unstable. FAILURES still fail it.
-              String iqStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
-              String iqApplication = config.iqApplication
-              vulnerabilityScan({ String theStage ->
-                nexusPolicyEvaluation(
-                    iqApplication: iqApplication,
-                    iqScanPatterns: [[scanPattern: "container:${tag}"]],
-                    iqStage: theStage,
-                    unstableBuildOnScanningWarnings: false)
-              }, iqStage)
-            }
-
-            // Non-host platform coverage, if this variant supports one. Plain `if` rather
-            // than a `when` directive, so a variant that gets neither does not leave an
-            // empty stage in the build UI.
-            if (config.smokePlatform) {
-              if (env.BRANCH_NAME == deployBranch) {
-                stage("Full Build (${variant})") {
-                  // Deploy branch: the whole graph, including the emulated OpenSSH
-                  // compile. Slow (12+ min) but this is the only place the non-host
-                  // runtime stage gets built before release.
-                  buildPlatform(builderName, dockerfile, config.smokePlatform, null)
-                }
-              }
-              else {
-                stage("Smoke Build (${variant})") {
-                  // Branch builds: `builder` stage only. Catches the arch-conditional
-                  // tarball and SHA256 selection without the emulated OpenSSH compile.
-                  // Does NOT cover openssh-builder or the runtime stage.
-                  buildPlatform(builderName, dockerfile, config.smokePlatform,
-                      smokeBuildTarget)
-                }
+              script {
+                String iqStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
+                String iqApplication = variants[env.IMAGE].iqApplication
+                String scanTarget = imageTag(env.IMAGE)
+                vulnerabilityScan({ String theStage ->
+                  nexusPolicyEvaluation(
+                      iqApplication: iqApplication,
+                      iqScanPatterns: [[scanPattern: "container:${scanTarget}"]],
+                      iqStage: theStage,
+                      unstableBuildOnScanningWarnings: false)
+                }, iqStage)
               }
             }
+          }
 
-            sh "docker image rm --force ${tag} || true"
+          // Two non-host-platform stages, at most one of which runs, and neither runs for
+          // a variant with smokePlatform == null. The stage name in the build UI tells
+          // you which coverage you got rather than hiding it in a build arg.
+          stage('Smoke Build') {
+            when {
+              allOf {
+                not { branch 'main' }
+                expression { variants[env.IMAGE].smokePlatform != null }
+              }
+            }
+            steps {
+              // Branch builds: `builder` stage only. Catches the arch-conditional tarball
+              // and SHA256 selection without the emulated OpenSSH compile. Does NOT cover
+              // openssh-builder or the runtime stage -- that is the full build below.
+              script {
+                buildPlatform(builderName, variants[env.IMAGE].dockerfile,
+                    variants[env.IMAGE].smokePlatform, smokeBuildTarget)
+              }
+            }
+          }
+
+          stage('Full Build') {
+            when {
+              allOf {
+                branch 'main'
+                expression { variants[env.IMAGE].smokePlatform != null }
+              }
+            }
+            steps {
+              // Deploy branch: the whole graph, including the emulated OpenSSH compile.
+              // Slow (12+ min) but this is the only place the non-host runtime stage gets
+              // built before release.
+              script {
+                buildPlatform(builderName, variants[env.IMAGE].dockerfile,
+                    variants[env.IMAGE].smokePlatform, null)
+              }
+            }
+          }
+        }
+
+        post {
+          always {
+            // Per-cell, because the files live in this cell's workspace. The readiness
+            // log is not a test report but is the first thing you want on a failure.
+            archiveArtifacts artifacts: "${testResultsDir}/readiness.log",
+                allowEmptyArchive: true, fingerprint: false
+          }
+          cleanup {
+            script {
+              sh "docker image rm --force ${imageTag(env.IMAGE)} || true"
+            }
+            deleteDir()
           }
         }
       }
