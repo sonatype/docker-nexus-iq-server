@@ -43,8 +43,12 @@
 
 String deployBranch = 'main'
 
-// Per-variant configuration. Adding an image = adding an entry here plus the matrix
-// axis value below; every stage is driven off this map.
+// Per-image configuration, keyed by the IMAGE matrix axis value. Adding an image =
+// adding an entry here plus the axis value below; every stage is driven off this map.
+//
+// 'ubi' is the plain UBI-based image built from ./Dockerfile. 'rh' is the Red Hat
+// Certified Container variant -- also UBI-based, but with the certification payload
+// (/licenses, /help.1, the uid_* scripts) asserted by goss.rh.yaml.
 //
 //   dockerfile     : which Dockerfile to build. Each one owns its own goss suite via its
 //                    `test` stage, so the gossfile is NOT configured here.
@@ -57,7 +61,7 @@ String deployBranch = 'main'
 // containing x86_64 binaries. smokePlatform is null until that is fixed -- an arm64
 // build there would pass and mean nothing.
 Map<String, Map<String, String>> variants = [
-  'default': [
+  'ubi': [
     dockerfile   : 'Dockerfile',
     iqApplication: 'docker-nexus-iq-server',
     smokePlatform: 'linux/arm64',
@@ -190,8 +194,8 @@ pipeline {
 
         axes {
           axis {
-            name 'VARIANT'
-            values 'default', 'rh'
+            name 'IMAGE'
+            values 'ubi', 'rh'
           }
         }
 
@@ -201,7 +205,7 @@ pipeline {
               script {
                 // Runs hadolint INSIDE a hadolint container (withDockerImage), on the
                 // agent's docker. Fails the build on >= 1 finding.
-                hadolint(["./${variants[env.VARIANT].dockerfile}"])
+                hadolint(["./${variants[env.IMAGE].dockerfile}"])
               }
             }
           }
@@ -229,8 +233,8 @@ pipeline {
               //   docker build -t docker-nexus-iq-server:dev .
               script {
                 withSonatypeDockerRegistry() {
-                  sh "docker build --file ${variants[env.VARIANT].dockerfile} " +
-                      "--platform ${testPlatform} --tag ${imageTag(env.VARIANT)} ."
+                  sh "docker build --file ${variants[env.IMAGE].dockerfile} " +
+                      "--platform ${testPlatform} --tag ${imageTag(env.IMAGE)} ."
                 }
               }
             }
@@ -257,7 +261,7 @@ pipeline {
                 withSonatypeDockerRegistry() {
                   sh """
                     rm -rf ${testResultsDir}
-                    docker build --file ${variants[env.VARIANT].dockerfile} \
+                    docker build --file ${variants[env.IMAGE].dockerfile} \
                       --target test-results \
                       --platform ${testPlatform} \
                       --build-arg CI=true \
@@ -272,7 +276,7 @@ pipeline {
                 sh """
                   for f in ${testResultsDir}/*.xml; do
                     [ -e "\$f" ] || continue
-                    sed -i 's|<testsuite name="goss|<testsuite name="goss-${env.VARIANT}|' "\$f"
+                    sed -i 's|<testsuite name="goss|<testsuite name="goss-${env.IMAGE}|' "\$f"
                   done
                 """
                 // Publishes this cell's results. The build-wide gate runs after the
@@ -301,8 +305,8 @@ pipeline {
               // policy WARNINGS must not mark the build unstable. FAILURES still fail it.
               script {
                 String iqStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
-                String iqApplication = variants[env.VARIANT].iqApplication
-                String scanTarget = imageTag(env.VARIANT)
+                String iqApplication = variants[env.IMAGE].iqApplication
+                String scanTarget = imageTag(env.IMAGE)
                 vulnerabilityScan({ String theStage ->
                   nexusPolicyEvaluation(
                       iqApplication: iqApplication,
@@ -321,7 +325,7 @@ pipeline {
             when {
               allOf {
                 not { branch 'main' }
-                expression { variants[env.VARIANT].smokePlatform != null }
+                expression { variants[env.IMAGE].smokePlatform != null }
               }
             }
             steps {
@@ -329,8 +333,8 @@ pipeline {
               // and SHA256 selection without the emulated OpenSSH compile. Does NOT cover
               // openssh-builder or the runtime stage -- that is the full build below.
               script {
-                buildPlatform(builderName, variants[env.VARIANT].dockerfile,
-                    variants[env.VARIANT].smokePlatform, smokeBuildTarget)
+                buildPlatform(builderName, variants[env.IMAGE].dockerfile,
+                    variants[env.IMAGE].smokePlatform, smokeBuildTarget)
               }
             }
           }
@@ -339,7 +343,7 @@ pipeline {
             when {
               allOf {
                 branch 'main'
-                expression { variants[env.VARIANT].smokePlatform != null }
+                expression { variants[env.IMAGE].smokePlatform != null }
               }
             }
             steps {
@@ -347,8 +351,8 @@ pipeline {
               // Slow (12+ min) but this is the only place the non-host runtime stage gets
               // built before release.
               script {
-                buildPlatform(builderName, variants[env.VARIANT].dockerfile,
-                    variants[env.VARIANT].smokePlatform, null)
+                buildPlatform(builderName, variants[env.IMAGE].dockerfile,
+                    variants[env.IMAGE].smokePlatform, null)
               }
             }
           }
@@ -363,7 +367,7 @@ pipeline {
           }
           cleanup {
             script {
-              sh "docker image rm --force ${imageTag(env.VARIANT)} || true"
+              sh "docker image rm --force ${imageTag(env.IMAGE)} || true"
             }
             deleteDir()
           }
