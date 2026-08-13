@@ -36,21 +36,12 @@
 #      block is needed here.
 #
 # Base images are pulled through Sonatype's Nexus proxy of
-# registry.access.redhat.com rather than directly from upstream.
-
-# NOTE ON BASE-IMAGE PROXYING:
-# @rpokorny requested that base images be pulled through Sonatype's Nexus
-# proxy of registry.access.redhat.com rather than directly. Empirical check
-# (`docker manifest inspect` on 2026-08-03): `hi/core-runtime` is not
-# currently proxied under `sonatype.repo.sonatype.app/docker-all/redhat/`
-# (returns Nexus 404); only `ubi*` variants are cached there. Until an infra
-# ticket adds `hi/core-runtime` to the proxy, these `FROM` statements pull
-# directly from registry.access.redhat.com. Update to the proxy path once
-# it exists.
+# registry.access.redhat.com (`docker-all/hi/*` maps to
+# `registry.access.redhat.com/hi/*`) rather than directly from upstream.
 
 # ---- Stage 1: downloader ----
 # hadolint ignore=DL3026
-FROM --platform=$BUILDPLATFORM registry.access.redhat.com/hi/core-runtime:latest-builder AS downloader
+FROM --platform=$BUILDPLATFORM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest-builder AS downloader
 
 # hi/core-runtime defaults to non-root uid 65532; the builder stage needs
 # root to run microdnf.
@@ -97,7 +88,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
 
 # ---- Stage 2: rootfs builder ----
 # hadolint ignore=DL3026
-FROM registry.access.redhat.com/hi/core-runtime:latest-builder AS rootfs
+FROM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest-builder AS rootfs
 
 # hadolint ignore=DL3002,DL3066
 USER root
@@ -181,7 +172,7 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 
 # ---- Stage 3: runtime ----
 # hadolint ignore=DL3026,DL3007
-FROM registry.access.redhat.com/hi/core-runtime:latest
+FROM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest
 
 ARG IQ_SERVER_VERSION=1.205.3-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
