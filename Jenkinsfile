@@ -224,6 +224,34 @@ pipeline {
       }
     }
 
+    stage('Vulnerability Scan') {
+      steps {
+        // Scans the image built in 'Build Image (amd64)', so it must run after it.
+        //
+        // Goes through jenkins-shared's vulnerabilityScan() rather than calling
+        // nexusPolicyEvaluation() directly. That wrapper is NOT boilerplate: it supplies
+        // the container scanner's license (NEXUS_CONTAINER_SCANNING_LICENSE), the
+        // scanner image, and both Docker Hub and sonatype.repo registry credentials via
+        // runEvaluation(). Calling nexusPolicyEvaluation() bare would run unlicensed and
+        // without registry auth. It passes the stage name into the closure.
+        //
+        // iqStage: 'build' on the deploy branch, 'develop' elsewhere -- matches the
+        // previous Jenkinsfile so branch builds are evaluated against the develop policy.
+        //
+        // unstableBuildOnScanningWarnings: false is deliberate (CLM-44294): IQ policy
+        // WARNINGS must not mark the build unstable. Policy FAILURES still fail it.
+        script {
+          String iqStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
+          vulnerabilityScan({ String theStage ->
+            nexusPolicyEvaluation(
+                iqApplication: 'docker-nexus-iq-server',
+                iqScanPatterns: [[scanPattern: "container:${imageId}"]],
+                iqStage: theStage,
+                unstableBuildOnScanningWarnings: false)
+          }, iqStage)
+        }
+      }
+    }
     // Two arm64 stages, one of which runs. The stage name in the build UI tells you
     // which coverage you got, rather than hiding the difference in a build arg.
     stage('Smoke Build (arm64)') {
