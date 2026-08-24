@@ -34,7 +34,8 @@ String deployBranch = 'main'
 //
 // smokePlatform is null for rh and alpine because both hardcode an x86_64 tarball with a
 // single IQ_SERVER_SHA256, so an arm64 build would pass while producing an image full of
-// x86_64 binaries. Only Dockerfile/Dockerfile.slim select the tarball per architecture.
+// x86_64 binaries. ubi and hardened select the tarball per architecture (TARGETARCH-driven),
+// so both build arm64 correctly.
 //
 // Dockerfile.slim is deliberately absent: it is byte-identical to Dockerfile, and the slim
 // image is published by its own release lane. See CLM-46980.
@@ -56,6 +57,15 @@ Map<String, Map<String, String>> variants = [
     gossfile     : 'goss.alpine.yaml',
     iqApplication: 'docker-nexus-iq-server-alpine',
     smokePlatform: null,
+  ],
+  // Red Hat Hardened Images (Hummingbird), CLM-46302. Distroless-style runtime staged into
+  // /rootfs and copied into hi/core-runtime:latest. Multi-arch via TARGETARCH-driven tarball
+  // selection, so arm64 is safe.
+  'hardened': [
+    dockerfile   : 'Dockerfile.hardened',
+    gossfile     : 'goss.hardened.yaml',
+    iqApplication: 'docker-nexus-iq-server-hardened',
+    smokePlatform: 'linux/arm64',
   ],
 ]
 
@@ -157,7 +167,7 @@ pipeline {
         axes {
           axis {
             name 'IMAGE'
-            values 'ubi', 'rh', 'alpine'
+            values 'ubi', 'rh', 'alpine', 'hardened'
           }
         }
 
