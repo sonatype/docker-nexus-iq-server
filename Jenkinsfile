@@ -36,19 +36,13 @@ String deployBranch = 'main'
 // single IQ_SERVER_SHA256, so an arm64 build would pass while producing an image full of
 // x86_64 binaries. Only Dockerfile/Dockerfile.slim select the tarball per architecture.
 //
-// Dockerfile.slim is currently byte-identical to Dockerfile, so the slim cell duplicates
-// the ubi cell under a second IQ application.
+// Dockerfile.slim is deliberately absent: it is byte-identical to Dockerfile, and the slim
+// image is published by its own release lane. See CLM-46980.
 Map<String, Map<String, String>> variants = [
   'ubi': [
     dockerfile   : 'Dockerfile',
     gossfile     : 'goss.yaml',
     iqApplication: 'docker-nexus-iq-server',
-    smokePlatform: 'linux/arm64',
-  ],
-  'slim': [
-    dockerfile   : 'Dockerfile.slim',
-    gossfile     : 'goss.yaml',
-    iqApplication: 'docker-nexus-iq-server-slim',
     smokePlatform: 'linux/arm64',
   ],
   'rh': [
@@ -159,7 +153,7 @@ pipeline {
         axes {
           axis {
             name 'IMAGE'
-            values 'ubi', 'slim', 'rh', 'alpine'
+            values 'ubi', 'rh', 'alpine'
           }
         }
 

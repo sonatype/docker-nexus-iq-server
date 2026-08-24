@@ -17,8 +17,8 @@
 #
 # Imports goss.common.yaml directly, NOT goss.yaml: Alpine is not "UBI plus extras", its
 # checks are a subset. No from-source openssh, no rpm/microdnf de-bloat, uid/gid 1001,
-# shell /sbin/nologin, no passwd fixup in start.sh. Ported from alpine-expectations.groovy
-# and Dockerfile.alpine.
+# shell /sbin/nologin, no passwd fixup in start.sh. Ported from Dockerfile.alpine and from
+# alpine-expectations.groovy, which this branch removes.
 ---
 gossfile:
   /test/goss.common.yaml: {}
