@@ -21,11 +21,27 @@ set -o nounset                              # Treat unset variables as an error
 set -x
 set -e
 
-# General args about the build
+# General args about the build.
+#
+# Per-variant releases: set DOCKERFILE to the variant Dockerfile and TAG_SUFFIX to the
+# variant tag suffix (e.g. -slim, -hardened). The default (empty TAG_SUFFIX + default
+# Dockerfile) produces the primary ubi image. Callers can then pass unadorned tag names
+# ("1.206.0", "latest") and get variant-suffixed tags out (1.206.0-hardened, latest-hardened)
+# without duplicating the suffix at every callsite.
 REPO="${OCI_REPO}"
 REF="${OCI_REGISTRY:-docker.io}/${REPO}"
 TAGS="$@"
 DOCKERFILE=${DOCKERFILE:-Dockerfile}
+TAG_SUFFIX="${TAG_SUFFIX:-}"
+
+if [ -n "${TAG_SUFFIX}" ]; then
+  SUFFIXED_TAGS=""
+  for TAG in $TAGS; do
+    SUFFIXED_TAGS="${SUFFIXED_TAGS} ${TAG}${TAG_SUFFIX}"
+  done
+  # Strip the leading space introduced by the concat.
+  TAGS="${SUFFIXED_TAGS# }"
+fi
 
 ARM64_TAG=arm64-latest
 AMD64_TAG=amd64-latest
