@@ -41,8 +41,8 @@ FROM ${GOSS_IMAGE} AS goss-bin
 # hadolint ignore=DL3006,DL3026
 FROM ${BASE_IMAGE} AS test
 
-# Which suite to run: goss.yaml, goss.rh.yaml or goss.alpine.yaml. They import
-# goss.common.yaml, so all of them are copied in.
+# Which suite to run, e.g. goss.yaml / goss.rh.yaml / goss.alpine.yaml. Every suite is copied
+# in (glob, so adding a variant needs no change here) because they import goss.common.yaml.
 ARG GOSSFILE=goss.yaml
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 # Set (the pipeline passes true) to always exit 0 so the report is exported and the JUnit
@@ -59,7 +59,7 @@ ARG CACHEBUST=""
 # hadolint ignore=DL3002,DL3066
 USER root
 COPY --from=goss-bin /usr/bin/goss /usr/local/bin/goss
-COPY goss_wait.yaml goss.common.yaml goss.yaml goss.rh.yaml goss.alpine.yaml /test/
+COPY goss_wait.yaml goss*.yaml /test/
 RUN mkdir -p /results && chown nexus:nexus /results
 # validate as the user the image ships with
 # hadolint ignore=DL3066
