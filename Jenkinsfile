@@ -141,6 +141,9 @@ pipeline {
         branchNamingCheck()
         jiraIssueAndPrCheck()
         licenseCheck()
+        // Dockerfile.test is shared by every image, so it is linted once here rather than
+        // in each matrix cell, which would report one finding four times.
+        hadolint(['./Dockerfile.test'])
       }
     }
 
@@ -164,7 +167,7 @@ pipeline {
           stage('Lint') {
             steps {
               script {
-                hadolint(["./${variants[env.IMAGE].dockerfile}", './Dockerfile.test'])
+                hadolint(["./${variants[env.IMAGE].dockerfile}"])
               }
             }
           }
