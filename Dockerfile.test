@@ -37,7 +37,8 @@ ARG GOSS_BASE_IMAGE=sonatype.repo.sonatype.app/docker-all/alpine:3
 # TODO: once ghcr.io/goss-org/goss is proxied through sonatype.repo.sonatype.app this whole
 # stage collapses to `FROM ${SONATYPE_PRIVATE_REGISTRY}/goss-org/goss:v0.4.10 AS goss-bin`
 # and the binary is at /usr/bin/goss.
-# hadolint ignore=DL3006
+# DL3026: the registry comes from an ARG, so hadolint cannot see it is the proxy.
+# hadolint ignore=DL3006,DL3026
 FROM ${GOSS_BASE_IMAGE} AS goss-bin
 ARG GOSS_VERSION=0.4.10
 WORKDIR /tmp/goss
@@ -54,7 +55,8 @@ RUN apk add --no-cache curl \
  && tar -xzf "goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" goss \
  && chmod 0755 goss
 
-# hadolint ignore=DL3006
+# DL3026: BASE_IMAGE is a locally-built tag passed in by the caller.
+# hadolint ignore=DL3006,DL3026
 FROM ${BASE_IMAGE} AS test
 
 # Which suite to run: goss.yaml, goss.rh.yaml or goss.alpine.yaml. They import
