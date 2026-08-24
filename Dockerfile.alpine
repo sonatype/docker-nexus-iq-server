@@ -44,7 +44,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux_musl-* nexus-iq-server
 
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/alpine:3 AS runtime-base
+FROM sonatype.repo.sonatype.app/docker-all/alpine:3
 
 ARG IQ_SERVER_VERSION=1.206.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -149,108 +149,3 @@ ENV SONATYPE_INTERNAL_HOST_SYSTEM=Docker
 WORKDIR ${IQ_HOME}
 
 CMD [ "sh", "./start.sh" ]
-
-#
-# ---------------------------------------------------------------------------
-# Image validation (goss). These stages fork off `runtime-base` and contribute nothing to
-# the shipped image.
-#
-#   docker build --target test-results --no-cache-filter test \
-#       --output type=local,dest=build/test-results .
-#
-# IMPORTANT: `runtime` must stay the LAST stage. With no --target BuildKit builds the last
-# stage, and build_and_push_images.sh passes no --target -- an export stage last would get
-# tagged and pushed.
-# ---------------------------------------------------------------------------
-#
-
-# `builder` already has curl and tar, and runs on the target platform so uname -m is right.
-FROM builder AS goss-bin
-ARG GOSS_VERSION=0.4.10
-WORKDIR /tmp/goss
-# hadolint ignore=DL4006
-RUN case "$(uname -m)" in \
-      x86_64)  GOSS_ARCH=x86_64 ;; \
-      aarch64) GOSS_ARCH=arm64  ;; \
-      *) echo "Unsupported architecture for goss: $(uname -m)" && exit 1 ;; \
-    esac \
- && curl -fsSL -O "https://github.com/goss-org/goss/releases/download/v${GOSS_VERSION}/goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" \
- && curl -fsSL -O "https://github.com/goss-org/goss/releases/download/v${GOSS_VERSION}/goss_${GOSS_VERSION}_SHA256SUMS" \
- && grep "goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" "goss_${GOSS_VERSION}_SHA256SUMS" | sha256sum -c - \
- && tar -xzf "goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" goss \
- && chmod 0755 goss
-
-# Start IQ Server, wait for readiness, then validate the image.
-FROM runtime-base AS test
-# CI: when non-empty (Jenkins sets CI=true), always exit 0 so the results are
-# exported and the pipeline's junit step owns pass/fail. Empty (local): fail the
-# build on any test failure.
-ARG CI=""
-ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
-# NOT named GOSS_*: build args reach RUN as environment variables and goss reads
-# GOSS_RETRY_TIMEOUT/GOSS_SLEEP from the environment, which silently re-enabled retry.
-ARG READY_TIMEOUT=300s
-ARG READY_SLEEP=5s
-# Forces the tests to re-run: the test RUN has no file inputs, so BuildKit would serve a
-# cached pass forever. Referenced in the RUN because BuildKit only rekeys on args in use.
-ARG CACHEBUST=""
-# hadolint ignore=DL3066
-USER root
-COPY --from=goss-bin /tmp/goss/goss /usr/local/bin/goss
-COPY goss_wait.yaml goss.common.yaml goss.alpine.yaml /test/
-RUN mkdir -p /results && chown nexus:nexus /results
-# run the validation as the same user the image ships with
-# hadolint ignore=DL3066
-USER nexus
-# Two phases:
-#   1. goss_wait.yaml WITH retry -- the only phase allowed to burn the retry window. Its
-#      output is a LOG, not JUnit: under retry goss re-emits its whole report per attempt,
-#      producing concatenated XML documents no JUnit parser accepts. A readiness failure
-#      is reported as a synthesized single-testcase XML instead.
-#   2. the full suite exactly ONCE, --retry-timeout 0s explicit so a stray env var cannot
-#      re-enable retry. One attempt means one XML document.
-# Phase 2 runs even if phase 1 times out, so a server that never starts still reports
-# everything that failed.
-RUN echo "starting IQ Server (cachebust=${CACHEBUST:-none})"; \
-    sh "${IQ_HOME}/start.sh" & \
-    goss --gossfile /test/goss_wait.yaml validate \
-        --format documentation \
-        --retry-timeout "${READY_TIMEOUT}" \
-        --sleep "${READY_SLEEP}" \
-        > /results/readiness.log 2>&1; \
-    wait_status=$?; \
-    tail -30 /results/readiness.log; \
-    goss --gossfile /test/goss.alpine.yaml validate \
-        --format junit \
-        --retry-timeout 0s \
-        > /results/goss-results.xml; \
-    status=$?; \
-    cat /results/goss-results.xml; \
-    if [ "${wait_status}" -ne 0 ]; then \
-      echo "readiness gate FAILED (goss exit ${wait_status}): not ready within ${READY_TIMEOUT}"; \
-      echo "--- healthcheck body ---" >> /results/readiness.log; \
-      curl -s --max-time 10 http://localhost:8071/healthcheck >> /results/readiness.log 2>&1 || true; \
-      { echo '<?xml version="1.0" encoding="UTF-8"?>'; \
-        echo '<testsuite name="goss-readiness" tests="1" failures="1" errors="0" skipped="0">'; \
-        echo '<testcase name="IQ Server becomes ready" classname="readiness">'; \
-        printf '<failure message="readiness gate failed">goss exit %s after %s. See readiness.log</failure>\n' \
-            "${wait_status}" "${READY_TIMEOUT}"; \
-        echo '</testcase>'; \
-        echo '</testsuite>'; \
-      } > /results/readiness-results.xml; \
-      status="${wait_status}"; \
-    fi; \
-    echo "${status}" > /results/exit-code; \
-    if [ -n "${CI}" ]; then \
-      echo "CI set: exporting results regardless of failures (exit ${status})"; \
-      exit 0; \
-    fi; \
-    exit "${status}"
-
-# Export target: `--output type=local` writes just the results to the host.
-FROM scratch AS test-results
-COPY --from=test /results/ /
-
-# The shipped image. MUST be last so it is the default target. No instructions: the stage
-# inherits runtime-base's layers and full image config.
-FROM runtime-base AS runtime

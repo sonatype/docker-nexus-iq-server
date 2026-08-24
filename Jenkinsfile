@@ -27,7 +27,8 @@
 String deployBranch = 'main'
 
 // Adding an image = one entry here plus its IMAGE axis value below.
-//   dockerfile    : each Dockerfile picks its own goss suite in its `test` stage.
+//   dockerfile    : the product Dockerfile, untouched by validation.
+//   gossfile      : which goss suite Dockerfile.test runs against the built image.
 //   iqApplication : IQ application to evaluate against.
 //   smokePlatform : non-host platform to build as a smoke test, or null.
 //
@@ -40,21 +41,25 @@ String deployBranch = 'main'
 Map<String, Map<String, String>> variants = [
   'ubi': [
     dockerfile   : 'Dockerfile',
+    gossfile     : 'goss.yaml',
     iqApplication: 'docker-nexus-iq-server',
     smokePlatform: 'linux/arm64',
   ],
   'slim': [
     dockerfile   : 'Dockerfile.slim',
+    gossfile     : 'goss.yaml',
     iqApplication: 'docker-nexus-iq-server-slim',
     smokePlatform: 'linux/arm64',
   ],
   'rh': [
     dockerfile   : 'Dockerfile.rh',
+    gossfile     : 'goss.rh.yaml',
     iqApplication: 'docker-nexus-iq-server-rh',
     smokePlatform: null,
   ],
   'alpine': [
     dockerfile   : 'Dockerfile.alpine',
+    gossfile     : 'goss.alpine.yaml',
     iqApplication: 'docker-nexus-iq-server-alpine',
     smokePlatform: null,
   ],
@@ -159,15 +164,13 @@ pipeline {
           stage('Lint') {
             steps {
               script {
-                hadolint(["./${variants[env.IMAGE].dockerfile}"])
+                hadolint(["./${variants[env.IMAGE].dockerfile}", './Dockerfile.test'])
               }
             }
           }
 
-          // Separate from 'Test Image' because --target test-results is FROM scratch and
-          // produces no image for the scan to use, and because building with no --target
-          // is what proves `runtime` is still the default target (which is how
-          // build_and_push_images.sh builds the release image).
+          // Builds the product image unmodified; validation happens in 'Test Image'
+          // against this tag, so the product Dockerfiles carry no test stages.
           stage('Build Image') {
             steps {
               script {
@@ -182,16 +185,18 @@ pipeline {
           stage('Test Image') {
             steps {
               script {
-                // CI=true makes the test stage exit 0 on failure so the report is always
-                // exported; the JUnit results own pass/fail. CACHEBUST is required
-                // because the test RUN has no file inputs, so BuildKit would serve a
-                // cached pass forever.
+                // One shared Dockerfile.test, applied to the image built above.
+                // CI=true makes it exit 0 on failure so the report is always exported;
+                // the JUnit results own pass/fail. CACHEBUST is required because the
+                // test RUN has no file inputs, so BuildKit would serve a cached pass.
                 withSonatypeDockerRegistry() {
                   sh """
                     rm -rf ${testResultsDir}
-                    docker build --file ${variants[env.IMAGE].dockerfile} \
+                    docker build --file Dockerfile.test \
                       --target test-results \
                       --platform ${testPlatform} \
+                      --build-arg BASE_IMAGE=${imageTag(env.IMAGE)} \
+                      --build-arg GOSSFILE=${variants[env.IMAGE].gossfile} \
                       --build-arg CI=true \
                       --build-arg CACHEBUST=\${BUILD_NUMBER} \
                       --output type=local,dest=${testResultsDir} .
