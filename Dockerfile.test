@@ -28,32 +28,14 @@
 
 # The image under test. No default: this must be passed.
 ARG BASE_IMAGE
-# Base for the goss download. Proxied, never pulled from an upstream registry directly.
-ARG GOSS_BASE_IMAGE=sonatype.repo.sonatype.app/docker-all/alpine:3
+# goss's official image, pinned by version, via the Sonatype proxy -- never pulled from
+# ghcr.io directly. Multi-arch (linux/amd64 + linux/arm64) through the proxy, and the binary
+# is static, so one copy serves both the glibc (UBI) and musl (Alpine) images.
+ARG GOSS_IMAGE=sonatype.repo.sonatype.app/docker-all/goss-org/goss:v0.4.10
 
-# Fetches the goss binary. goss ships a static Go binary, so one build serves both the
-# glibc (UBI) and musl (Alpine) images -- that portability is also what makes dgoss work.
-#
-# TODO: once ghcr.io/goss-org/goss is proxied through sonatype.repo.sonatype.app this whole
-# stage collapses to `FROM ${SONATYPE_PRIVATE_REGISTRY}/goss-org/goss:v0.4.10 AS goss-bin`
-# and the binary is at /usr/bin/goss.
-# DL3026: the registry comes from an ARG, so hadolint cannot see it is the proxy.
+# DL3006/DL3026: the tag and registry come from an ARG, so hadolint can see neither.
 # hadolint ignore=DL3006,DL3026
-FROM ${GOSS_BASE_IMAGE} AS goss-bin
-ARG GOSS_VERSION=0.4.10
-WORKDIR /tmp/goss
-# hadolint ignore=DL3018,DL4006
-RUN apk add --no-cache curl \
- && case "$(uname -m)" in \
-      x86_64)  GOSS_ARCH=x86_64 ;; \
-      aarch64) GOSS_ARCH=arm64  ;; \
-      *) echo "Unsupported architecture for goss: $(uname -m)" && exit 1 ;; \
-    esac \
- && curl -fsSL -O "https://github.com/goss-org/goss/releases/download/v${GOSS_VERSION}/goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" \
- && curl -fsSL -O "https://github.com/goss-org/goss/releases/download/v${GOSS_VERSION}/goss_${GOSS_VERSION}_SHA256SUMS" \
- && grep "goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" "goss_${GOSS_VERSION}_SHA256SUMS" | sha256sum -c - \
- && tar -xzf "goss_${GOSS_VERSION}_linux_${GOSS_ARCH}.tar.gz" goss \
- && chmod 0755 goss
+FROM ${GOSS_IMAGE} AS goss-bin
 
 # DL3026: BASE_IMAGE is a locally-built tag passed in by the caller.
 # hadolint ignore=DL3006,DL3026
@@ -76,7 +58,7 @@ ARG CACHEBUST=""
 
 # hadolint ignore=DL3002,DL3066
 USER root
-COPY --from=goss-bin /tmp/goss/goss /usr/local/bin/goss
+COPY --from=goss-bin /usr/bin/goss /usr/local/bin/goss
 COPY goss_wait.yaml goss.common.yaml goss.yaml goss.rh.yaml goss.alpine.yaml /test/
 RUN mkdir -p /results && chown nexus:nexus /results
 # validate as the user the image ships with
