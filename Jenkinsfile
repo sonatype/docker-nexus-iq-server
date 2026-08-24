@@ -84,8 +84,12 @@ String imageTag(String variant) {
   return "docker-nexus-iq-server-${variant}:${env.BUILD_NUMBER}"
 }
 
-// Builds one non-host platform, discarding the result (a foreign-platform image cannot be
-// loaded into the local image store, and we do not push from here).
+// Builds one non-host platform and DISCARDS the result (--output type=cacheonly). Nothing in
+// this pipeline is ever pushed, and a foreign-platform image cannot be loaded into the local
+// image store anyway. Publishing happens only in the release lanes:
+//   build_and_push_images.sh    -> Docker Hub, multi-arch manifest (Jenkinsfile[.slim].release)
+//   build_and_push_rh_image.sh  -> Red Hat ISV registry + preflight cert scan
+//   Jenkinsfile.alpine.release  -> Docker Hub, :<version>-alpine / :latest-alpine
 //
 // buildkit is pinned by digest (v0.31.1) because all buildkit tags are quarantined by
 // Sonatype Firewall; this pre-quarantine digest is pullable. Revert to a tag once waived.
