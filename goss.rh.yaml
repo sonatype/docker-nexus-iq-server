@@ -1,0 +1,60 @@
+#
+# Copyright (c) 2017-present Sonatype, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Red Hat Certified Container variant (./Dockerfile.rh). The RH image is the UBI image plus
+# the certification payload, so this imports goss.yaml, which imports goss.common.yaml.
+---
+gossfile:
+  /test/goss.yaml: {}
+
+file:
+  # --- Red Hat Certified Container payload (COPY rh-docker /) ----------------
+  /licenses:
+    title: rh-licenses-directory
+    exists: true
+    filetype: directory
+    mode: "0755"
+  /help.1:
+    title: rh-help-page
+    exists: true
+    filetype: file
+    mode: "0755"
+  # the image ENTRYPOINT: rewrites /etc/passwd from the template, then exec's the CMD
+  /uid_entrypoint.sh:
+    title: rh-uid-entrypoint
+    exists: true
+    filetype: file
+    mode: "0755"
+  /uid_template.sh:
+    title: rh-uid-template-script
+    exists: true
+    filetype: file
+    mode: "0755"
+  # generated at build time by `bash /uid_template.sh`
+  /etc/passwd.template:
+    title: rh-passwd-template
+    exists: true
+    filetype: file
+
+command:
+  # `usermod -a -G root nexus`: certification expects arbitrary-UID containers to work via
+  # group root. Uses `id` rather than `groups:` on user nexus, which goss.yaml already
+  # declares -- a resource declared twice across an import chain is undefined.
+  nexus-in-root-group:
+    title: rh-nexus-in-root-group
+    exec: id -nG nexus
+    exit-status: 0
+    stdout:
+      - '/(^|\s)root(\s|$)/'

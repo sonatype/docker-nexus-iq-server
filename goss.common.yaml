@@ -1,0 +1,135 @@
+#
+# Copyright (c) 2017-present Sonatype, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Checks that are IDENTICAL for every IQ Server image variant. Imported by goss.yaml,
+# goss.rh.yaml and goss.alpine.yaml via `gossfile:`.
+#
+# Anything that differs between variants lives in the variant file: the nexus uid/gid and
+# shell, the install directory mode, and start.sh. A resource declared twice across an
+# import chain has undefined merge behaviour, so each path appears exactly once per chain.
+---
+process:
+  java:
+    # Not a PID-1 check: PID 1 inside a build-stage RUN is BuildKit's shell.
+    title: iq-process
+    running: true
+
+addr:
+  tcp://localhost:8070:
+    title: application-port
+    reachable: true
+    timeout: 5000
+  tcp://localhost:8071:
+    title: admin-port
+    reachable: true
+    timeout: 5000
+
+file:
+  # --- logs -----------------------------------------------------------------
+  /var/log/nexus-iq-server:
+    title: log-directory
+    exists: true
+    filetype: directory
+    mode: "0755"
+    owner: nexus
+    group: nexus
+  # config.yml:39 names this clm-server.log; expectations.groovy asserted a filename that
+  # has never existed.
+  /var/log/nexus-iq-server/clm-server.log:
+    title: clm-server-log
+    exists: true
+    filetype: file
+  /var/log/nexus-iq-server/audit.log:
+    title: audit-log
+    exists: true
+    filetype: file
+  /var/log/nexus-iq-server/request.log:
+    title: request-log
+    exists: true
+    filetype: file
+  /var/log/nexus-iq-server/stderr.log:
+    title: stderr-log
+    exists: true
+    filetype: file
+
+  # --- install directory ----------------------------------------------------
+  /opt/sonatype/nexus-iq-server/bin/nexus-iq-server:
+    title: server-launcher
+    exists: true
+    owner: nexus
+    group: nexus
+
+  # --- work directory -------------------------------------------------------
+  /sonatype-work:
+    title: work-directory
+    exists: true
+    filetype: directory
+    mode: "0755"
+    owner: nexus
+    group: nexus
+  /sonatype-work/data:
+    title: data-directory
+    exists: true
+    filetype: directory
+    owner: nexus
+    group: nexus
+
+  # --- config ---------------------------------------------------------------
+  /etc/nexus-iq-server:
+    title: config-directory
+    exists: true
+    filetype: directory
+    mode: "0755"
+    owner: nexus
+    group: nexus
+  /etc/nexus-iq-server/config.yml:
+    title: config-file
+    exists: true
+    filetype: file
+    mode: "0644"
+    # COPY --from=builder without --chown lands as root:root
+    owner: root
+    group: root
+    contains:
+      - "sonatypeWork: /sonatype-work"
+
+  # required by the image HEALTHCHECK
+  /usr/bin/curl:
+    title: curl-present
+    exists: true
+
+command:
+  # /healthcheck returns 500 on an unlicensed server (product-license healthy=false), so
+  # the aggregate status is unusable here; assert the subsystems the image owns instead.
+  # Regexes so field order inside a subsystem object does not matter.
+  healthcheck-subsystems:
+    title: admin-healthcheck
+    exec: curl -s --max-time 30 http://localhost:8071/healthcheck
+    exit-status: 0
+    stdout:
+      - '/"database":\{[^}]*"healthy":true/'
+      - '/"deadlocks":\{[^}]*"healthy":true/'
+      - '/"newDatabaseConnections":\{[^}]*"healthy":true/'
+      - '/"shutdown-state":\{[^}]*"healthy":true/'
+      - '/"work-directory":\{[^}]*"healthy":true/'
+
+  # start.sh does not mention JAVA_OPTS; the contract is the image ENV, read by the
+  # bin/nexus-iq-server launcher.
+  java-opts-env:
+    title: start-script-has-java-opts
+    exec: printenv JAVA_OPTS
+    exit-status: 0
+    stdout:
+      - "java.util.prefs.userRoot"

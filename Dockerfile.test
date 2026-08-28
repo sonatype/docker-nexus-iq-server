@@ -1,0 +1,115 @@
+#
+# Copyright (c) 2017-present Sonatype, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Image validation for every IQ Server image variant. ONE copy, applied to an
+# already-built image, so the product Dockerfiles stay untouched.
+#
+#   docker build -t nexus-iq-server:dev .
+#   docker build -f Dockerfile.test \
+#       --build-arg BASE_IMAGE=nexus-iq-server:dev \
+#       --build-arg GOSSFILE=goss.yaml \
+#       --target test-results --output type=local,dest=build/test-results .
+#
+# Omit --build-arg CI to have a failing check fail the build directly; set CI=true (as the
+# pipeline does) to always export the report and let the JUnit results decide.
+#
+
+# The image under test. No default: this must be passed.
+ARG BASE_IMAGE
+# goss's official image, pinned by version, via the Sonatype proxy -- never pulled from
+# ghcr.io directly. Multi-arch (linux/amd64 + linux/arm64) through the proxy, and the binary
+# is static, so one copy serves both the glibc (UBI) and musl (Alpine) images.
+ARG GOSS_IMAGE=sonatype.repo.sonatype.app/docker-all/goss-org/goss:v0.4.10
+
+# DL3006/DL3026: the tag and registry come from an ARG, so hadolint can see neither.
+# hadolint ignore=DL3006,DL3026
+FROM ${GOSS_IMAGE} AS goss-bin
+
+# DL3026: BASE_IMAGE is a locally-built tag passed in by the caller.
+# hadolint ignore=DL3006,DL3026
+FROM ${BASE_IMAGE} AS test
+
+# Which suite to run, e.g. goss.yaml / goss.rh.yaml / goss.alpine.yaml. Every suite is copied
+# in (glob, so adding a variant needs no change here) because they import goss.common.yaml.
+ARG GOSSFILE=goss.yaml
+ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
+# Set (the pipeline passes true) to always exit 0 so the report is exported and the JUnit
+# results own pass/fail. Unset locally, a failing check fails the build here.
+ARG CI=""
+# NOT named GOSS_*: build args reach RUN as environment variables and goss reads
+# GOSS_RETRY_TIMEOUT/GOSS_SLEEP from the environment, which silently re-enables retry.
+ARG READY_TIMEOUT=300s
+ARG READY_SLEEP=5s
+# Forces the tests to re-run: this RUN has no file inputs, so BuildKit would serve a cached
+# pass forever. Referenced below because BuildKit only rekeys on args in use.
+ARG CACHEBUST=""
+
+# hadolint ignore=DL3002,DL3066
+USER root
+COPY --from=goss-bin /usr/bin/goss /usr/local/bin/goss
+COPY goss_wait.yaml goss*.yaml /test/
+RUN mkdir -p /results && chown nexus:nexus /results
+# validate as the user the image ships with
+# hadolint ignore=DL3066
+USER nexus
+
+# Two phases:
+#   1. goss_wait.yaml WITH retry -- the only phase allowed to burn the retry window. Its
+#      output is a LOG, not JUnit: under retry goss re-emits its whole report per attempt,
+#      producing concatenated XML documents no JUnit parser accepts. A readiness failure is
+#      reported as a synthesized single-testcase XML instead.
+#   2. the full suite exactly ONCE, --retry-timeout 0s explicit so a stray env var cannot
+#      re-enable retry. One attempt means one XML document.
+# Phase 2 runs even if phase 1 times out, so a server that never starts still reports
+# everything that failed.
+RUN echo "starting IQ Server (cachebust=${CACHEBUST:-none})"; \
+    sh "${IQ_HOME}/start.sh" & \
+    goss --gossfile /test/goss_wait.yaml validate \
+        --format documentation \
+        --retry-timeout "${READY_TIMEOUT}" \
+        --sleep "${READY_SLEEP}" \
+        > /results/readiness.log 2>&1; \
+    wait_status=$?; \
+    tail -30 /results/readiness.log; \
+    goss --gossfile "/test/${GOSSFILE}" validate \
+        --format junit \
+        --retry-timeout 0s \
+        > /results/goss-results.xml; \
+    status=$?; \
+    cat /results/goss-results.xml; \
+    if [ "${wait_status}" -ne 0 ]; then \
+      echo "readiness gate FAILED (goss exit ${wait_status}): not ready within ${READY_TIMEOUT}"; \
+      echo "--- healthcheck body ---" >> /results/readiness.log; \
+      curl -s --max-time 10 http://localhost:8071/healthcheck >> /results/readiness.log 2>&1 || true; \
+      { echo '<?xml version="1.0" encoding="UTF-8"?>'; \
+        echo '<testsuite name="goss-readiness" tests="1" failures="1" errors="0" skipped="0">'; \
+        echo '<testcase name="IQ Server becomes ready" classname="readiness">'; \
+        printf '<failure message="readiness gate failed">goss exit %s after %s. See readiness.log</failure>\n' \
+            "${wait_status}" "${READY_TIMEOUT}"; \
+        echo '</testcase>'; \
+        echo '</testsuite>'; \
+      } > /results/readiness-results.xml; \
+      status="${wait_status}"; \
+    fi; \
+    echo "${status}" > /results/exit-code; \
+    if [ -n "${CI}" ]; then \
+      echo "CI set: exporting results regardless of failures (exit ${status})"; \
+      exit 0; \
+    fi; \
+    exit "${status}"
+
+# Export target: `--output type=local` writes just the results to the host.
+FROM scratch AS test-results
+COPY --from=test /results/ /

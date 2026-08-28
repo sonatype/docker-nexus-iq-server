@@ -1,0 +1,77 @@
+#
+# Copyright (c) 2017-present Sonatype, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Alpine/musl variant (./Dockerfile.alpine).
+#
+# Imports goss.common.yaml directly, NOT goss.yaml: Alpine is not "UBI plus extras", its
+# checks are a subset. No from-source openssh, no rpm/microdnf de-bloat, uid/gid 1001,
+# shell /sbin/nologin, no passwd fixup in start.sh. Ported from Dockerfile.alpine and from
+# alpine-expectations.groovy, which this branch removes.
+---
+gossfile:
+  /test/goss.common.yaml: {}
+
+group:
+  nexus:
+    title: nexus-group
+    exists: true
+    # 1001 here, 1000 on UBI
+    gid: 1001
+
+user:
+  nexus:
+    title: nexus-user
+    exists: true
+    uid: 1001
+    gid: 1001
+    home: /opt/sonatype/nexus-iq-server
+    # /bin/false on UBI
+    shell: /sbin/nologin
+
+file:
+  /opt/sonatype/nexus-iq-server:
+    title: home-directory
+    exists: true
+    filetype: directory
+    # setgid, unlike 0755 on UBI. Drives the start.sh group below.
+    mode: "2755"
+    owner: nexus
+    group: nexus
+  /opt/sonatype/nexus-iq-server/start.sh:
+    title: start-script
+    exists: true
+    filetype: file
+    mode: "0755"
+    # root:nexus, not root:root as on UBI: root creates the file but the setgid install
+    # directory above makes new files inherit its group.
+    owner: root
+    group: nexus
+    # No `contains` on purpose: no passwd fixup here, since there is no from-source openssh.
+
+  # --- runtime packages (apk add ...) --------------------------------------
+  /usr/bin/git:
+    title: alpine-git-present
+    exists: true
+  /usr/bin/rsync:
+    title: alpine-rsync-present
+    exists: true
+
+  # apk is the package manager here and stays; these just pin that no RPM stack appears.
+  /usr/bin/rpm:
+    title: rpm-absent
+    exists: false
+  /usr/bin/microdnf:
+    title: microdnf-absent
+    exists: false
