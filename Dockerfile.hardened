@@ -107,6 +107,18 @@ ARG ROOTFS=/rootfs
 #       start script itself (trap, cut, tail, timeout).
 #   curl — HEALTHCHECK.
 #   git-core, openssh-clients — git/git+ssh for SCM policy scans.
+#   libgcc, libstdc++ — present as FILES in hi/core-runtime:latest (they land via the
+#       `COPY --from=rootfs /rootfs/ /` in stage 3, since core-runtime:latest ships them
+#       in /usr/lib64/) but NOT pulled as transitive dependencies of the runtime package
+#       set above. Listed explicitly so microdnf records them in the rootfs RPM database.
+#       Without these two entries, the shipped image's DB understates its own inventory:
+#       libgcc_s.so.1 and libstdc++.so.6 exist on disk but IQ Server's container scan (and
+#       grype, and trivy) can't see them because they read the RPM database. Discovered
+#       via review on PR #208 (Ross Pokorny). ca-certificates-bundle is NOT added here
+#       because it conflicts with the ca-certificates package already pulled in by
+#       git-core/openssh-clients transitively -- installing the bundle instead drops the
+#       cert-extraction toolchain (findutils, grep, sed, p11-kit, ...) which breaks
+#       IQ Server startup.
 # crypto-policies (the config-data package that supplies the
 # `/etc/crypto-policies/back-ends/*.config` files openssl and openssh read at
 # runtime) is pulled in transitively and stays. crypto-policies-scripts (the
@@ -121,7 +133,8 @@ RUN mkdir -p ${ROOTFS} && \
       --installroot=${ROOTFS} --use-host-config \
       --setopt=install_weak_deps=0 --setopt=tsflags=nodocs \
       bash coreutils-single curl \
-      git-core openssh-clients && \
+      git-core openssh-clients \
+      libgcc libstdc++ && \
     microdnf clean all --installroot=${ROOTFS}
 
 # Enable support for SHA1-signed SCM certificates (some legacy customer CAs
