@@ -53,8 +53,8 @@ file:
     owner: nexus
     group: nexus
   # Unlike UBI (start.sh is root:root because RUN echo runs as root after the COPY
-  # --chown), hardened chowns start.sh explicitly in Dockerfile.hardened:171, so it is
-  # nexus:nexus.
+  # --chown), hardened chowns start.sh explicitly in the rootfs stage's start.sh RUN,
+  # so it is nexus:nexus.
   /opt/sonatype/nexus-iq-server/start.sh:
     title: start-script
     exists: true
@@ -102,17 +102,18 @@ file:
   /usr/sbin/useradd:
     title: no-shadow-utils
     exists: false
-  # crypto-policies-scripts runs in the BUILDER (Dockerfile.hardened:132-134); the tool is
-  # NOT copied into the rootfs. If it starts appearing here the copy-not-install invariant
-  # has broken.
+  # crypto-policies-scripts runs on the BUILDER (see the rootfs stage's crypto-policies
+  # RUN block); the tool is NOT copied into the rootfs. If it starts appearing here the
+  # copy-not-install invariant has broken.
   /usr/bin/update-crypto-policies:
     title: no-crypto-policies-scripts-in-runtime
     exists: false
 
 command:
   # SHA1 crypto-policy was applied on the builder and the resulting /etc/crypto-policies
-  # was copied into the rootfs (Dockerfile.hardened:135). The `current` file records the
-  # active profile; a plain read is enough to verify the copy landed.
+  # was copied into the rootfs (see the rootfs stage's crypto-policies RUN block). The
+  # `current` file records the active profile; a plain read is enough to verify the copy
+  # landed.
   crypto-policy-sha1:
     title: crypto-policy-default-sha1
     exec: cat /etc/crypto-policies/state/current

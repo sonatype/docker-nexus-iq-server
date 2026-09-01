@@ -27,7 +27,9 @@
 #      ENOSYS for).
 #   2. rootfs — target platform. Installs runtime packages into an isolated
 #      /rootfs via `microdnf --installroot`, applies update-crypto-policies
-#      inside the chroot, sets up the nexus user by appending directly to
+#      on the builder (NOT inside the chroot — see the RUN block for the
+#      full reasoning) and copies the resulting /etc/crypto-policies into
+#      /rootfs, sets up the nexus user by appending directly to
 #      /rootfs/etc/passwd|group, and lays out IQ Server + config under
 #      the target directory tree.
 #   3. runtime — hi/core-runtime:latest (the runtime tag, no microdnf, no
@@ -52,9 +54,9 @@ USER root
 ARG TARGETARCH
 ARG TEMP="/tmp/work"
 # Build parameters
-ARG IQ_SERVER_VERSION=1.205.3-01
-ARG IQ_SERVER_SHA256_AARCH=8cf0c56ca535dda92682d8b644dbf2a5d59712c89d88f1e7989001c49ac24c27
-ARG IQ_SERVER_SHA256_X86_64=2be3e74a3c84a5f8e721725bc6adf05b98c5c78881da5378e086292916ca68dd
+ARG IQ_SERVER_VERSION=1.206.0-01
+ARG IQ_SERVER_SHA256_AARCH=4a906004ecf0b79616245da07871defaedc3ebead70d6baf0151977757611c8c
+ARG IQ_SERVER_SHA256_X86_64=18923bad4a06d7d5525520a344ecfcebd339b8cdd08582fd3053dd95f44338c2
 ARG SONATYPE_WORK="/sonatype-work"
 
 # Builder-only tools:
@@ -148,10 +150,12 @@ RUN mkdir -p ${ROOTFS} && \
 RUN microdnf install -y --setopt=install_weak_deps=0 --setopt=tsflags=nodocs crypto-policies-scripts && \
     update-crypto-policies --set DEFAULT:SHA1 && \
     cp -a /etc/crypto-policies/. ${ROOTFS}/etc/crypto-policies/ && \
-    test -f "${ROOTFS}/etc/crypto-policies/state/current" || \
-      { echo "ERROR: crypto-policies state file missing after update+copy"; exit 1; } && \
-    grep -q "DEFAULT:SHA1" "${ROOTFS}/etc/crypto-policies/state/current" || \
-      { echo "ERROR: DEFAULT:SHA1 not applied to rootfs crypto-policies"; exit 1; }
+    if [ ! -f "${ROOTFS}/etc/crypto-policies/state/current" ]; then \
+      echo "ERROR: crypto-policies state file missing after update+copy"; exit 1; \
+    fi && \
+    if ! grep -q "DEFAULT:SHA1" "${ROOTFS}/etc/crypto-policies/state/current"; then \
+      echo "ERROR: DEFAULT:SHA1 not applied to rootfs crypto-policies"; exit 1; \
+    fi
 
 # Nexus user & group. Writing to /etc/passwd + /etc/group directly avoids
 # needing shadow-utils in the runtime.
@@ -194,7 +198,7 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 # hadolint ignore=DL3026,DL3007
 FROM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest AS runtime
 
-ARG IQ_SERVER_VERSION=1.205.3-01
+ARG IQ_SERVER_VERSION=1.206.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -205,7 +209,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.205.3" \
+  release="1.206.0" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \

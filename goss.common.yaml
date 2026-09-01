@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 # Checks that are IDENTICAL for every IQ Server image variant. Imported by goss.yaml,
-# goss.rh.yaml and goss.alpine.yaml via `gossfile:`.
+# goss.rh.yaml, goss.alpine.yaml, and goss.hardened.yaml via `gossfile:`.
 #
 # Anything that differs between variants lives in the variant file: the nexus uid/gid and
 # shell, the install directory mode, and start.sh. A resource declared twice across an

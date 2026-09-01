@@ -31,6 +31,11 @@ String deployBranch = 'main'
 //   gossfile      : which goss suite Dockerfile.test runs against the built image.
 //   iqApplication : IQ application to evaluate against.
 //   smokePlatform : non-host platform to build as a smoke test, or null.
+//   smokeTarget   : intermediate stage to stop the smoke build at. Must exist in the
+//                   variant's Dockerfile. `builder` for ubi/rh/alpine (skips the 12+ min
+//                   emulated OpenSSH compile in the openssh-builder stage); `downloader`
+//                   for hardened, which has no `builder` stage -- downloader is the right
+//                   analogue, holding the TARGETARCH-conditional tarball/SHA256 selection.
 //
 // smokePlatform is null for rh and alpine because both hardcode an x86_64 tarball with a
 // single IQ_SERVER_SHA256, so an arm64 build would pass while producing an image full of
@@ -45,37 +50,37 @@ Map<String, Map<String, String>> variants = [
     gossfile     : 'goss.yaml',
     iqApplication: 'docker-nexus-iq-server',
     smokePlatform: 'linux/arm64',
+    smokeTarget  : 'builder',
   ],
   'rh': [
     dockerfile   : 'Dockerfile.rh',
     gossfile     : 'goss.rh.yaml',
     iqApplication: 'docker-nexus-iq-server-rh',
     smokePlatform: null,
+    smokeTarget  : 'builder',
   ],
   'alpine': [
     dockerfile   : 'Dockerfile.alpine',
     gossfile     : 'goss.alpine.yaml',
     iqApplication: 'docker-nexus-iq-server-alpine',
     smokePlatform: null,
+    smokeTarget  : 'builder',
   ],
   // Red Hat Hardened Images (Hummingbird), CLM-46302. Distroless-style runtime staged into
   // /rootfs and copied into hi/core-runtime:latest. Multi-arch via TARGETARCH-driven tarball
-  // selection, so arm64 is safe.
+  // selection, so arm64 is safe. No `builder` stage -- smokeTarget is `downloader`.
   'hardened': [
     dockerfile   : 'Dockerfile.hardened',
     gossfile     : 'goss.hardened.yaml',
     iqApplication: 'docker-nexus-iq-server-hardened',
     smokePlatform: 'linux/arm64',
+    smokeTarget  : 'downloader',
   ],
 ]
 
 // Only the host platform can run the test stage without emulation.
 String testPlatform = 'linux/amd64'
 String testResultsDir = 'build/test-results'
-// Branch builds stop at `builder` for the non-host platform: that covers the
-// arch-conditional tarball/SHA256 selection and skips compiling OpenSSH under emulation,
-// which takes 12+ minutes. main gets the full build.
-String smokeBuildTarget = 'builder'
 String builderName = 'iq-image-multiarch'
 
 // Mirrors jenkins-shared's configureBranchJob(). Declarative options{} cannot be
@@ -97,7 +102,9 @@ String imageTag(String variant) {
 // Builds one non-host platform and DISCARDS the result (--output type=cacheonly). Nothing in
 // this pipeline is ever pushed, and a foreign-platform image cannot be loaded into the local
 // image store anyway. Publishing happens only in the release lanes:
-//   build_and_push_images.sh    -> Docker Hub, multi-arch manifest (Jenkinsfile[.slim].release)
+//   build_and_push_images.sh    -> Docker Hub, multi-arch manifest.
+//                                  Callers: Jenkinsfile.release (ubi), Jenkinsfile.slim.release,
+//                                  Jenkinsfile.hardened.release (via TAG_SUFFIX=-hardened).
 //   build_and_push_rh_image.sh  -> Red Hat ISV registry + preflight cert scan
 //   Jenkinsfile.alpine.release  -> Docker Hub, :<version>-alpine / :latest-alpine
 //
@@ -259,7 +266,7 @@ pipeline {
             steps {
               script {
                 buildPlatform(builderName, variants[env.IMAGE].dockerfile,
-                    variants[env.IMAGE].smokePlatform, smokeBuildTarget)
+                    variants[env.IMAGE].smokePlatform, variants[env.IMAGE].smokeTarget)
               }
             }
           }
