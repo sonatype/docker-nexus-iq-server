@@ -43,7 +43,7 @@
 
 # ---- Stage 1: downloader ----
 # hadolint ignore=DL3026
-FROM --platform=$BUILDPLATFORM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest-builder AS downloader
+FROM --platform=$BUILDPLATFORM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest-builder@sha256:3c2ba87c8c3d8d56b102060740c3b763138ad7f74702d6cfd29a43939ead4b46 AS downloader
 
 # hi/core-runtime defaults to non-root uid 65532; the builder stage needs
 # root to run microdnf.
@@ -90,7 +90,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
 
 # ---- Stage 2: rootfs builder ----
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest-builder AS rootfs
+FROM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest-builder@sha256:3c2ba87c8c3d8d56b102060740c3b763138ad7f74702d6cfd29a43939ead4b46 AS rootfs
 
 # hadolint ignore=DL3002,DL3066
 USER root
@@ -196,7 +196,7 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 # package set installed into /rootfs in stage 2, overlaid wholesale here. Image validation
 # is performed by the separate Dockerfile.test, which takes this image as BASE_IMAGE.
 # hadolint ignore=DL3026,DL3007
-FROM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest AS runtime
+FROM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest@sha256:89c1c9bdc4d746526143c9d23f24c56d05ddc0e9c8e6f919e62601437ef8ed61 AS runtime
 
 ARG IQ_SERVER_VERSION=1.206.0-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
