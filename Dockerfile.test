@@ -31,7 +31,7 @@ ARG BASE_IMAGE
 # goss's official image, pinned by version, via the Sonatype proxy -- never pulled from
 # ghcr.io directly. Multi-arch (linux/amd64 + linux/arm64) through the proxy, and the binary
 # is static, so one copy serves both the glibc (UBI) and musl (Alpine) images.
-ARG GOSS_IMAGE=sonatype.repo.sonatype.app/docker-all/goss-org/goss:v0.4.10
+ARG GOSS_IMAGE=sonatype.repo.sonatype.app/docker-all/goss-org/goss:v0.4.10@sha256:8d3924f722a04a660e9e6c2403be0399d737c0187fc065714d26b992286c3f0a
 
 # DL3006/DL3026: the tag and registry come from an ARG, so hadolint can see neither.
 # hadolint ignore=DL3006,DL3026
