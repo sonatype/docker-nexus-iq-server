@@ -15,7 +15,7 @@
 #
 
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.7 AS builder
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.7@sha256:907b68736aa798b2d38255b7aa070b2a70acb90803864a40f05d0ec47556ddd0 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.206.0-01
@@ -50,7 +50,7 @@ RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
 # installed into the final image at the same paths as the RH openssh-clients package so
 # git-over-ssh works transparently.
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.7 AS openssh-builder
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.7@sha256:907b68736aa798b2d38255b7aa070b2a70acb90803864a40f05d0ec47556ddd0 AS openssh-builder
 ARG OPENSSH_VERSION=10.4p1
 ARG OPENSSH_SHA256=ef6026dd2aea8d56059638d5d3262902c892ceba9f88395835e0d06d3fb63238
 
@@ -90,7 +90,7 @@ RUN ./configure \
           /build/dest/etc/ssh/sshd_config
 
 # hadolint ignore=DL3026
-FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.7
+FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.7@sha256:907b68736aa798b2d38255b7aa070b2a70acb90803864a40f05d0ec47556ddd0
 
 ARG IQ_SERVER_VERSION=1.206.0-01
 ARG IQ_RELEASE
