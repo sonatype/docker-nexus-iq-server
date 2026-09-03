@@ -72,7 +72,9 @@ node('ubuntu-zion') {
             credentialsId: 'red-hat-api-token',
             variable: 'API_TOKEN')
       ]) {
-        sh 'PATH="$PATH:." VERSION=$IQ_SERVER_VERSION CHECKSUM=$IQ_SERVER_CHECKSUM RELEASE=$IQ_RELEASE TAG=$tag ./build_and_push_rh_image.sh'
+        withSonatypeDockerRegistry() {
+          sh 'PATH="$PATH:." VERSION=$IQ_SERVER_VERSION CHECKSUM=$IQ_SERVER_CHECKSUM RELEASE=$IQ_RELEASE TAG=$tag ./build_and_push_rh_image.sh'
+        }
       }
     }
   } finally {
