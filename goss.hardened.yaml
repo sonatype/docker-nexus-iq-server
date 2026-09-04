@@ -1,0 +1,132 @@
+#
+# Copyright (c) 2017-present Sonatype, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Red Hat Hardened Images variant (./Dockerfile.hardened). Distroless-style runtime built
+# from a rootfs staged in a builder container: only bash + coreutils-single + curl +
+# git-core + openssh-clients are present. This overlay imports goss.common.yaml directly
+# (not goss.yaml) because hardened does NOT share UBI's from-source openssh, arbitrary-UID
+# passwd fixup, or de-bloat-block pattern.
+#
+# Verified against a real built image: 78 tests, 0 failures on arm64 host build.
+#
+# The import key is `gossfile`, not `goss`. A typo silently drops every imported check.
+---
+gossfile:
+  /test/goss.common.yaml: {}
+
+group:
+  nexus:
+    title: nexus-group
+    exists: true
+    gid: 1000
+
+user:
+  nexus:
+    title: nexus-user
+    exists: true
+    uid: 1000
+    gid: 1000
+    home: /opt/sonatype/nexus-iq-server
+    # Shell is /bin/false written directly into /etc/passwd in the rootfs stage. No
+    # /sbin/nologin symlink (that is the UBI pattern; hardened uses /bin/false directly).
+    shell: /bin/false
+
+file:
+  # --- install directory + start.sh -----------------------------------------
+  /opt/sonatype/nexus-iq-server:
+    title: home-directory
+    exists: true
+    filetype: directory
+    mode: "0755"
+    owner: nexus
+    group: nexus
+  # Unlike UBI (start.sh is root:root because RUN echo runs as root after the COPY
+  # --chown), hardened chowns start.sh explicitly in the rootfs stage's start.sh RUN,
+  # so it is nexus:nexus.
+  /opt/sonatype/nexus-iq-server/start.sh:
+    title: start-script
+    exists: true
+    filetype: file
+    mode: "0755"
+    owner: nexus
+    group: nexus
+    contains:
+      - "nexus-iq-server server"
+
+  # --- openssh (openssh-clients microdnf package, NOT from-source) ----------
+  # Client-only: openssh-clients does not ship sshd/sftp-server/ssh-keysign, and hardened
+  # never installs openssh-server. These pin that contract.
+  /usr/bin/ssh:
+    title: ssh-client-installed
+    exists: true
+    filetype: file
+  /etc/ssh/ssh_config:
+    title: ssh-config-present
+    exists: true
+    filetype: file
+  /usr/sbin/sshd:
+    title: ssh-no-sshd
+    exists: false
+  /usr/libexec/openssh/sftp-server:
+    title: ssh-no-sftp-server
+    exists: false
+  /usr/libexec/openssh/ssh-keysign:
+    title: ssh-no-setuid-keysign
+    exists: false
+
+  # --- distroless-style guards ---------------------------------------------
+  # rootfs is populated via `microdnf --installroot=/rootfs`; nothing in this list is ever
+  # installed there. These fail loudly if anyone later switches back to installing packages
+  # in the runtime image itself.
+  /usr/bin/microdnf:
+    title: no-microdnf
+    exists: false
+  /usr/bin/rpm:
+    title: no-rpm
+    exists: false
+  /usr/bin/python3:
+    title: no-python3
+    exists: false
+  /usr/sbin/useradd:
+    title: no-shadow-utils
+    exists: false
+  # crypto-policies-scripts runs on the BUILDER (see the rootfs stage's crypto-policies
+  # RUN block); the tool is NOT copied into the rootfs. If it starts appearing here the
+  # copy-not-install invariant has broken.
+  /usr/bin/update-crypto-policies:
+    title: no-crypto-policies-scripts-in-runtime
+    exists: false
+
+command:
+  # SHA1 crypto-policy was applied on the builder and the resulting /etc/crypto-policies
+  # was copied into the rootfs (see the rootfs stage's crypto-policies RUN block). The
+  # `current` file records the active profile; a plain read is enough to verify the copy
+  # landed.
+  crypto-policy-sha1:
+    title: crypto-policy-default-sha1
+    exec: cat /etc/crypto-policies/state/current
+    exit-status: 0
+    stdout:
+      - "DEFAULT:SHA1"
+
+  # git-core is installed in the rootfs for SCM policy scans. PR #199's
+  # containerInspectionExpectations tested `git --version`; keeping the assertion
+  # so a future removal from the package list surfaces here.
+  git-executable:
+    title: git-executable
+    exec: git --version
+    exit-status: 0
+    stdout:
+      - "git version"

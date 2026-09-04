@@ -1,0 +1,153 @@
+/*
+ * Copyright (c) 2017-present Sonatype, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Release pipeline for the Red Hat Hardened Images variant. Publishes the multi-arch
+// `sonatype/nexus-iq-server:${VERSION}-hardened` and `:latest-hardened` tags to Docker Hub.
+//
+// The image is validated by the matrix CI pipeline (top-level `Jenkinsfile` + `Dockerfile.test`
+// running goss.hardened.yaml against the built image), so `buildAndTest` here is a display-name
+// setter -- same shape as `Jenkinsfile.alpine.release`. That is why there is no
+// `validateExpectations()` call.
+//
+// Publishing uses `build_and_push_images.sh` with `TAG_SUFFIX=-hardened`, which appends the
+// suffix to every tag passed in. Callers pass unadorned `${VERSION}` and `latest`, and the
+// script produces `${VERSION}-hardened` / `latest-hardened` for the manifest.
+
+@Library(['private-pipeline-library', 'jenkins-shared']) _
+
+properties([
+  parameters([
+    run(name: 'releaseBuild',
+        filter: 'SUCCESSFUL',
+        projectName: 'insight/insight-brain/aggregate-release',
+        description: 'The latest release of IQ Server to build the docker image'),
+    string(name: 'sourceJob',
+        defaultValue: 'insight/insight-brain/aggregate-release',
+        description: 'Job path to read artifacts from'),
+    booleanParam(name: 'skipMarkAsLatest', defaultValue: false, description: 'Skip: Tag as latest')
+  ])
+])
+
+String imageName = 'sonatype/nexus-iq-server'
+String version = ''
+String checksumX86_64 = ''
+String checksumAarch = ''
+
+dockerizedBuildPipeline(
+  deployBranch: 'main',
+  prepare: {
+    githubStatusUpdate('pending')
+    version = getVersionFromBuildName(env.releaseBuild_NAME)
+    checksumX86_64 = readBuildArtifact(params.sourceJob, env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-x86_64.tgz.sha256").trim()
+    checksumAarch = readBuildArtifact(params.sourceJob, env.releaseBuild_NUMBER, "artifacts/nexus-iq-server-${version}-linux-aarch_64.tgz.sha256").trim()
+    updateIQServerVersionAndChecksum(version, checksumX86_64, checksumAarch)
+    commitAndPushChanges(version, params.skipMarkAsLatest)
+  },
+  pathToDockerfile: './Dockerfile.hardened',
+  setVersion: {
+    env['VERSION'] = version.split('-')[0]
+  },
+  lint: {
+    hadolint(['./Dockerfile.hardened'])
+  },
+  buildAndTest: {
+    // Image validation runs in the matrix CI pipeline (Dockerfile.test + goss.hardened.yaml).
+    // No validateExpectations() here -- goss is authoritative and already ran on branch builds.
+    currentBuild.displayName = "#${currentBuild.id} ${imageName}-hardened-${env.VERSION}"
+  },
+  vulnerabilityScan: {
+    nexusPolicyEvaluation(
+      iqApplication: 'docker-nexus-iq-server-hardened',
+      iqScanPatterns: [[scanPattern: "container:${env.DOCKER_IMAGE_ID}"]],
+      iqStage: 'release',
+      unstableBuildOnScanningWarnings: false)
+  },
+  deploy: {
+    pushImage(imageName, !params.skipMarkAsLatest)
+  },
+  onSuccess: {
+    githubStatusUpdate('success')
+  },
+  onFailure: {
+    githubStatusUpdate('failure')
+  }
+)
+
+void updateIQServerVersionAndChecksum(String version, String checksumX86_64, String checksumAarch) {
+  def dockerFile = readFile(file: 'Dockerfile.hardened')
+  def metaShortVersionRegex = /(release=")(\d\.\d{1,3}\.\d)(" \\)/
+  def versionRegex = /(ARG IQ_SERVER_VERSION=)(\d\.\d{1,3}\.\d\-\d{2})/
+  def shaRegexAarch = /(ARG IQ_SERVER_SHA256_AARCH=)([A-Fa-f0-9]{64})/
+  def shaRegexX64_64 = /(ARG IQ_SERVER_SHA256_X86_64=)([A-Fa-f0-9]{64})/
+  dockerFile = dockerFile.replaceAll(metaShortVersionRegex,
+      "\$1${version.substring(0, version.indexOf('-'))}\$3")
+  dockerFile = dockerFile.replaceAll(versionRegex, "\$1${version}")
+  dockerFile = dockerFile.replaceAll(shaRegexX64_64, "\$1${checksumX86_64}")
+  dockerFile = dockerFile.replaceAll(shaRegexAarch, "\$1${checksumAarch}")
+
+  writeFile(file: 'Dockerfile.hardened', text: dockerFile)
+}
+
+void commitAndPushChanges(String version, boolean skipMarkAsLatest) {
+  if (skipMarkAsLatest) {
+    // Skip committing and pushing changes for patch/hotfix releases of older versions.
+    // main should always reflect the latest released version.
+    echo "Skipping git commit and push because skipMarkAsLatest=true (patch/hotfix release)"
+    return
+  }
+  runSafely 'git config --global push.default simple'
+  sonatypeZionGitConfig()
+  sshagent(credentials: [sonatypeZionCredentialsId()]) {
+    runSafely 'git add .'
+    runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version}.'"
+
+    // Pull and merge any new commits on main so that the push does not fail.
+    runSafely 'git pull --no-rebase --no-edit origin main'
+    runSafely 'git push origin HEAD:main'
+  }
+}
+
+void pushImage(String imageName, boolean markAsLatest) {
+  runSafely "mkdir -p '${env.WORKSPACE_TMP}/.dockerConfig'"
+  runSafely "cp -n '${env.HOME}/.docker/config.json' '${env.WORKSPACE_TMP}/.dockerConfig' || true"
+
+  withEnv(["DOCKER_CONFIG=${env.WORKSPACE_TMP}/.dockerConfig"]) {
+    withCredentials([
+      [ $class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
+        usernameVariable: 'DOCKERHUB_API_USERNAME', passwordVariable: 'DOCKERHUB_API_PASSWORD']]) {
+
+      runSafely "docker login --username ${env.DOCKERHUB_API_USERNAME} --password ${env.DOCKERHUB_API_PASSWORD}"
+      withSonatypeDockerRegistry() {
+        // build_and_push_images.sh appends TAG_SUFFIX to every tag it receives, so pass the
+        // unadorned tag names and let the script produce the -hardened suffix. See the header
+        // comment in build_and_push_images.sh for the contract.
+        def tags = ["${env.VERSION}"]
+        if (markAsLatest) {
+          tags << "latest"
+        }
+        runSafely """
+        # buildkit tags are quarantined by Sonatype Firewall; pin the pre-quarantine cached digest
+        # (moby/buildkit v0.31.1). Revert to a tag once released/waived.
+        docker buildx create --use --driver-opt image=${sonatypeDockerRegistryId()}/moby/buildkit@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a
+        export OCI_REPO="sonatype/nexus-iq-server"
+        export DOCKERFILE="Dockerfile.hardened"
+        export TAG_SUFFIX="-hardened"
+        ./build_and_push_images.sh ${tags.join(' ')}
+        """
+      }
+    }
+  }
+}
