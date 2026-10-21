@@ -184,6 +184,23 @@ COPY --from=downloader --chown=${UID}:${GID} /tmp/work/nexus-iq-server ${ROOTFS}
 COPY --from=downloader /tmp/work/config-edited.yml ${ROOTFS}${CONFIG_HOME}/config.yml
 RUN chmod 0644 ${ROOTFS}${CONFIG_HOME}/config.yml
 
+# Distrust the roots behind the compromised eMudhra intermediate CAs (CLM-55187,
+# https://emudhra.we-have-a-problem.com/). The rootfs OS bundle used by git/libcurl comes
+# from Hummingbird's ca-certificates, which is fixed from 2026.2.92_v9.0.319. The bundled JRE
+# has no upstream fix yet, so block the 16 compromised intermediates in its
+# lib/security/blocked.certs and delete their roots from its lib/security/cacerts (blocked.certs
+# alone misses a re-encoded copy of an intermediate). ${IQ_HOME} is the JRE home: the bundle's
+# jlinked runtime sits at its root. The script fails the build if either JRE change is
+# incomplete or the OS bundle still trusts a compromised root. EmudhraChainCheck then runs the
+# bundled JRE against the advisory's chains and re-encoded copies of their intermediates, and fails
+# the build unless it rejects all of them.
+COPY distrust-emudhra-roots.sh /tmp/distrust-emudhra-roots.sh
+COPY emudhra/ /tmp/emudhra/
+RUN sh /tmp/distrust-emudhra-roots.sh jre ${ROOTFS}${IQ_HOME} \
+&& sh /tmp/distrust-emudhra-roots.sh check ${ROOTFS}${IQ_HOME} ${ROOTFS}/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+&& ${ROOTFS}${IQ_HOME}/bin/java /tmp/emudhra/EmudhraChainCheck.java /tmp/emudhra/chains /tmp/emudhra/emudhra-roots.pem \
+&& rm -rf /tmp/distrust-emudhra-roots.sh /tmp/emudhra
+
 # Start script.
 RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${ROOTFS}${IQ_HOME}/start.sh \
 && echo "${IQ_HOME}/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${ROOTFS}${IQ_HOME}/start.sh \
@@ -196,7 +213,7 @@ RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIME
 # package set installed into /rootfs in stage 2, overlaid wholesale here. Image validation
 # is performed by the separate Dockerfile.test, which takes this image as BASE_IMAGE.
 # hadolint ignore=DL3026,DL3007
-FROM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest@sha256:89c1c9bdc4d746526143c9d23f24c56d05ddc0e9c8e6f919e62601437ef8ed61 AS runtime
+FROM sonatype.repo.sonatype.app/docker-all/hi/core-runtime:latest@sha256:756485a7f6f43804d3c1e0363b55eeee696dc0adaddbab72027a20bfcb405052 AS runtime
 
 ARG IQ_SERVER_VERSION=1.208.0-02
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
@@ -227,6 +244,22 @@ LABEL name="Nexus IQ Server image" \
 
 # Overlay the fully-prepared rootfs onto the runtime base.
 COPY --from=rootfs /rootfs/ /
+
+# The overlay cannot delete files the runtime base already has, and the base ships per-root files
+# and hash links in OpenSSL's CApath for the eMudhra roots (CLM-55187). Delete those, drop the hash
+# links they leave dangling, then check the TLS bundle and the whole CApath, so the build fails if
+# any copy of a compromised root is left in the final filesystem. The objsign and email bundles are
+# not used for TLS and are not checked.
+COPY distrust-emudhra-roots.sh /tmp/distrust-emudhra-roots.sh
+# hadolint ignore=DL3002,DL3066
+USER root
+RUN capath=/etc/pki/ca-trust/extracted/pem/directory-hash \
+&& rm -f "${capath}/emSign_ECC_Root_CA_-_G3.pem" "${capath}/AAA_Certificate_Services.pem" \
+&& for link in "${capath}"/*.[0-9] /etc/pki/tls/certs/*.[0-9]; do [ -e "${link}" ] || rm -f "${link}"; done \
+&& cat "${capath}"/*.pem > /tmp/capath.pem \
+&& sh /tmp/distrust-emudhra-roots.sh check ${IQ_HOME} \
+     /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /tmp/capath.pem \
+&& rm -f /tmp/capath.pem /tmp/distrust-emudhra-roots.sh
 
 VOLUME ${SONATYPE_WORK}
 VOLUME ${LOGS_HOME}

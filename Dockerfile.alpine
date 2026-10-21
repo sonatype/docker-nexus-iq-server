@@ -120,6 +120,24 @@ RUN chmod 0644 ${CONFIG_HOME}/config.yml
 # Copy server assemblies
 COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
 
+# Distrust the compromised eMudhra intermediate CAs (CLM-55187,
+# https://emudhra.we-have-a-problem.com/) in both trust stores the image ships:
+# - OS bundle (/etc/ssl/certs/ca-certificates.crt, used by git/libcurl): it comes from
+#   ca-certificates-bundle, which `apk upgrade` above brings to 20261020-r0 or later.
+# - Bundled JRE: Temurin has no fix yet, so block the 16 intermediates in lib/security/blocked.certs
+#   and delete their roots from lib/security/cacerts. blocked.certs alone misses a re-encoded copy
+#   of an intermediate. ${IQ_HOME} is the JRE home: the bundle's jlinked runtime sits at its root.
+# The script fails the build if either JRE change is incomplete or the OS bundle still trusts a
+# compromised root, so a stale cached `apk upgrade` layer fails here instead of shipping; rebuild
+# with --no-cache. EmudhraChainCheck then runs the bundled JRE against the advisory's chains and
+# re-encoded copies of their intermediates, and fails the build unless it rejects all of them.
+COPY distrust-emudhra-roots.sh /tmp/distrust-emudhra-roots.sh
+COPY emudhra/ /tmp/emudhra/
+RUN sh /tmp/distrust-emudhra-roots.sh jre ${IQ_HOME} \
+&& sh /tmp/distrust-emudhra-roots.sh check ${IQ_HOME} /etc/ssl/certs/ca-certificates.crt \
+&& ${IQ_HOME}/bin/java /tmp/emudhra/EmudhraChainCheck.java /tmp/emudhra/chains /tmp/emudhra/emudhra-roots.pem \
+&& rm -rf /tmp/distrust-emudhra-roots.sh /tmp/emudhra
+
 # Create start script
 RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${IQ_HOME}/start.sh \
 && echo "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${IQ_HOME}/start.sh \
