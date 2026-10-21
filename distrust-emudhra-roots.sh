@@ -66,6 +66,14 @@ usage() {
 }
 
 [ $# -ge 2 ] || usage
+# Fail closed: without grep, `if ... | grep -q` reads as "no match" and a vulnerable bundle
+# would pass the check.
+for tool in grep tail; do
+  if ! command -v "${tool}" >/dev/null 2>&1; then
+    echo "ERROR: ${tool} is required" >&2
+    exit 1
+  fi
+done
 mode=$1
 java_home=$2
 shift 2
