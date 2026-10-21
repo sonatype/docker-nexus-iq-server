@@ -186,9 +186,11 @@ RUN chmod 0644 ${ROOTFS}${CONFIG_HOME}/config.yml
 
 # Distrust the roots behind the compromised eMudhra intermediate CAs (CLM-55187,
 # https://emudhra.we-have-a-problem.com/). The rootfs OS bundle used by git/libcurl comes
-# from Hummingbird's ca-certificates, which is fixed from 2026.2.92_v9.0.319; the bundled
-# JRE cacerts has no upstream fix yet, so remove the roots from it. The script then fails
-# the build if either store still trusts a compromised root.
+# from Hummingbird's ca-certificates, which is fixed from 2026.2.92_v9.0.319. The bundled JRE
+# has no upstream fix yet, so block the 16 compromised intermediates in its
+# lib/security/blocked.certs, which applies whatever trust store is configured. The script
+# fails the build if the JRE blocklist is incomplete or the OS bundle still trusts a
+# compromised root.
 COPY distrust-emudhra-roots.sh /tmp/distrust-emudhra-roots.sh
 RUN sh /tmp/distrust-emudhra-roots.sh jre ${ROOTFS}${IQ_HOME} \
 && sh /tmp/distrust-emudhra-roots.sh check ${ROOTFS}${IQ_HOME} ${ROOTFS}/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
