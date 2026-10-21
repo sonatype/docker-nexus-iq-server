@@ -184,6 +184,16 @@ COPY --from=downloader --chown=${UID}:${GID} /tmp/work/nexus-iq-server ${ROOTFS}
 COPY --from=downloader /tmp/work/config-edited.yml ${ROOTFS}${CONFIG_HOME}/config.yml
 RUN chmod 0644 ${ROOTFS}${CONFIG_HOME}/config.yml
 
+# Distrust the roots behind the compromised eMudhra intermediate CAs (CLM-55187,
+# https://emudhra.we-have-a-problem.com/). The rootfs OS bundle used by git/libcurl comes
+# from Hummingbird's ca-certificates, which is fixed from 2026.2.92_v9.0.319; the bundled
+# JRE cacerts has no upstream fix yet, so remove the roots from it. The script then fails
+# the build if either store still trusts a compromised root.
+COPY distrust-emudhra-roots.sh /tmp/distrust-emudhra-roots.sh
+RUN sh /tmp/distrust-emudhra-roots.sh jre ${ROOTFS}${IQ_HOME} \
+&& sh /tmp/distrust-emudhra-roots.sh check ${ROOTFS}${IQ_HOME} ${ROOTFS}/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+&& rm /tmp/distrust-emudhra-roots.sh
+
 # Start script.
 RUN echo "trap 'kill -TERM \`cut -f1 -d@ ${SONATYPE_WORK}/lock\`; timeout ${TIMEOUT} tail --pid=\`cut -f1 -d@ ${SONATYPE_WORK}/lock\` -f /dev/null' SIGTERM" > ${ROOTFS}${IQ_HOME}/start.sh \
 && echo "${IQ_HOME}/bin/nexus-iq-server server ${CONFIG_HOME}/config.yml 2> ${LOGS_HOME}/stderr.log & " >> ${ROOTFS}${IQ_HOME}/start.sh \

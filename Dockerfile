@@ -182,6 +182,25 @@ RUN chmod 0644 ${CONFIG_HOME}/config.yml
 # Copy server assemblies
 COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
 
+# Distrust the roots behind the compromised eMudhra intermediate CAs (CLM-55187,
+# https://emudhra.we-have-a-problem.com/) in both trust stores the image ships:
+# - OS bundle (/etc/pki/tls/certs/ca-bundle.crt, used by git/libcurl for SCM clones):
+#   RHEL/UBI9 has no fixed ca-certificates yet, so blocklist the roots with p11-kit's
+#   `trust extract`. This must run before p11-kit is removed below. Drop it once RHEL
+#   ships a fixed ca-certificates.
+# - Bundled JRE cacerts (every outbound TLS call IQ Server makes): Temurin has no fix yet.
+# The script then fails the build if either store still trusts a compromised root.
+COPY distrust-emudhra-roots.sh /tmp/distrust-emudhra-roots.sh
+RUN d=/etc/pki/ca-trust/source/blocklist; [ -d $d ] || d=/etc/pki/ca-trust/source/blacklist; \
+    trust extract --overwrite --format=pem-bundle \
+      --filter='pkcs11:object=Comodo%20AAA%20Services%20root;type=cert' $d/Comodo_AAA_Services_root.pem \
+&& trust extract --overwrite --format=pem-bundle \
+      --filter='pkcs11:object=emSign%20ECC%20Root%20CA%20-%20G3;type=cert' $d/emSign_ECC_Root_CA_-_G3.pem \
+&& update-ca-trust \
+&& sh /tmp/distrust-emudhra-roots.sh jre ${IQ_HOME} \
+&& sh /tmp/distrust-emudhra-roots.sh check ${IQ_HOME} /etc/pki/tls/certs/ca-bundle.crt \
+&& rm /tmp/distrust-emudhra-roots.sh
+
 # Create start script. First line is the arbitrary-UID passwd fixup — see
 # the /etc/passwd chmod above for why this is needed under openssh 10.4p1.
 RUN echo "if ! id -un >/dev/null 2>&1; then echo \"iqserver:x:\$(id -u):\$(id -g):IQ Server:${IQ_HOME}:/bin/false\" >> /etc/passwd 2>/dev/null || true; fi" > ${IQ_HOME}/start.sh \
