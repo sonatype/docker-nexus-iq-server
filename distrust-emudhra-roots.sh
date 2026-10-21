@@ -15,28 +15,28 @@
 # limitations under the License.
 #
 
-# Distrusts the compromised eMudhra intermediate CAs (https://emudhra.we-have-a-problem.com/,
-# CLM-55187) in a JRE, and guards OS PEM bundles against the roots they chain to.
+# Distrusts the roots behind the compromised eMudhra intermediate CAs
+# (https://emudhra.we-have-a-problem.com/, CLM-55187) in a JRE, and guards OS PEM bundles against them.
 #
-# JRE: the SHA-256 fingerprints of the 16 impacted intermediates (the advisory's
-# impacted-intermediates.json) and of the 4 roots they chain to (roots.json) are appended to
-# <JAVA_HOME>/lib/security/blocked.certs, and the roots are also deleted from the JRE's cacerts.
-#   - blocked.certs applies whatever trust store is configured, including a custom
-#     -Djavax.net.ssl.trustStore, and the JDK checks the trust anchor against it too.
-#   - Blocking the intermediates alone is not enough: blocked.certs matches certificate bytes, and
-#     a signature can be re-encoded without any private key (ECDSA s -> n-s; RSA without the
-#     signatureAlgorithm NULL), giving the same intermediate a fingerprint the list lacks. A root
-#     comes from the trust store, not from the server, so blocking it stops every such copy.
+# JRE: the 4 roots the intermediates chain to (the advisory's roots.json) are deleted from the JRE's
+# cacerts, and their SHA-256 fingerprints are appended to <JAVA_HOME>/lib/security/blocked.certs.
+#   - Deleting them from cacerts covers the default trust store.
+#   - blocked.certs covers a custom -Djavax.net.ssl.trustStore that still holds them: the JDK checks
+#     the trust anchor against blocked.certs, whichever trust store supplied it.
+#   - The intermediates themselves are not listed. Every chain through them ends at one of these
+#     roots, and blocked.certs matches exact certificate bytes, so a re-encoded copy of an
+#     intermediate (ECDSA s -> n-s; RSA without the signatureAlgorithm NULL) would not match anyway.
+#     A root comes from the local trust store, not from the server, so it cannot be re-encoded.
 #
 # OS bundles: openssl/libcurl/git apply no blocklist to certificates a server sends, so the roots
 # themselves must be gone from the PEM bundle.
 #
 # Usage:
 #   distrust-emudhra-roots.sh jre   <JAVA_HOME> [<cacerts>]
-#       Appends the missing intermediate and root fingerprints to blocked.certs and deletes the
-#       roots from <cacerts> (default <JAVA_HOME>/lib/security/cacerts), then fails if any
-#       fingerprint is missing or any root is still in <cacerts>. Idempotent. Pass <cacerts>
-#       explicitly when the default is a symlink, so the right file is edited.
+#       Appends the missing root fingerprints to blocked.certs and deletes the roots from <cacerts>
+#       (default <JAVA_HOME>/lib/security/cacerts), then fails if any fingerprint is missing or any
+#       root is still in <cacerts>. Idempotent. Pass <cacerts> explicitly when the default is a
+#       symlink, so the right file is edited.
 #   distrust-emudhra-roots.sh check <JAVA_HOME> <pem-bundle>...
 #       Fails if any OS PEM bundle still contains one of the roots. Uses the JRE's keytool,
 #       because not every image ships openssl. It does not read the JRE: `jre` verifies its own
@@ -46,25 +46,8 @@
 # stays useful afterwards as a regression guard.
 set -eu
 
-INTERMEDIATES="\
-42C4ACCD12C4F59597925E1A08A7A90102608543809308D50EC427E118BA1493 \
-45A883F349AEDFD5F3A649B5498FFB121712BA8B448F3F2A91DBC5A766FCDDBE \
-98B896625C0C230ADEEC3EB2CF6AAD5001ECF9156A68644E82374CE5833BC25B \
-5F1DED4DD590AF74631290CF073B122A2AAC6A1FA479778A0BD43579BD832699 \
-E7568FE6E12331F4FD7DE61DA4C7559D0F8EB192A218D4741A3BA75184333838 \
-579480AEA166290BD3C643589E795FC0D0E54E86505D180F1DFF99EFD3199512 \
-0164D7CEAE5BB909C272AF151FF44B1177AE9B47D9424B94F1D9558C30934D19 \
-62B7F9868263F72F6911FC78CEAF72C1979158B7368BF648683BB2AA39B02E72 \
-CB6E15165AC802E9B3F993F16C25D41F4E81C21EBDE71AE1B012AC00BF9C7C3F \
-7485B51C0ED192878FA1D2F948FB529AE1842CC5086C4B67F7BE5B2039DE9489 \
-432EC25F0D28DE9006D97BF752F17BBB2CD41F669933FCB072D9A1148D0261F3 \
-FD9D5C2DBBD4995AB69B8D50C439D9527B00529199C2FD01B2174EB58F07021F \
-9E39DE2881273ACC225A149C72BA3E0F51424963669AB633EE1DC7DF5DB067B4 \
-A496E23AC0CAB8155FC9B117B97EAE368EFCBB9041AEC8804D5A308D2D01C2D8 \
-4B2460A466F95FD40113BCDCCA2CEB29B3B093921DE45474DA7DF48874C630B1 \
-84112972B8E59D14560AE7E7119654474AAD119990CF3722BFC1E3B91615E1FD"
-
-# The same four roots as ROOTS_PATTERN below, in blocked.certs format.
+# emSign ECC Root CA - G3, AAA Certificate Services, emSign Root TLS CA - G3,
+# emSign Root CS CA - G3, in blocked.certs format. ROOTS_PATTERN below is the same set.
 ROOTS="\
 86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B \
 D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4 \
@@ -122,19 +105,19 @@ case "${mode}" in
       echo >> "${blocked}"
     fi
     added=0
-    for fingerprint in ${INTERMEDIATES} ${ROOTS}; do
+    for fingerprint in ${ROOTS}; do
       if ! grep -qx "${fingerprint}" "${blocked}"; then
         echo "${fingerprint}" >> "${blocked}"
         added=$((added + 1))
       fi
     done
-    for fingerprint in ${INTERMEDIATES} ${ROOTS}; do
+    for fingerprint in ${ROOTS}; do
       if ! grep -qx "${fingerprint}" "${blocked}"; then
         echo "ERROR: ${blocked} does not block ${fingerprint}" >&2
         exit 1
       fi
     done
-    echo "Blocked the 16 compromised eMudhra intermediates and their 4 roots in ${blocked} (${added} added)"
+    echo "Blocked the 4 eMudhra roots in ${blocked} (${added} added)"
 
     # Plain assignment so `set -e` aborts if keytool cannot read the keystore.
     listing=$("${keytool}" -list -v -keystore "${cacerts}" -storepass changeit 2>/dev/null)
