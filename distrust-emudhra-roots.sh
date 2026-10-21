@@ -81,8 +81,13 @@ blocked="${java_home}/lib/security/blocked.certs"
 
 case "${mode}" in
   jre)
-    if ! grep -q '^Algorithm=SHA-256$' "${blocked}"; then
-      echo "ERROR: ${blocked} is missing or is not a SHA-256 blocklist" >&2
+    # The JDK loads this file with java.util.Properties: `Algorithm` names the digest every
+    # other key is compared in, and a repeated key keeps its last value. Require exactly one
+    # Algorithm line, set to SHA-256 (what every shipped JDK uses), so the appended
+    # fingerprints are in the digest the JDK actually compares.
+    if [ ! -f "${blocked}" ] || [ "$(grep -c '^[[:space:]]*Algorithm[[:space:]]*[=:]' "${blocked}")" -ne 1 ] \
+        || ! grep -q '^Algorithm=SHA-256$' "${blocked}"; then
+      echo "ERROR: ${blocked} is missing or does not have exactly one Algorithm=SHA-256 line" >&2
       exit 1
     fi
     # Ensure the file ends in a newline, so the first appended entry gets its own line.
