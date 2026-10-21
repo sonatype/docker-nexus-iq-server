@@ -189,11 +189,15 @@ COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
 #   `trust extract`. This must run before p11-kit is removed below. Drop it once RHEL
 #   ships a fixed ca-certificates.
 # - Bundled JRE (every outbound TLS call IQ Server makes): Temurin has no fix yet, so block
-#   the 16 compromised intermediates in lib/security/blocked.certs. That applies whatever trust
-#   store is configured, including a -Djavax.net.ssl.trustStore override.
-# The script fails the build if the JRE blocklist is incomplete or the OS bundle still trusts
-# a compromised root.
+#   the 16 compromised intermediates in lib/security/blocked.certs and delete their roots from
+#   lib/security/cacerts. blocked.certs alone misses a re-encoded copy of an intermediate.
+#   ${IQ_HOME} is the JRE home: the bundle's jlinked runtime sits at its root.
+# The script fails the build if either JRE change is incomplete or the OS bundle still trusts
+# a compromised root. EmudhraChainCheck then runs the bundled JRE against the advisory's chains
+# and re-encoded copies of their intermediates, and fails the build unless it rejects all of them.
+# The OS bundle is checked again after the package-removal step below.
 COPY distrust-emudhra-roots.sh /tmp/distrust-emudhra-roots.sh
+COPY emudhra/ /tmp/emudhra/
 RUN d=/etc/pki/ca-trust/source/blocklist; [ -d $d ] || d=/etc/pki/ca-trust/source/blacklist; \
     trust extract --overwrite --format=pem-bundle \
       --filter='pkcs11:object=Comodo%20AAA%20Services%20root;type=cert' $d/Comodo_AAA_Services_root.pem \
@@ -202,7 +206,7 @@ RUN d=/etc/pki/ca-trust/source/blocklist; [ -d $d ] || d=/etc/pki/ca-trust/sourc
 && update-ca-trust \
 && sh /tmp/distrust-emudhra-roots.sh jre ${IQ_HOME} \
 && sh /tmp/distrust-emudhra-roots.sh check ${IQ_HOME} /etc/pki/tls/certs/ca-bundle.crt \
-&& rm /tmp/distrust-emudhra-roots.sh
+&& ${IQ_HOME}/bin/java /tmp/emudhra/EmudhraChainCheck.java /tmp/emudhra/chains /tmp/emudhra/emudhra-roots.pem
 
 # Create start script. First line is the arbitrary-UID passwd fixup — see
 # the /etc/passwd chmod above for why this is needed under openssh 10.4p1.
@@ -279,7 +283,9 @@ RUN rpm -e --nodeps gawk systemd-libs p11-kit p11-kit-trust libtasn1 \
     cracklib cracklib-dicts gzip \
 && rpm -e --nodeps util-linux util-linux-core libblkid libmount libsmartcols libuuid libfdisk \
 && ln -sf /bin/false /sbin/nologin \
-&& rpm -e --nodeps rpm rpm-libs libarchive libxml2 sqlite-libs xz-libs bzip2-libs
+&& rpm -e --nodeps rpm rpm-libs libarchive libxml2 sqlite-libs xz-libs bzip2-libs \
+&& sh /tmp/distrust-emudhra-roots.sh check ${IQ_HOME} /etc/pki/tls/certs/ca-bundle.crt \
+&& rm -rf /tmp/distrust-emudhra-roots.sh /tmp/emudhra
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
