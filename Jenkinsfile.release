@@ -69,9 +69,11 @@ dockerizedBuildPipeline(
   },
   postDeploy: {
     sonatypeZionGitConfig()
+    // -f so that re-running the release for a version moves its tag to the commit this run built,
+    // instead of failing after the images are already pushed.
     sshagent(credentials: [sonatypeZionCredentialsId()]) {
-      sh """git tag ${env.VERSION}
-            git push origin ${env.VERSION}"""
+      sh """git tag -f ${env.VERSION}
+            git push -f origin refs/tags/${env.VERSION}"""
     }
   },
   onSuccess: {
