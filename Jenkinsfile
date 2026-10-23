@@ -22,7 +22,7 @@
 // No githubStatusUpdate() for the build result on purpose: the job uses the GitHub Branch
 // Source plugin, which reports commit status itself.
 
-@Library(['private-pipeline-library', 'jenkins-shared']) _
+@Library(['private-pipeline-library', 'jenkins-shared@CLM-48816-hadolint-id-name']) _ // TEMP: revert before merge (needs sonatype/jenkins-shared#433)
 
 String deployBranch = 'main'
 
@@ -83,6 +83,9 @@ String testResultsDir = 'build/test-results'
 // variant except hardened has an `AS builder` stage right before that compile.
 String smokeBuildTarget = 'builder'
 String builderName = 'iq-image-multiarch'
+// Per-cell outcome for the "Image: <variant>" GitHub checks.
+Map<String, Boolean> cellCompleted = [:]
+Map<String, Integer> cellTestFailures = [:]
 
 // Mirrors jenkins-shared's configureBranchJob(). Declarative options{} cannot be
 // conditional, so this is set imperatively.
@@ -157,9 +160,12 @@ pipeline {
         branchNamingCheck()
         jiraIssueAndPrCheck()
         licenseCheck()
-        // Dockerfile.test is shared by every image, so it is linted once here rather than
-        // in each matrix cell, which would report one finding four times.
-        hadolint(['./Dockerfile.test'])
+        // One call for every Dockerfile: per-cell calls overwrote each other's result (CLM-48816).
+        // Distinct id/name so the slim job's HadoLint check doesn't collide with this one.
+        script {
+          hadolint(['./Dockerfile.test'] + variants.values().collect { "./${it.dockerfile}" },
+              id: 'hadolint-images', name: 'HadoLint (images)')
+        }
       }
     }
 
@@ -180,14 +186,6 @@ pipeline {
         }
 
         stages {
-          stage('Lint') {
-            steps {
-              script {
-                hadolint(["./${variants[env.IMAGE].dockerfile}"])
-              }
-            }
-          }
-
           // Builds the product image unmodified; validation happens in 'Test Image'
           // against this tag, so the product Dockerfiles carry no test stages.
           stage('Build Image') {
@@ -230,7 +228,7 @@ pipeline {
                     sed -i 's|<testsuite name="goss|<testsuite name="goss-${env.IMAGE}|' "\$f"
                   done
                 """
-                collectTestResults(["${testResultsDir}/**/*.xml"])
+                cellTestFailures[env.IMAGE] = junit("${testResultsDir}/**/*.xml").failCount
               }
             }
           }
@@ -287,10 +285,27 @@ pipeline {
               }
             }
           }
+
+          // Reached only if no earlier stage in this cell threw.
+          stage('Cell Result') {
+            steps {
+              script {
+                cellCompleted[env.IMAGE] = true
+              }
+            }
+          }
         }
 
         post {
           always {
+            // One GitHub check per cell covering every stage, not just Test Image (CLM-48816).
+            // Computed per cell: post conditions here see the build-wide result.
+            script {
+              boolean passed = cellCompleted[env.IMAGE] && !cellTestFailures[env.IMAGE]
+              publishChecks name: "Image: ${env.IMAGE}", conclusion: passed ? 'SUCCESS' : 'FAILURE',
+                  summary: passed ? "All stages passed for the ${env.IMAGE} image." :
+                      "A stage or image check failed for the ${env.IMAGE} image. See the build's stage view."
+            }
             // Per-cell: the file lives in this cell's workspace.
             archiveArtifacts artifacts: "${testResultsDir}/readiness.log",
                 allowEmptyArchive: true, fingerprint: false
