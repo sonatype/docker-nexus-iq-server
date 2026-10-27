@@ -160,12 +160,9 @@ pipeline {
         branchNamingCheck()
         jiraIssueAndPrCheck()
         licenseCheck()
-        // One call for every Dockerfile: per-cell calls overwrote each other's result (CLM-48816).
-        // Distinct id/name so the slim job's HadoLint check doesn't collide with this one.
-        script {
-          hadolint(['./Dockerfile.test'] + variants.values().collect { "./${it.dockerfile}" },
-              id: 'hadolint-images', name: 'HadoLint (images)')
-        }
+        // Dockerfile.test is shared by every image, so it is linted once here rather than
+        // in each matrix cell, which would report one finding four times.
+        hadolint(['./Dockerfile.test'])
       }
     }
 
@@ -186,6 +183,16 @@ pipeline {
         }
 
         stages {
+          // Distinct id per cell: a shared id made each cell delete the previous cell's result (CLM-48816).
+          stage('Lint') {
+            steps {
+              script {
+                hadolint(["./${variants[env.IMAGE].dockerfile}"],
+                    id: "hadolint-${env.IMAGE}", name: "HadoLint (${env.IMAGE})")
+              }
+            }
+          }
+
           // Builds the product image unmodified; validation happens in 'Test Image'
           // against this tag, so the product Dockerfiles carry no test stages.
           stage('Build Image') {
