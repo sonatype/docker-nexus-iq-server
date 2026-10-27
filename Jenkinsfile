@@ -22,7 +22,7 @@
 // No githubStatusUpdate() for the build result on purpose: the job uses the GitHub Branch
 // Source plugin, which reports commit status itself.
 
-@Library(['private-pipeline-library', 'jenkins-shared@CLM-48816-hadolint-id-name']) _ // TEMP: revert before merge (needs sonatype/jenkins-shared#433)
+@Library(['private-pipeline-library', 'jenkins-shared']) _
 
 String deployBranch = 'main'
 
