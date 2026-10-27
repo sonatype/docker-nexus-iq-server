@@ -69,7 +69,7 @@ Map<String, Map<String, String>> variants = [
   'hardened': [
     dockerfile   : 'Dockerfile.hardened',
     gossfile     : 'goss.hardened.yaml',
-    iqApplication: 'docker-nexus-iq-server-hardened',
+    iqApplication: 'docker-nexus-iq-server-hardened-INVALID',
     smokePlatform: 'linux/arm64',
     smokeTarget  : 'downloader',
   ],
