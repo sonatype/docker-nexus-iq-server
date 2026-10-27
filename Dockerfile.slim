@@ -18,9 +18,9 @@
 FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
-ARG IQ_SERVER_VERSION=1.207.1-04
-ARG IQ_SERVER_SHA256_AARCH=13a662cec325b5eda9c1e28025ba5a1e2c95d0c621525941a7efb48543597f43
-ARG IQ_SERVER_SHA256_X86_64=7cbd65dc5dcf525c93cff4c856b81444f9285586c52ec534e95ba8feeadb0056
+ARG IQ_SERVER_VERSION=1.208.1-01
+ARG IQ_SERVER_SHA256_AARCH=491a9e040fa434bd7b215c1a1bb7612b88a6fe36c72c6dd9d68cd3e90a6237b9
+ARG IQ_SERVER_SHA256_X86_64=364a48c9a800e94239a3852b126e9dcd2a455aac52728725bbcd05639d6f2871
 ARG SONATYPE_WORK="/sonatype-work"
 
 # hadolint ignore=DL3041,DL3040
@@ -100,7 +100,7 @@ RUN ./configure \
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7
 
-ARG IQ_SERVER_VERSION=1.207.1-04
+ARG IQ_SERVER_VERSION=1.208.1-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -113,7 +113,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.207.1" \
+  release="1.208.1" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
@@ -181,6 +181,32 @@ RUN chmod 0644 ${CONFIG_HOME}/config.yml
 
 # Copy server assemblies
 COPY --chown=nexus:nexus --from=builder /tmp/work/nexus-iq-server ${IQ_HOME}
+
+# Distrust the roots behind the compromised eMudhra intermediate CAs (CLM-55187,
+# https://emudhra.we-have-a-problem.com/) in both trust stores the image ships:
+# - OS bundle (/etc/pki/tls/certs/ca-bundle.crt, used by git/libcurl for SCM clones):
+#   RHEL/UBI9 has no fixed ca-certificates yet, so blocklist the roots with p11-kit's
+#   `trust extract`. This must run before p11-kit is removed below. Drop it once RHEL
+#   ships a fixed ca-certificates.
+# - Bundled JRE (every outbound TLS call IQ Server makes): Temurin has no fix yet, so block
+#   the 16 compromised intermediates in lib/security/blocked.certs and delete their roots from
+#   lib/security/cacerts. blocked.certs alone misses a re-encoded copy of an intermediate.
+#   ${IQ_HOME} is the JRE home: the bundle's jlinked runtime sits at its root.
+# The script fails the build if either JRE change is incomplete or the OS bundle still trusts
+# a compromised root. EmudhraChainCheck then runs the bundled JRE against the advisory's chains
+# and re-encoded copies of their intermediates, and fails the build unless it rejects all of them.
+# The OS bundle is checked again after the package-removal step below.
+COPY distrust-emudhra-roots.sh /tmp/distrust-emudhra-roots.sh
+COPY emudhra/ /tmp/emudhra/
+RUN d=/etc/pki/ca-trust/source/blocklist; [ -d $d ] || d=/etc/pki/ca-trust/source/blacklist; \
+    trust extract --overwrite --format=pem-bundle \
+      --filter='pkcs11:object=Comodo%20AAA%20Services%20root;type=cert' $d/Comodo_AAA_Services_root.pem \
+&& trust extract --overwrite --format=pem-bundle \
+      --filter='pkcs11:object=emSign%20ECC%20Root%20CA%20-%20G3;type=cert' $d/emSign_ECC_Root_CA_-_G3.pem \
+&& update-ca-trust \
+&& sh /tmp/distrust-emudhra-roots.sh jre ${IQ_HOME} \
+&& sh /tmp/distrust-emudhra-roots.sh check ${IQ_HOME} /etc/pki/tls/certs/ca-bundle.crt \
+&& ${IQ_HOME}/bin/java /tmp/emudhra/EmudhraChainCheck.java /tmp/emudhra/chains /tmp/emudhra/emudhra-roots.pem
 
 # Create start script. First line is the arbitrary-UID passwd fixup — see
 # the /etc/passwd chmod above for why this is needed under openssh 10.4p1.
@@ -257,7 +283,9 @@ RUN rpm -e --nodeps gawk systemd-libs p11-kit p11-kit-trust libtasn1 \
     cracklib cracklib-dicts gzip \
 && rpm -e --nodeps util-linux util-linux-core libblkid libmount libsmartcols libuuid libfdisk \
 && ln -sf /bin/false /sbin/nologin \
-&& rpm -e --nodeps rpm rpm-libs libarchive libxml2 sqlite-libs xz-libs bzip2-libs
+&& rpm -e --nodeps rpm rpm-libs libarchive libxml2 sqlite-libs xz-libs bzip2-libs \
+&& sh /tmp/distrust-emudhra-roots.sh check ${IQ_HOME} /etc/pki/tls/certs/ca-bundle.crt \
+&& rm -rf /tmp/distrust-emudhra-roots.sh /tmp/emudhra
 
 # This is where we will store persistent data
 VOLUME ${SONATYPE_WORK}
