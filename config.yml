@@ -41,4 +41,4 @@ logging:
     logFormat: "%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} %level [%thread] %X{username} %logger
       - %msg%n"
     archivedFileCount: 5
-createSampleData: true
+createSampleData: false
