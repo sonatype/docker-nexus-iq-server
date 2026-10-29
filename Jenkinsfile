@@ -180,10 +180,12 @@ pipeline {
         }
 
         stages {
+          // Distinct id per cell: a shared id made each cell delete the previous cell's result (CLM-48816).
           stage('Lint') {
             steps {
               script {
-                hadolint(["./${variants[env.IMAGE].dockerfile}"])
+                hadolint(["./${variants[env.IMAGE].dockerfile}"],
+                    id: "hadolint-${env.IMAGE}", name: "HadoLint (${env.IMAGE})")
               }
             }
           }

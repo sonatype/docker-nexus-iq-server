@@ -35,12 +35,9 @@ configureBranchJob()
 dockerizedBuildPipeline(
   deployBranch: deployBranch,
   deployCondition: { return true }, // always run the deploy stage
-  prepare: {
-    githubStatusUpdate('pending')
-  },
   pathToDockerfile: "./Dockerfile.slim",
   lint: {
-    hadolint(['./Dockerfile.slim'])
+    hadolint(['./Dockerfile.slim'], id: 'hadolint-slim', name: 'HadoLint (slim)')
   },
   buildAndTest: {
     def expectations = load 'expectations.groovy'
