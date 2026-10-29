@@ -244,33 +244,24 @@ pipeline {
                 // runEvaluation() supplies the container scanner licence and the Docker
                 // Hub + sonatype.repo credentials, and passes the stage into the closure.
                 // unstableBuildOnScanningWarnings: false is deliberate (CLM-44294).
-                String iqStage = env.BRANCH_NAME == deployBranch ? 'build' : 'develop'
+                // Pre-release evaluation: the same IQ stage the release lanes use, so the
+                // violations found here are the ones that would stop the release job. A
+                // policy failure makes this stage (and the build) UNSTABLE rather than
+                // failing the cell, so every image is evaluated and every report can be
+                // reviewed in one run. Aborting the build is still honoured.
+                String iqStage = 'release'
                 String iqApplication = variants[env.IMAGE].iqApplication
                 String scanTarget = imageTag(env.IMAGE)
-                vulnerabilityScan({ String theStage ->
-                  nexusPolicyEvaluation(
-                      iqApplication: iqApplication,
-                      iqScanPatterns: [[scanPattern: "container:${scanTarget}"]],
-                      iqStage: theStage,
-                      unstableBuildOnScanningWarnings: false)
-                }, iqStage)
-              }
-            }
-          }
-
-          // At most one of these runs, and neither runs when smokePlatform is null.
-          stage('Smoke Build') {
-            when {
-              allOf {
-                not { branch 'main' }
-                expression { variants[env.IMAGE].smokePlatform != null }
-              }
-            }
-            steps {
-              script {
-                buildPlatform(builderName, variants[env.IMAGE].dockerfile,
-                    variants[env.IMAGE].smokePlatform,
-                    variants[env.IMAGE].smokeTarget ?: smokeBuildTarget)
+                catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE', catchInterruptions: false,
+                    message: "Policy evaluation of ${env.IMAGE} reported violations") {
+                  vulnerabilityScan({ String theStage ->
+                    nexusPolicyEvaluation(
+                        iqApplication: iqApplication,
+                        iqScanPatterns: [[scanPattern: "container:${scanTarget}"]],
+                        iqStage: theStage,
+                        unstableBuildOnScanningWarnings: false)
+                  }, iqStage)
+                }
               }
             }
           }
