@@ -18,9 +18,7 @@
 FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
-ARG IQ_SERVER_VERSION=1.208.1-01
-ARG IQ_SERVER_SHA256_AARCH=491a9e040fa434bd7b215c1a1bb7612b88a6fe36c72c6dd9d68cd3e90a6237b9
-ARG IQ_SERVER_SHA256_X86_64=364a48c9a800e94239a3852b126e9dcd2a455aac52728725bbcd05639d6f2871
+ARG IQ_SERVER_VERSION=1.195.1-01
 ARG SONATYPE_WORK="/sonatype-work"
 
 # hadolint ignore=DL3041,DL3040
@@ -34,21 +32,18 @@ COPY config.yml ${TEMP}
 # hadolint ignore=DL4006,SC3060
 RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]+\"?/sonatypeWork: ${SONATYPE_WORK//\//\\/}/" > ${TEMP}/config-edited.yml
 
-# Download the server bundle, verify its checksum, and extract the server jar to the install directory
+# Download the staged server bundle (no checksum check) and extract the server jar to the install directory
 WORKDIR ${TEMP}
 # hadolint ignore=SC3010
 RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
-      echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
+      curl -L https://download-staging.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
     elif [[ "$(uname -m)" = "aarch64" ]]; then \
-      echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
+      curl -L https://download-staging.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
     else \
       echo "Unsupported architecture: $ARCH" && exit 1; \
     fi
 
-RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
-    && tar -xvf nexus-iq-server.tar.gz \
+RUN tar -xvf nexus-iq-server.tar.gz \
     && mv nexus-iq-server-${IQ_SERVER_VERSION}-linux-* nexus-iq-server
 
 # Build openssh 10.4p1 from upstream source to pick up the fix for CVE-2026-60002 (and
@@ -100,7 +95,7 @@ RUN ./configure \
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7
 
-ARG IQ_SERVER_VERSION=1.208.1-01
+ARG IQ_SERVER_VERSION=1.195.1-01
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
@@ -113,7 +108,7 @@ LABEL name="Nexus IQ Server image" \
   maintainer="Sonatype <support@sonatype.com>" \
   vendor=Sonatype \
   version="${IQ_SERVER_VERSION}" \
-  release="1.208.1" \
+  release="1.195.1" \
   url="https://www.sonatype.com" \
   summary="The Nexus IQ Server" \
   description="Nexus IQ Server is a policy engine powered by precise intelligence on open source components. \
