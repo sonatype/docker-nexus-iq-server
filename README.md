@@ -28,6 +28,7 @@ A Dockerfile for Sonatype Nexus IQ Server, based on [Red Hat Universal Base Imag
   * [Customizing the Default Built config.yml](#customizing-the-default-built-configyml)
 * [Extending the Nexus IQ Server Image](#extending-the-nexus-iq-server-image)
 * [Testing the Dockerfile](#testing-the-dockerfile)
+* [Hardened Image](#hardened-image)
 * [Red Hat Certified Image](#red-hat-certified-image)
 * [Project License](#project-license)
 
@@ -229,6 +230,12 @@ The default Dockerfile includes:
 
 If you want an image without the extra tooling already installed, use the slim tag of the image:
 `sonatype/nexus-iq-server:<version>-slim`, which can also be `sonatype/nexus-iq-server:latest-slim`.
+
+## Hardened Image
+
+The `sonatype/nexus-iq-server:<version>-hardened` and `sonatype/nexus-iq-server:latest-hardened` tags are based on
+Red Hat Hardened Images. They are built and published from Sonatype's internal IQ Server build, so their Dockerfile
+is not in this repository.
 
 ## Red Hat Certified Image
 
