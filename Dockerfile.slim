@@ -18,9 +18,9 @@
 FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
-ARG IQ_SERVER_VERSION=1.209.0-01
-ARG IQ_SERVER_SHA256_AARCH=31edff8d4c5992ceda8ae6b2d879e4f3e14e6c8ad185e3408d31e13345c6fa29
-ARG IQ_SERVER_SHA256_X86_64=be590d50d5734a85a8ca37a5ac170fbc9ee115c2ac70527d6562d6386a14541e
+ARG IQ_SERVER_VERSION=1.209.0-04
+ARG IQ_SERVER_SHA256_AARCH=e1a92ace6fee518dd4c4cf1b054e7eee77fe3d370f3b6ca1b7478921520ed764
+ARG IQ_SERVER_SHA256_X86_64=80885ed7253393e11b30c8adf201fc71fe5277701aa5e1874953e91e00dcfcf8
 ARG SONATYPE_WORK="/sonatype-work"
 
 # hadolint ignore=DL3041,DL3040
@@ -100,7 +100,7 @@ RUN ./configure \
 # hadolint ignore=DL3026
 FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7
 
-ARG IQ_SERVER_VERSION=1.209.0-01
+ARG IQ_SERVER_VERSION=1.209.0-04
 ARG IQ_HOME="/opt/sonatype/nexus-iq-server"
 ARG SONATYPE_WORK="/sonatype-work"
 ARG CONFIG_HOME="/etc/nexus-iq-server"
