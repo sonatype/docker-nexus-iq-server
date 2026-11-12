@@ -107,8 +107,11 @@ void commitAndPushChanges(String version, boolean skipMarkAsLatest) {
     runSafely 'git add .'
     runSafely "git diff --exit-code --cached || git commit -m 'Update IQ Server to ${version}.'"
 
-    // pull and merge any new commits on main so that the push doesn't fail
-    runSafely 'git pull --no-rebase --no-edit origin main'
-    runSafely 'git push origin HEAD:main'
+    // Pull and merge any new commits on main, then push. Retried because another release line or
+    // the daily build can push to main between the pull and the push.
+    retry(3) {
+      runSafely 'git pull --no-rebase --no-edit origin main'
+      runSafely 'git push origin HEAD:main'
+    }
   }
 }
