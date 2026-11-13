@@ -64,9 +64,10 @@ file:
   /usr/bin/git:
     title: alpine-git-present
     exists: true
+  # Not installed: IQ Server never runs rsync.
   /usr/bin/rsync:
-    title: alpine-rsync-present
-    exists: true
+    title: alpine-rsync-absent
+    exists: false
 
   # apk is the package manager here and stays; these just pin that no RPM stack appears.
   /usr/bin/rpm:
