@@ -19,6 +19,9 @@ FROM sonatype.repo.sonatype.app/docker-all/ubi9/ubi-minimal:9.6@sha256:34880b64c
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.209.1-01
+# Where the server bundle is downloaded from. The release candidate validation builds from
+# https://download-staging.sonatype.com/clm/server before the bundle is released.
+ARG IQ_SERVER_DOWNLOAD_URL=https://download.sonatype.com/clm/server
 ARG IQ_SERVER_SHA256_AARCH=2ec31a9aff9b49b7678471202847af59672f3b81b4dac1502ceea132023927cc
 ARG IQ_SERVER_SHA256_X86_64=a4210e0f76c5a93ea5fe9056a32a7158e2c11440b79596ef5af8e470efe5d507
 ARG SONATYPE_WORK="/sonatype-work"
@@ -39,10 +42,10 @@ WORKDIR ${TEMP}
 # hadolint ignore=SC3010
 RUN if [[ "$(uname -m)" = "x86_64" ]]; then \
       echo "${IQ_SERVER_SHA256_X86_64} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
+      curl -L ${IQ_SERVER_DOWNLOAD_URL}/nexus-iq-server-${IQ_SERVER_VERSION}-linux-x86_64.tgz --output nexus-iq-server.tar.gz; \
     elif [[ "$(uname -m)" = "aarch64" ]]; then \
       echo "${IQ_SERVER_SHA256_AARCH} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256; \
-      curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
+      curl -L ${IQ_SERVER_DOWNLOAD_URL}/nexus-iq-server-${IQ_SERVER_VERSION}-linux-aarch_64.tgz --output nexus-iq-server.tar.gz; \
     else \
       echo "Unsupported architecture: $ARCH" && exit 1; \
     fi
