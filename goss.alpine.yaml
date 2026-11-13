@@ -64,7 +64,7 @@ file:
   /usr/bin/git:
     title: alpine-git-present
     exists: true
-  # Not installed: IQ Server never runs rsync.
+  # Not installed: IQ Server never runs rsync. The package check below catches it wherever it installs.
   /usr/bin/rsync:
     title: alpine-rsync-absent
     exists: false
@@ -76,3 +76,8 @@ file:
   /usr/bin/microdnf:
     title: microdnf-absent
     exists: false
+
+package:
+  rsync:
+    title: alpine-rsync-package-absent
+    installed: false
