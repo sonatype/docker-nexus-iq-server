@@ -27,8 +27,14 @@ REF="${OCI_REGISTRY:-docker.io}/${REPO}"
 TAGS="$@"
 DOCKERFILE=${DOCKERFILE:-Dockerfile}
 
-ARM64_TAG="arm64-latest"
-AMD64_TAG="amd64-latest"
+# Each architecture is pushed to a temporary tag, the release manifest is made from the two, and the temporary tags
+# are deleted at the end. The slim and standard release jobs both push to sonatype/nexus-iq-server, so the temporary
+# tags are named after the Jenkins build (BUILD_TAG, e.g. jenkins-insight-insight-brain-docker-slim-image-release-159):
+# with shared names, two jobs running at once could put one's image in the other's manifest, or delete a tag the
+# other still needs. Docker tags allow only [A-Za-z0-9_.-], up to 128 characters.
+TMP_TAG_SUFFIX="$(printf '%s' "${BUILD_TAG:-local-$$}" | tr -c 'A-Za-z0-9_.-' '-' | cut -c1-100)"
+ARM64_TAG="arm64-${TMP_TAG_SUFFIX}"
+AMD64_TAG="amd64-${TMP_TAG_SUFFIX}"
 
 echo "Building images"
 docker buildx build --progress=plain --platform=linux/arm64 -f ${DOCKERFILE} --push --provenance=false --tag "${REF}:${ARM64_TAG}" .
