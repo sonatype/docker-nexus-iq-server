@@ -133,3 +133,21 @@ command:
     exit-status: 0
     stdout:
       - "java.util.prefs.userRoot"
+
+  # CLM-61502: the bundle launcher must start the JVM with the Base64 intrinsic turned off (the
+  # Java4Shell mitigation). Lines before 1.203 pass -XX:-UseBASE64Intrinsics on the java command
+  # line; 1.203 and later pass @.../jvm.options, so @argfiles on the command line are read too.
+  # The java process check above shows the JVM accepted the flag.
+  base64-intrinsic-disabled:
+    title: java-base64-intrinsic-disabled
+    exec: |
+      for f in /proc/[0-9]*/cmdline; do
+        args=$(tr '\000' '\n' < "$f" 2>/dev/null) || continue
+        case "$args" in */bin/java*) ;; *) continue ;; esac
+        printf '%s\n' "$args"
+        for a in $args; do case "$a" in @*) cat "${a#@}" 2>/dev/null ;; esac; done
+      done
+      true
+    exit-status: 0
+    stdout:
+      - "-XX:-UseBASE64Intrinsics"
