@@ -29,7 +29,7 @@ properties([
         defaultValue: 'insight/insight-brain/aggregate-release',
         description: 'Job path to read artifacts from'),
     booleanParam(name: 'skipMarkAsLatest', defaultValue: false,
-        description: 'Skip committing the Dockerfile.rh ARG default bump back to main (use for patch/hotfix releases of older versions)')
+        description: 'Skip committing the Dockerfile.rh ARG default bump back to main and skip pushing the :latest tag to quay.io (use for patch/hotfix releases of older versions)')
   ]),
 ])
 
@@ -75,7 +75,7 @@ node('ubuntu-zion') {
             variable: 'API_TOKEN')
       ]) {
         withSonatypeDockerRegistry() {
-          sh 'PATH="$PATH:." VERSION=$IQ_SERVER_VERSION CHECKSUM=$IQ_SERVER_CHECKSUM RELEASE=$IQ_RELEASE TAG=$tag ./build_and_push_rh_image.sh'
+          sh 'PATH="$PATH:." SKIP_LATEST=$skipMarkAsLatest VERSION=$IQ_SERVER_VERSION CHECKSUM=$IQ_SERVER_CHECKSUM RELEASE=$IQ_RELEASE TAG=$tag ./build_and_push_rh_image.sh'
         }
       }
     }
