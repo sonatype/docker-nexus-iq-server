@@ -24,6 +24,8 @@
 #   * REGISTRY_LOGIN from Red Hat config page for image
 #   * REGISTRY_PASSWORD from Red Hat config page for image
 #   * API_TOKEN from red hat token/account page for API access
+#   * SKIP_LATEST (optional) set to "true" to push only the versioned tag and leave :latest alone,
+#     for patch/hotfix releases of older versions
 
 set -x # log commands as they execute
 set -e # stop execution on the first failed command
@@ -40,14 +42,18 @@ IMAGE_LATEST="${REPOSITORY}/redhat-isv-containers/${CERT_PROJECT_ID}:latest"
 AUTHFILE="${HOME}/.docker/config.json"
 
 docker build -f "${DOCKERFILE}" --build-arg IQ_SERVER_VERSION="${VERSION}" --build-arg IQ_SERVER_SHA256="${CHECKSUM}" --build-arg IQ_RELEASE="${RELEASE}" -t "${IMAGE_TAG}" .
-docker tag "${IMAGE_TAG}" "${IMAGE_LATEST}"
+if [ "${SKIP_LATEST:-false}" != "true" ]; then
+  docker tag "${IMAGE_TAG}" "${IMAGE_LATEST}"
+fi
 
 docker login "${REPOSITORY}" \
        -u "${REGISTRY_LOGIN}" \
        --password "${REGISTRY_PASSWORD}"
 
 docker push "${IMAGE_TAG}"
-docker push "${IMAGE_LATEST}"
+if [ "${SKIP_LATEST:-false}" != "true" ]; then
+  docker push "${IMAGE_LATEST}"
+fi
 
 preflight check container \
           "${IMAGE_TAG}" \
