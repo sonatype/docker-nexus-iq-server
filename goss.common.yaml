@@ -133,3 +133,14 @@ command:
     exit-status: 0
     stdout:
       - "java.util.prefs.userRoot"
+
+  # CLM-61229: the image must bundle Temurin 25.0.5.1, the fixed build for the Java security updates of
+  # 2026-11-17 (CVE-2026-114938). It replaces the -XX:-UseBASE64Intrinsics mitigation of the previous patch,
+  # so the flag is no longer expected on the command line. `java -version` prints to stderr.
+  bundled-jre-version:
+    title: bundled-jre-temurin-25.0.5.1
+    exec: /opt/sonatype/nexus-iq-server/bin/java -version
+    exit-status: 0
+    stderr:
+      - '/version "25\.0\.5\.1"/'
+      - "Temurin-25.0.5.1"
