@@ -194,6 +194,7 @@ To build a docker image from the Dockerfile you can use this command:
 The following optional variables can be used when building the image:
 
 - IQ_SERVER_VERSION: Version of Nexus IQ Server
+- IQ_SERVER_DOWNLOAD_URL: Base URL the IQ Server archive is downloaded from, without a trailing slash (default `https://download.sonatype.com/clm/server`). An archive from another location needs the matching `IQ_SERVER_SHA256`.
 - IQ_SERVER_SHA256: Check hash matches the downloaded IQ Server archive or else fail build. Required if `IQ_SERVER_VERSION` is provided.
 - SONATYPE_WORK: Path to Nexus IQ Server working directory where variable data is stored
 - LOGS_HOME: Path to Nexus IQ Server directory where logs are stored

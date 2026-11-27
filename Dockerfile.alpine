@@ -19,6 +19,9 @@ FROM sonatype.repo.sonatype.app/docker-all/alpine:3 AS builder
 ARG TEMP="/tmp/work"
 # Build parameters
 ARG IQ_SERVER_VERSION=1.209.4-03
+# Where the server bundle is downloaded from. The release candidate validation builds from
+# https://download-staging.sonatype.com/clm/server before the bundle is released.
+ARG IQ_SERVER_DOWNLOAD_URL=https://download.sonatype.com/clm/server
 ARG IQ_SERVER_SHA256=2d741589fdc42245ca77691dde467b354f2cf78ec5261f504093bb7e176b83c1
 ARG SONATYPE_WORK="/sonatype-work"
 
@@ -37,7 +40,7 @@ RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]
 WORKDIR ${TEMP}
 
 RUN echo "${IQ_SERVER_SHA256} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256 && \
- curl -L https://download.sonatype.com/clm/server/nexus-iq-server-${IQ_SERVER_VERSION}-linux_musl-x86_64.tgz --output nexus-iq-server.tar.gz
+ curl -fL --retry 5 --retry-delay 10 --retry-all-errors "${IQ_SERVER_DOWNLOAD_URL}/nexus-iq-server-${IQ_SERVER_VERSION}-linux_musl-x86_64.tgz" --output nexus-iq-server.tar.gz
 
 RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && tar -xvf nexus-iq-server.tar.gz \
