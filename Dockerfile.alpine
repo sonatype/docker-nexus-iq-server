@@ -40,7 +40,7 @@ RUN cat ${TEMP}/config.yml | sed -r "s/\s*sonatypeWork\s*:\s*\"?[-0-9a-zA-Z_/\\]
 WORKDIR ${TEMP}
 
 RUN echo "${IQ_SERVER_SHA256} nexus-iq-server.tar.gz" > nexus-iq-server.tar.gz.sha256 && \
- curl -fL --retry 5 --retry-delay 10 --retry-all-errors ${IQ_SERVER_DOWNLOAD_URL}/nexus-iq-server-${IQ_SERVER_VERSION}-linux_musl-x86_64.tgz --output nexus-iq-server.tar.gz
+ curl -fL --retry 5 --retry-delay 10 --retry-all-errors "${IQ_SERVER_DOWNLOAD_URL}/nexus-iq-server-${IQ_SERVER_VERSION}-linux_musl-x86_64.tgz" --output nexus-iq-server.tar.gz
 
 RUN sha256sum -c nexus-iq-server.tar.gz.sha256 \
     && tar -xvf nexus-iq-server.tar.gz \
